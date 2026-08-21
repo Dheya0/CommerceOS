@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import {
   CartItem,
   Category,
@@ -21,6 +21,7 @@ import {
   INITIAL_STAFF,
   INITIAL_TENANTS
 } from '../data/initialData';
+import { api } from '../api/client';
 
 export type AppView = 'storefront' | 'merchant_dashboard' | 'builder_wizard' | 'platform_admin' | 'live_customizer';
 export type PreviewDevice = 'desktop' | 'tablet' | 'mobile';
@@ -72,6 +73,10 @@ interface CommerceContextType {
   productModal: Product | null;
   setProductModal: (product: Product | null) => void;
 
+  // Server state sync
+  isServerSyncing: boolean;
+  refreshFromBackend: () => Promise<void>;
+
   // Actions
   createTenant: (newTenant: TenantStore, initialProducts?: Product[], initialCategories?: Category[]) => void;
   updateTenant: (tenantId: string, updates: Partial<TenantStore>) => void;
@@ -82,7 +87,7 @@ interface CommerceContextType {
   updateProduct: (productId: string, updates: Partial<Product>) => void;
   deleteProduct: (productId: string) => void;
 
-  addOrder: (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'timeline'>) => Order;
+  addOrder: (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'timeline'>) => Promise<Order>;
   updateOrderStatus: (orderId: string, status: Order['status'], note?: string) => void;
 
   addCustomer: (customer: Omit<Customer, 'id'>) => void;
@@ -108,8 +113,9 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [language, setLanguage] = useState<'ar' | 'en'>('ar');
   const [activeTenantId, setActiveTenantId] = useState<string>('tenant-royal-honey');
   const [currentStaffRole, setCurrentStaffRole] = useState<StaffRole>('store_owner');
+  const [isServerSyncing, setIsServerSyncing] = useState<boolean>(false);
 
-  // Persistence with localStorage fallback
+  // Initialize with initial data & local storage fallback
   const [tenants, setTenants] = useState<TenantStore[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_tenants');
@@ -181,6 +187,54 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Toasts
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
+
+  // Sync API Client with active tenant and role
+  useEffect(() => {
+    api.setTenant(activeTenantId);
+    api.setRole(currentStaffRole);
+  }, [activeTenantId, currentStaffRole]);
+
+  // Load from backend on start
+  const refreshFromBackend = useCallback(async () => {
+    try {
+      setIsServerSyncing(true);
+      const [tenantsRes, prodsRes, catsRes, ordsRes, cpnRes, stfRes] = await Promise.allSettled([
+        api.getTenants(),
+        api.getProducts(),
+        api.getCategories(),
+        api.getOrders(),
+        api.getCoupons(),
+        api.getStaff()
+      ]);
+
+      if (tenantsRes.status === 'fulfilled' && tenantsRes.value.tenants.length > 0) {
+        setTenants(tenantsRes.value.tenants);
+      }
+      if (prodsRes.status === 'fulfilled' && prodsRes.value.products.length > 0) {
+        setProducts(prodsRes.value.products);
+      }
+      if (catsRes.status === 'fulfilled' && catsRes.value.categories.length > 0) {
+        setCategories(catsRes.value.categories);
+      }
+      if (ordsRes.status === 'fulfilled') {
+        setOrders(ordsRes.value.orders);
+      }
+      if (cpnRes.status === 'fulfilled') {
+        setCoupons(cpnRes.value.coupons);
+      }
+      if (stfRes.status === 'fulfilled') {
+        setStaff(stfRes.value.staff);
+      }
+    } catch (e) {
+      console.warn('Backend sync deferred to local cache:', e);
+    } finally {
+      setIsServerSyncing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshFromBackend();
+  }, [refreshFromBackend]);
 
   // Sync to localStorage
   useEffect(() => {
@@ -293,7 +347,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const clearCart = () => setCart([]);
 
   // Tenant Operations
-  const createTenant = (newTenant: TenantStore, newProducts?: Product[], newCategories?: Category[]) => {
+  const createTenant = async (newTenant: TenantStore, newProducts?: Product[], newCategories?: Category[]) => {
     setTenants(prev => [newTenant, ...prev]);
     if (newProducts && newProducts.length > 0) {
       setProducts(prev => [...newProducts, ...prev]);
@@ -303,54 +357,107 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
     setActiveTenantId(newTenant.id);
     showToast(`تم تدشين متجر "${newTenant.name}" بنجاح!`, 'success');
+
+    // Sync with backend
+    try {
+      await api.createTenant(newTenant);
+      if (newProducts) {
+        for (const p of newProducts) {
+          await api.createProduct(p);
+        }
+      }
+      if (newCategories) {
+        for (const c of newCategories) {
+          await api.createCategory(c);
+        }
+      }
+    } catch (err) {
+      console.warn('Backend sync for createTenant:', err);
+    }
   };
 
-  const updateTenant = (tenantId: string, updates: Partial<TenantStore>) => {
+  const updateTenant = async (tenantId: string, updates: Partial<TenantStore>) => {
     setTenants(prev => prev.map(t => (t.id === tenantId ? { ...t, ...updates } : t)));
     showToast('تم حفظ إعدادات المتجر بنجاح', 'success');
+
+    try {
+      await api.updateTenant(tenantId, updates);
+    } catch (err) {
+      console.warn('Backend sync for updateTenant:', err);
+    }
   };
 
-  const deleteTenant = (tenantId: string) => {
+  const deleteTenant = async (tenantId: string) => {
     setTenants(prev => prev.filter(t => t.id !== tenantId));
     if (activeTenantId === tenantId) {
       const remaining = tenants.filter(t => t.id !== tenantId);
       if (remaining.length > 0) setActiveTenantId(remaining[0].id);
     }
     showToast('تم حذف المتجر', 'info');
+
+    try {
+      await api.deleteTenant(tenantId);
+    } catch (err) {
+      console.warn('Backend sync for deleteTenant:', err);
+    }
   };
 
-  const updateTheme = (tenantId: string, theme: StoreTheme) => {
+  const updateTheme = async (tenantId: string, theme: StoreTheme) => {
     setTenants(prev => prev.map(t => (t.id === tenantId ? { ...t, theme } : t)));
     showToast('تم تحديث هوية وتصميم المتجر مباشرة', 'success');
+
+    try {
+      await api.updateTenantTheme(tenantId, theme);
+    } catch (err) {
+      console.warn('Backend sync for updateTheme:', err);
+    }
   };
 
   // Product Operations
-  const addProduct = (prodData: Omit<Product, 'id'>) => {
+  const addProduct = async (prodData: Omit<Product, 'id'>) => {
     const id = `prod-${Date.now()}`;
     const newProduct: Product = { ...prodData, id };
     setProducts(prev => [newProduct, ...prev]);
     showToast(`تمت إضافة منتج "${prodData.name}" بنجاح`, 'success');
+
+    try {
+      await api.createProduct(newProduct);
+    } catch (err) {
+      console.warn('Backend sync for addProduct:', err);
+    }
   };
 
-  const updateProduct = (productId: string, updates: Partial<Product>) => {
+  const updateProduct = async (productId: string, updates: Partial<Product>) => {
     setProducts(prev => prev.map(p => (p.id === productId ? { ...p, ...updates } : p)));
     showToast('تم تحديث بيانات المنتج', 'success');
+
+    try {
+      await api.updateProduct(productId, updates);
+    } catch (err) {
+      console.warn('Backend sync for updateProduct:', err);
+    }
   };
 
-  const deleteProduct = (productId: string) => {
+  const deleteProduct = async (productId: string) => {
     setProducts(prev => prev.filter(p => p.id !== productId));
     showToast('تم حذف المنتج', 'info');
+
+    try {
+      await api.deleteProduct(productId);
+    } catch (err) {
+      console.warn('Backend sync for deleteProduct:', err);
+    }
   };
 
-  // Orders Operations
-  const addOrder = (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'timeline'>): Order => {
+  // Orders Operations with Atomic Server Reservation
+  const addOrder = async (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'timeline'>): Promise<Order> => {
     const id = `ord-${Date.now()}`;
     const num = Math.floor(1000 + Math.random() * 9000);
     const slugPrefix = (activeTenant?.slug || 'ST').substring(0, 2).toUpperCase();
     const orderNumber = `#${slugPrefix}-${num}`;
     const now = new Date().toISOString();
 
-    const newOrder: Order = {
+    const fallbackOrder: Order = {
       ...orderData,
       id,
       orderNumber,
@@ -360,12 +467,32 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       ]
     };
 
-    setOrders(prev => [newOrder, ...prev]);
+    try {
+      const res = await api.createOrder(orderData);
+      if (res.success && res.order) {
+        setOrders(prev => [res.order, ...prev]);
+        // Also adjust local product stock to match atomic server inventory
+        setProducts(prev => prev.map(p => {
+          const item = orderData.items.find(i => i.productId === p.id);
+          if (item) {
+            const newStock = Math.max(0, p.stock - item.quantity);
+            return { ...p, stock: newStock, inStock: newStock > 0 };
+          }
+          return p;
+        }));
+        clearCart();
+        return res.order;
+      }
+    } catch (err) {
+      console.warn('Backend order call failed, proceeding with optimistic order:', err);
+    }
+
+    setOrders(prev => [fallbackOrder, ...prev]);
     clearCart();
-    return newOrder;
+    return fallbackOrder;
   };
 
-  const updateOrderStatus = (orderId: string, status: Order['status'], note?: string) => {
+  const updateOrderStatus = async (orderId: string, status: Order['status'], note?: string) => {
     setOrders(prev => prev.map(ord => {
       if (ord.id === orderId) {
         const now = new Date().toISOString();
@@ -379,6 +506,12 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return ord;
     }));
     showToast(`تم تحديث حالة الطلب إلى ${status}`, 'success');
+
+    try {
+      await api.updateOrderStatus(orderId, status, note);
+    } catch (err) {
+      console.warn('Backend sync for updateOrderStatus:', err);
+    }
   };
 
   const addCustomer = (custData: Omit<Customer, 'id'>) => {
@@ -387,10 +520,17 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     showToast('تمت إضافة العميل', 'success');
   };
 
-  const addCoupon = (couponData: Omit<Coupon, 'id'>) => {
+  const addCoupon = async (couponData: Omit<Coupon, 'id'>) => {
     const id = `coup-${Date.now()}`;
-    setCoupons(prev => [{ ...couponData, id }, ...prev]);
+    const newCoupon: Coupon = { ...couponData, id };
+    setCoupons(prev => [newCoupon, ...prev]);
     showToast(`تم إنشاء الكوبون "${couponData.code}" بنجاح`, 'success');
+
+    try {
+      await api.createCoupon(newCoupon);
+    } catch (err) {
+      console.warn('Backend sync for addCoupon:', err);
+    }
   };
 
   const deleteCoupon = (couponId: string) => {
@@ -398,7 +538,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     showToast('تم حذف الكوبون', 'info');
   };
 
-  const addStaff = (staffData: Omit<StaffMember, 'id' | 'createdAt'>) => {
+  const addStaff = async (staffData: Omit<StaffMember, 'id' | 'createdAt'>) => {
     const id = `staff-${Date.now()}`;
     const newMember: StaffMember = {
       ...staffData,
@@ -407,16 +547,34 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
     setStaff(prev => [newMember, ...prev]);
     showToast(`تم إرسال دعوة الانضمام إلى ${staffData.email}`, 'success');
+
+    try {
+      await api.createStaff(newMember);
+    } catch (err) {
+      console.warn('Backend sync for addStaff:', err);
+    }
   };
 
-  const updateStaff = (staffId: string, updates: Partial<StaffMember>) => {
+  const updateStaff = async (staffId: string, updates: Partial<StaffMember>) => {
     setStaff(prev => prev.map(s => (s.id === staffId ? { ...s, ...updates } : s)));
     showToast('تم تحديث صلاحيات الموظف', 'success');
+
+    try {
+      await api.updateStaff(staffId, updates);
+    } catch (err) {
+      console.warn('Backend sync for updateStaff:', err);
+    }
   };
 
-  const deleteStaff = (staffId: string) => {
+  const deleteStaff = async (staffId: string) => {
     setStaff(prev => prev.filter(s => s.id !== staffId));
     showToast('تم حذف حساب الموظف', 'info');
+
+    try {
+      await api.deleteStaff(staffId);
+    } catch (err) {
+      console.warn('Backend sync for deleteStaff:', err);
+    }
   };
 
   // Filtered lists for active tenant
@@ -460,6 +618,8 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setCheckoutOpen,
         productModal,
         setProductModal,
+        isServerSyncing,
+        refreshFromBackend,
         createTenant,
         updateTenant,
         deleteTenant,
@@ -492,3 +652,4 @@ export const useCommerce = () => {
   }
   return context;
 };
+

@@ -16,7 +16,9 @@ import {
   Building2, 
   Check, 
   ExternalLink,
-  Crown
+  Crown,
+  Server,
+  RefreshCw
 } from 'lucide-react';
 import { useCommerce, AppView } from '../../context/CommerceContext';
 import { StaffRole } from '../../types';
@@ -35,7 +37,9 @@ export const PlatformHeader: React.FC = () => {
     currentStaffRole,
     setCurrentStaffRole,
     cart,
-    setCartOpen
+    setCartOpen,
+    isServerSyncing,
+    refreshFromBackend
   } = useCommerce();
 
   const [tenantDropdownOpen, setTenantDropdownOpen] = useState(false);
@@ -260,6 +264,22 @@ export const PlatformHeader: React.FC = () => {
                 )}
               </div>
             )}
+
+            {/* Server Sync / Status Indicator */}
+            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs font-mono">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-[11px] font-sans font-medium text-emerald-400">Core API</span>
+              <button 
+                onClick={() => refreshFromBackend()}
+                title="تحديث فوري من الخادم"
+                className="hover:text-white transition-colors p-0.5 rounded"
+              >
+                <RefreshCw className={`w-3 h-3 ${isServerSyncing ? 'animate-spin text-amber-400' : 'text-emerald-400/80'}`} />
+              </button>
+            </div>
 
             {/* Language Switcher */}
             <button
