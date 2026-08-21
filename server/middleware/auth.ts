@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { StaffRole, StaffPermissions } from '../../src/types';
+import { verifyAuthToken, signAuthToken, TokenPayload } from '../utils/security';
 import { db } from '../db';
 
 export interface AuthenticatedUser {
@@ -100,62 +101,82 @@ export const ROLE_PERMISSIONS: Record<StaffRole, StaffPermissions> = {
 };
 
 /**
- * Authentication Middleware:
- * Inspects `Authorization: Bearer <token>` or `x-staff-role` & `x-user-id` headers
+ * Hardened Authentication Middleware:
+ * Inspects cryptographic Bearer Token.
+ * Rejects unsigned spoofed roles or manipulated tenant headers.
  */
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  const staffRoleHeader = (req.headers['x-staff-role'] as StaffRole) || 'store_owner';
-  const tenantId = req.tenantId || 'tenant-royal-honey';
 
-  // Support token format: "Bearer role:store_owner:user-123" or standard role
-  let role: StaffRole = 'store_owner';
-  let userId = 'user-owner-1';
-  let userName = 'مالك المتجر';
-  let userEmail = 'owner@commerceos.app';
-
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    if (token.startsWith('role:')) {
-      const parts = token.split(':');
-      if (parts[1] && ROLE_PERMISSIONS[parts[1] as StaffRole]) {
-        role = parts[1] as StaffRole;
-      }
-      if (parts[2]) {
-        userId = parts[2];
-      }
-    }
-  } else if (staffRoleHeader && ROLE_PERMISSIONS[staffRoleHeader]) {
-    role = staffRoleHeader;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Unauthenticated request (guest / storefront)
+    return next();
   }
 
-  // Look up matching staff in database if available
-  const staffList = db.getStaff(tenantId);
-  const matched = staffList.find(s => s.role === role || s.id === userId);
-  if (matched) {
-    userName = matched.name;
-    userEmail = matched.email;
+  const token = authHeader.substring(7).trim();
+  const verification = verifyAuthToken(token);
+
+  if (!verification.valid || !verification.payload) {
+    return res.status(401).json({
+      error: 'InvalidToken',
+      message: 'رمز التحقق غير صالح أو انتهت صلاحية الجلسة',
+      details: verification.error
+    });
   }
 
+  const payload = verification.payload;
+
+  // Verify tenant and staff in DB
+  const staff = db.getStaff(payload.tenantId).find(s => s.id === payload.userId);
+  const tenant = db.getTenantByIdOrSlug(payload.tenantId);
+
+  if (!tenant) {
+    return res.status(401).json({
+      error: 'TenantNotFound',
+      message: 'المتجر المرتبط بهذه الجلسة غير موجود أو تم حذفه'
+    });
+  }
+
+  // Populate authenticated user
   req.user = {
-    id: userId,
-    email: userEmail,
-    name: userName,
-    role,
-    tenantId,
-    permissions: ROLE_PERMISSIONS[role]
+    id: payload.userId,
+    email: payload.email,
+    name: payload.name,
+    role: staff?.role || payload.role,
+    tenantId: payload.tenantId,
+    permissions: ROLE_PERMISSIONS[staff?.role || payload.role]
   };
+
+  // Enforce Tenant Isolation: For authenticated operations, tenantId is ALWAYS locked to the user's tenant
+  req.tenantId = payload.tenantId;
 
   next();
 }
 
 /**
- * RBAC Permission Guard Middleware
+ * Guard: Requires the request to be authenticated with a valid signed token
+ */
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({
+      error: 'Unauthorized',
+      message: 'يجب تسجيل الدخول برمز موثق للوصول إلى هذا المسار'
+    });
+  }
+  next();
+}
+
+/**
+ * RBAC Permission Guard Middleware:
+ * Strictly checks that the user has the required permission for their role.
  */
 export function requirePermission(permission: keyof StaffPermissions) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return res.status(401).json({ error: 'Unauthorized', message: 'مطلوب تسجيل الدخول للوصول' });
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'مطلوب تسجيل الدخول بحساب مصرح به'
+      });
     }
 
     if (!req.user.permissions[permission]) {

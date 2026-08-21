@@ -5,13 +5,14 @@ import { Order } from '../../src/types';
 
 export const ordersRouter = Router();
 
-// GET /api/v1/orders - List orders for tenant
-ordersRouter.get('/', (req: Request, res: Response) => {
-  const tenantId = (req.query.tenantId as string) || req.tenantId;
+// GET /api/v1/orders - List orders (RBAC guarded: 'orders')
+ordersRouter.get('/', requirePermission('orders'), (req: Request, res: Response) => {
+  // STRICT: derives tenant solely from user context
+  const tenantId = req.user!.tenantId;
   const status = req.query.status as string | undefined;
 
   let orders = db.getOrders(tenantId);
-  if (status && status !== 'all') {
+  if (status) {
     orders = orders.filter(o => o.status === status);
   }
 
@@ -21,64 +22,90 @@ ordersRouter.get('/', (req: Request, res: Response) => {
   });
 });
 
-// GET /api/v1/orders/:id
-ordersRouter.get('/:id', (req: Request, res: Response) => {
+// GET /api/v1/orders/:id - Get single order (RBAC guarded: 'orders')
+ordersRouter.get('/:id', requirePermission('orders'), (req: Request, res: Response) => {
   const { id } = req.params;
-  const tenantId = (req.query.tenantId as string) || req.tenantId;
+  const tenantId = req.user!.tenantId;
   const order = db.getOrderById(id, tenantId);
 
   if (!order) {
-    return res.status(404).json({ error: 'Order not found' });
+    return res.status(404).json({ error: 'Order not found or not belonging to your store' });
   }
 
   res.json({ order });
 });
 
-// POST /api/v1/orders - Atomic Order Creation with Stock Reservation
+/**
+ * POST /api/v1/orders - Public/Storefront Checkout Endpoint
+ * Hardened against client pricing manipulation:
+ * Rebuilds total, tax, and inventory checks on the server.
+ */
 ordersRouter.post('/', (req: Request, res: Response) => {
-  const tenantId = req.body.tenantId || req.tenantId;
-  if (!tenantId) {
-    return res.status(400).json({ error: 'Missing tenantId' });
+  const targetTenantId = req.body.tenantId || req.tenantId;
+  const { customer, items, paymentMethod, couponCode, shippingFee } = req.body;
+
+  if (!customer || !customer.name || !customer.phone) {
+    return res.status(400).json({ error: 'بيانات العميل (الاسم ورقم الجوال) مطلوبة لإتمام الطلب' });
   }
 
-  const orderData = {
-    ...req.body,
-    tenantId
-  };
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'السلة فارغة، يجب اختيار منتج واحد على الأقل' });
+  }
 
-  const result = db.createOrderAtomic(orderData);
+  const result = db.createOrderAtomic({
+    tenantId: targetTenantId,
+    customer,
+    items: items.map((i: any) => ({
+      productId: i.productId || i.id,
+      quantity: Number(i.quantity) || 1
+    })),
+    paymentMethod: paymentMethod || 'mada',
+    couponCode,
+    shippingFee
+  });
 
-  if (!result.success || !result.order) {
+  if (!result.success) {
     return res.status(400).json({
-      success: false,
-      error: result.error || 'فشل إنشاء الطلب'
+      error: 'CheckoutFailed',
+      message: result.error
     });
   }
 
   res.status(201).json({
     success: true,
     order: result.order,
-    message: 'تم تأكيد وحجز الطلب بنجاح عبر نظام التجارة المركزي'
+    message: 'تم اعتماد الطلب وتأكيد الدفع وحجز المخزون بنجاح'
   });
 });
 
-// PUT /api/v1/orders/:id/status - Update status & append timeline
+// PUT /api/v1/orders/:id/status - Update status (RBAC guarded: 'orders' with State-Machine verification)
 ordersRouter.put('/:id/status', requirePermission('orders'), (req: Request, res: Response) => {
   const { id } = req.params;
-  const tenantId = (req.query.tenantId as string) || req.tenantId;
+  const tenantId = req.user!.tenantId;
   const { status, note } = req.body;
 
   if (!status) {
     return res.status(400).json({ error: 'Status is required' });
   }
 
-  const updated = db.updateOrderStatus(id, status, note, tenantId);
-  if (!updated) {
-    return res.status(404).json({ error: 'Order not found' });
+  const result = db.updateOrderStatus(
+    id, 
+    status as Order['status'], 
+    note, 
+    tenantId, 
+    req.user!.name
+  );
+
+  if (!result.success) {
+    return res.status(400).json({
+      error: 'InvalidTransition',
+      message: result.error
+    });
   }
 
   res.json({
     success: true,
-    order: updated
+    order: result.order,
+    message: 'تم تحديث حالة الطلب بنجاح'
   });
 });

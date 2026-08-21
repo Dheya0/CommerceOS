@@ -5,16 +5,16 @@ import { Coupon } from '../../src/types';
 
 export const couponsRouter = Router();
 
-// GET /api/v1/coupons
-couponsRouter.get('/', (req: Request, res: Response) => {
-  const tenantId = (req.query.tenantId as string) || req.tenantId;
+// GET /api/v1/coupons - List coupons (RBAC guarded: 'coupons')
+couponsRouter.get('/', requirePermission('coupons'), (req: Request, res: Response) => {
+  const tenantId = req.user!.tenantId;
   const coupons = db.getCoupons(tenantId);
   res.json({ coupons });
 });
 
-// POST /api/v1/coupons - Create coupon
+// POST /api/v1/coupons - Create coupon (RBAC guarded: 'coupons')
 couponsRouter.post('/', requirePermission('coupons'), (req: Request, res: Response) => {
-  const tenantId = req.body.tenantId || req.tenantId;
+  const tenantId = req.user!.tenantId;
   const couponData: Coupon = req.body;
 
   if (!couponData.code || couponData.value === undefined) {
@@ -41,10 +41,10 @@ couponsRouter.post('/', requirePermission('coupons'), (req: Request, res: Respon
   });
 });
 
-// POST /api/v1/coupons/validate - Validate coupon for cart
+// POST /api/v1/coupons/validate - Validate coupon for cart (Storefront accessible)
 couponsRouter.post('/validate', (req: Request, res: Response) => {
   const { code, subtotal = 0 } = req.body;
-  const tenantId = (req.body.tenantId as string) || req.tenantId;
+  const tenantId = req.body.tenantId || req.tenantId;
 
   if (!code) {
     return res.status(400).json({ valid: false, error: 'الرجاء إدخال كود الخصم' });

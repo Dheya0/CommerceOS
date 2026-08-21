@@ -7,7 +7,7 @@ declare global {
   namespace Express {
     interface Request {
       tenant?: TenantStore;
-      tenantId?: string;
+      tenantId: string;
     }
   }
 }
@@ -24,36 +24,32 @@ export function tenantResolver(req: Request, res: Response, next: NextFunction) 
   const queryTenant = (req.query.tenant || req.query.tenantId) as string | undefined;
   const host = req.headers.host || '';
 
-  let matchedTenant: TenantStore | undefined;
+  let resolvedTenant: TenantStore | undefined;
 
-  // 1. Check Header
-  if (headerTenant) {
-    matchedTenant = db.getTenantByIdOrSlug(headerTenant);
+  // 1. Try explicit header/query if provided
+  const candidateIdOrSlug = headerTenant || queryTenant;
+  if (candidateIdOrSlug) {
+    resolvedTenant = db.getTenantByIdOrSlug(candidateIdOrSlug);
   }
 
-  // 2. Check Query
-  if (!matchedTenant && queryTenant) {
-    matchedTenant = db.getTenantByIdOrSlug(queryTenant);
-  }
-
-  // 3. Check Host / Custom Domain
-  if (!matchedTenant && host) {
+  // 2. Try matching custom domain or subdomain from host
+  if (!resolvedTenant && host) {
     const cleanHost = host.split(':')[0].toLowerCase();
-    matchedTenant = db.getTenants().find(t => 
-      t.domain.toLowerCase() === cleanHost || 
-      (t.customDomain && t.customDomain.toLowerCase() === cleanHost)
+    resolvedTenant = db.getTenants().find(
+      t => t.customDomain?.toLowerCase() === cleanHost || `${t.slug}.commerceos.app` === cleanHost
     );
   }
 
-  // 4. Default fallback to flagship store
-  if (!matchedTenant) {
-    const all = db.getTenants();
-    matchedTenant = all[0];
+  // 3. Fallback to default flagship store
+  if (!resolvedTenant) {
+    resolvedTenant = db.getTenantByIdOrSlug('tenant-royal-honey') || db.getTenants()[0];
   }
 
-  if (matchedTenant) {
-    req.tenant = matchedTenant;
-    req.tenantId = matchedTenant.id;
+  if (resolvedTenant) {
+    req.tenant = resolvedTenant;
+    req.tenantId = resolvedTenant.id;
+  } else {
+    req.tenantId = 'tenant-royal-honey';
   }
 
   next();

@@ -5,16 +5,16 @@ import { StaffMember, StaffRole } from '../../src/types';
 
 export const staffRouter = Router();
 
-// GET /api/v1/staff
-staffRouter.get('/', (req: Request, res: Response) => {
-  const tenantId = (req.query.tenantId as string) || req.tenantId;
+// GET /api/v1/staff (RBAC guarded: 'staff')
+staffRouter.get('/', requirePermission('staff'), (req: Request, res: Response) => {
+  const tenantId = req.user!.tenantId;
   const staff = db.getStaff(tenantId);
   res.json({ staff });
 });
 
-// POST /api/v1/staff - Invite/Add staff member
+// POST /api/v1/staff - Invite/Add staff member (RBAC guarded: 'staff')
 staffRouter.post('/', requirePermission('staff'), (req: Request, res: Response) => {
-  const tenantId = req.body.tenantId || req.tenantId;
+  const tenantId = req.user!.tenantId;
   const { name, email, role = 'support_agent' } = req.body;
 
   if (!name || !email) {
@@ -42,10 +42,13 @@ staffRouter.post('/', requirePermission('staff'), (req: Request, res: Response) 
   });
 });
 
-// PUT /api/v1/staff/:id - Update staff role / status
+// PUT /api/v1/staff/:id - Update staff role / status (RBAC guarded: 'staff')
 staffRouter.put('/:id', requirePermission('staff'), (req: Request, res: Response) => {
   const { id } = req.params;
   const updates = req.body;
+
+  // Prevent moving staff member across tenants
+  delete updates.tenantId;
 
   if (updates.role && ROLE_PERMISSIONS[updates.role as StaffRole]) {
     updates.permissions = ROLE_PERMISSIONS[updates.role as StaffRole];
@@ -62,7 +65,7 @@ staffRouter.put('/:id', requirePermission('staff'), (req: Request, res: Response
   });
 });
 
-// DELETE /api/v1/staff/:id
+// DELETE /api/v1/staff/:id (RBAC guarded: 'staff')
 staffRouter.delete('/:id', requirePermission('staff'), (req: Request, res: Response) => {
   const { id } = req.params;
   const deleted = db.deleteStaff(id);

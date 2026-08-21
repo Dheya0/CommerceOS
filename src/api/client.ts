@@ -17,20 +17,34 @@ class CommerceApiClient {
   private activeRole: StaffRole = 'store_owner';
   private authToken: string = '';
 
+  constructor() {
+    // Attempt to hydrate stored token if exists
+    if (typeof window !== 'undefined') {
+      const storedToken = localStorage.getItem('cos_auth_token');
+      if (storedToken) {
+        this.authToken = storedToken;
+      }
+    }
+  }
+
   setTenant(tenantId: string) {
     this.activeTenantId = tenantId;
   }
 
   setRole(role: StaffRole, token?: string) {
     this.activeRole = role;
-    if (token) this.authToken = token;
+    if (token) {
+      this.authToken = token;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('cos_auth_token', token);
+      }
+    }
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'x-tenant-id': this.activeTenantId,
-      'x-staff-role': this.activeRole,
       ...(options.headers as Record<string, string> || {})
     };
 
@@ -58,17 +72,25 @@ class CommerceApiClient {
 
   // --- Auth ---
   async login(role: StaffRole = 'store_owner', email?: string) {
-    return this.request<{ success: boolean; user: any; token: string }>('/auth/login', {
+    const res = await this.request<{ success: boolean; user: any; token: string }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ role, email })
+      body: JSON.stringify({ role, email, tenantId: this.activeTenantId })
     });
+    if (res.token) {
+      this.setRole(role, res.token);
+    }
+    return res;
   }
 
   async switchRole(role: StaffRole) {
-    return this.request<{ success: boolean; role: StaffRole; permissions: any; token: string }>('/auth/switch-role', {
+    const res = await this.request<{ success: boolean; role: StaffRole; permissions: any; token: string }>('/auth/switch-role', {
       method: 'POST',
-      body: JSON.stringify({ role })
+      body: JSON.stringify({ role, tenantId: this.activeTenantId })
     });
+    if (res.token) {
+      this.setRole(role, res.token);
+    }
+    return res;
   }
 
   // --- Tenants ---
@@ -120,14 +142,14 @@ class CommerceApiClient {
   async createProduct(product: Partial<Product>): Promise<{ success: boolean; product: Product }> {
     return this.request('/products', {
       method: 'POST',
-      body: JSON.stringify({ ...product, tenantId: this.activeTenantId })
+      body: JSON.stringify(product)
     });
   }
 
   async updateProduct(id: string, updates: Partial<Product>): Promise<{ success: boolean; product: Product }> {
     return this.request(`/products/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ ...updates, tenantId: this.activeTenantId })
+      body: JSON.stringify(updates)
     });
   }
 
@@ -151,7 +173,7 @@ class CommerceApiClient {
   async createCategory(category: Partial<Category>): Promise<{ success: boolean; category: Category }> {
     return this.request('/products/categories/all', {
       method: 'POST',
-      body: JSON.stringify({ ...category, tenantId: this.activeTenantId })
+      body: JSON.stringify(category)
     });
   }
 
@@ -161,7 +183,13 @@ class CommerceApiClient {
     return this.request(`/orders${qs}`);
   }
 
-  async createOrder(orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'timeline'>): Promise<{ success: boolean; order: Order; message: string }> {
+  async createOrder(orderData: {
+    customer: Order['customer'];
+    items: { productId: string; quantity: number }[];
+    paymentMethod: Order['paymentMethod'];
+    couponCode?: string;
+    shippingFee?: number;
+  }): Promise<{ success: boolean; order: Order; message: string }> {
     return this.request('/orders', {
       method: 'POST',
       body: JSON.stringify({ ...orderData, tenantId: this.activeTenantId })
@@ -183,7 +211,7 @@ class CommerceApiClient {
   async createCoupon(coupon: Partial<Coupon>): Promise<{ success: boolean; coupon: Coupon }> {
     return this.request('/coupons', {
       method: 'POST',
-      body: JSON.stringify({ ...coupon, tenantId: this.activeTenantId })
+      body: JSON.stringify(coupon)
     });
   }
 
@@ -202,7 +230,7 @@ class CommerceApiClient {
   async createStaff(staff: Partial<StaffMember>): Promise<{ success: boolean; staff: StaffMember }> {
     return this.request('/staff', {
       method: 'POST',
-      body: JSON.stringify({ ...staff, tenantId: this.activeTenantId })
+      body: JSON.stringify(staff)
     });
   }
 

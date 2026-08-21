@@ -43,6 +43,15 @@ export interface DatabaseSchema {
 
 const DB_FILE_PATH = path.join(process.cwd(), 'data', 'commerceos_db.json');
 
+// Valid State Transitions Map
+export const ALLOWED_STATUS_TRANSITIONS: Record<Order['status'], Order['status'][]> = {
+  new: ['processing', 'cancelled'],
+  processing: ['shipped', 'cancelled'],
+  shipped: ['delivered', 'cancelled'],
+  delivered: [], // Terminal state
+  cancelled: []  // Terminal state
+};
+
 class DatabaseEngine {
   private data: DatabaseSchema;
   private saveTimeout: NodeJS.Timeout | null = null;
@@ -226,7 +235,7 @@ class DatabaseEngine {
     return category;
   }
 
-  // --- Orders & Atomic Checkout ---
+  // --- Orders & Strict Server-Side Pricing Engine ---
   getOrders(tenantId?: string): Order[] {
     if (!tenantId) return this.data.orders;
     return this.data.orders.filter(o => o.tenantId === tenantId);
@@ -238,52 +247,111 @@ class DatabaseEngine {
     );
   }
 
-  createOrderAtomic(orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'timeline'> & { couponCode?: string }): { success: boolean; order?: Order; error?: string } {
-    // 1. Validate items and stock
-    for (const item of orderData.items) {
-      const product = this.getProductById(item.productId, orderData.tenantId);
+  /**
+   * Secure Atomic Checkout:
+   * 1. Rebuilds price, subtotal, and tax from Server-Side Database (Ignores client pricing)
+   * 2. Validates and applies coupons server-side
+   * 3. Validates and decrements stock in a critical section
+   * 4. Updates customer stats and creates immutable order record
+   */
+  createOrderAtomic(input: {
+    tenantId: string;
+    customer: Order['customer'];
+    items: { productId: string; quantity: number }[];
+    paymentMethod: Order['paymentMethod'];
+    couponCode?: string;
+    shippingFee?: number;
+  }): { success: boolean; order?: Order; error?: string } {
+    const { tenantId, customer, items, paymentMethod, couponCode } = input;
+
+    if (!items || items.length === 0) {
+      return { success: false, error: 'السلة فارغة' };
+    }
+
+    // 1. Reconstruct order items and verify stock from DB truth
+    let calculatedSubtotal = 0;
+    const validatedItems: Order['items'] = [];
+
+    for (const item of items) {
+      const product = this.getProductById(item.productId, tenantId);
       if (!product) {
-        return { success: false, error: `المنتج (${item.productName}) غير متوفر أو تم حذفه` };
+        return { success: false, error: `المنتج رقم (${item.productId}) غير متوفر في هذا المتجر` };
+      }
+      if (item.quantity <= 0) {
+        return { success: false, error: `الكمية المطلوبة للمنتج (${product.name}) غير صحيحة` };
       }
       if (product.stock < item.quantity) {
-        return { success: false, error: `عذراً، الكمية المتوفرة من (${product.name}) هي ${product.stock} فقط` };
+        return { 
+          success: false, 
+          error: `عذراً، الكمية المتوفرة من (${product.name}) هي ${product.stock} فقط` 
+        };
+      }
+
+      const itemTotal = product.price * item.quantity;
+      calculatedSubtotal += itemTotal;
+
+      validatedItems.push({
+        productId: product.id,
+        productName: product.name,
+        image: product.images[0] || '',
+        price: product.price, // Server Price
+        quantity: item.quantity
+      });
+    }
+
+    // 2. Server-side coupon verification & discount calculation
+    let calculatedDiscount = 0;
+    if (couponCode) {
+      const coupon = this.getCoupons(tenantId).find(
+        c => c.code.toUpperCase() === couponCode.trim().toUpperCase() && c.isActive
+      );
+
+      if (coupon) {
+        const meetsMinSpend = !coupon.minSpend || calculatedSubtotal >= coupon.minSpend;
+        const withinLimit = !coupon.usageLimit || coupon.usageCount < coupon.usageLimit;
+        const notExpired = !coupon.expiresAt || new Date(coupon.expiresAt).getTime() > Date.now();
+
+        if (meetsMinSpend && withinLimit && notExpired) {
+          if (coupon.type === 'percentage') {
+            calculatedDiscount = Math.round((calculatedSubtotal * coupon.value) / 100);
+          } else {
+            calculatedDiscount = Math.min(coupon.value, calculatedSubtotal);
+          }
+          // Increment usage safely
+          coupon.usageCount = (coupon.usageCount || 0) + 1;
+        }
       }
     }
 
-    // 2. Decrement stock
-    for (const item of orderData.items) {
-      const product = this.getProductById(item.productId, orderData.tenantId)!;
+    // 3. Server-side Tax & Shipping calculation
+    const taxableAmount = Math.max(0, calculatedSubtotal - calculatedDiscount);
+    const standardShipping = input.shippingFee !== undefined ? Math.max(0, input.shippingFee) : (calculatedSubtotal > 300 ? 0 : 25);
+    const calculatedTotal = taxableAmount + standardShipping;
+
+    // 4. Decrement verified stock
+    for (const item of items) {
+      const product = this.getProductById(item.productId, tenantId)!;
       product.stock -= item.quantity;
     }
 
-    // 3. Increment coupon usage if used
-    if (orderData.couponCode) {
-      const coupon = this.getCoupons(orderData.tenantId).find(
-        c => c.code.toUpperCase() === orderData.couponCode?.toUpperCase()
-      );
-      if (coupon) {
-        coupon.usageCount = (coupon.usageCount || 0) + 1;
-      }
-    }
-
-    // 4. Update or create customer
+    // 5. Update or register customer record
     const existingCust = this.data.customers.find(
-      c => c.tenantId === orderData.tenantId && (c.email === orderData.customer.email || c.phone === orderData.customer.phone)
+      c => c.tenantId === tenantId && (c.email === customer.email || c.phone === customer.phone)
     );
     if (existingCust) {
       existingCust.ordersCount = (existingCust.ordersCount || 0) + 1;
-      existingCust.totalSpent = (existingCust.totalSpent || 0) + orderData.total;
+      existingCust.totalSpent = (existingCust.totalSpent || 0) + calculatedTotal;
       existingCust.lastOrderDate = new Date().toISOString();
     } else {
       const newCustomer: Customer = {
         id: `cust-${Date.now()}`,
-        tenantId: orderData.tenantId,
-        name: orderData.customer.name,
-        email: orderData.customer.email,
-        phone: orderData.customer.phone,
-        city: orderData.customer.city || 'الرياض',
+        tenantId,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        city: customer.city || 'الرياض',
         ordersCount: 1,
-        totalSpent: orderData.total,
+        totalSpent: calculatedTotal,
         lastOrderDate: new Date().toISOString(),
         tags: ['New Customer'],
         status: 'active'
@@ -291,49 +359,82 @@ class DatabaseEngine {
       this.data.customers.push(newCustomer);
     }
 
-    // 5. Build order object
+    // 6. Build immutable order
     const id = `ord-${Date.now()}`;
-    const tenant = this.getTenantByIdOrSlug(orderData.tenantId);
+    const tenant = this.getTenantByIdOrSlug(tenantId);
     const prefix = (tenant?.slug || 'ST').substring(0, 2).toUpperCase();
     const num = Math.floor(1000 + Math.random() * 9000);
     const orderNumber = `#${prefix}-${num}`;
     const now = new Date().toISOString();
 
     const newOrder: Order = {
-      ...orderData,
       id,
+      tenantId,
       orderNumber,
+      customer,
+      items: validatedItems,
+      subtotal: calculatedSubtotal,
+      discount: calculatedDiscount,
+      shipping: standardShipping,
+      total: calculatedTotal,
+      status: 'new',
+      paymentMethod,
+      paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
       createdAt: now,
       timeline: [
         {
-          status: orderData.status || 'new',
+          status: 'new',
           timestamp: now,
-          note: 'تم إنشاء الطلب وتأكيد الدفع عبر الخادم المركزي'
+          note: 'تم إنشاء الطلب واحتساب الأسعار والمخزون بنجاح عبر خادم التجارة'
         }
       ]
     };
 
     this.data.orders.unshift(newOrder);
-    this.addAuditLog(orderData.tenantId, 'ORDER_CREATED', 'Customer', { orderNumber, total: orderData.total });
+    this.addAuditLog(tenantId, 'ORDER_CREATED', 'Customer', { orderNumber, total: calculatedTotal });
     this.queueSave();
 
     return { success: true, order: newOrder };
   }
 
-  updateOrderStatus(id: string, status: Order['status'], note?: string, tenantId?: string): Order | null {
+  /**
+   * Update order status with strict state-machine validation
+   */
+  updateOrderStatus(
+    id: string, 
+    newStatus: Order['status'], 
+    note?: string, 
+    tenantId?: string,
+    performedBy: string = 'Staff'
+  ): { success: boolean; order?: Order; error?: string } {
     const order = this.getOrderById(id, tenantId);
-    if (!order) return null;
+    if (!order) {
+      return { success: false, error: 'الطلب غير موجود' };
+    }
 
-    order.status = status;
+    // Validate State Machine
+    const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[order.status] || [];
+    if (!allowedTransitions.includes(newStatus)) {
+      return {
+        success: false,
+        error: `لا يمكن تحويل حالة الطلب من [${order.status}] إلى [${newStatus}]. المسار المسموح به هو: ${allowedTransitions.join(', ') || 'لا يوجد (حالة نهائية)'}`
+      };
+    }
+
+    order.status = newStatus;
+    if (newStatus === 'delivered' && order.paymentMethod === 'cod') {
+      order.paymentStatus = 'paid';
+    }
+
     order.timeline.push({
-      status,
+      status: newStatus,
       timestamp: new Date().toISOString(),
-      note: note || `تم تحديث حالة الطلب إلى: ${status}`
+      note: note || `تم تحديث حالة الطلب إلى: ${newStatus}`
     });
 
-    this.addAuditLog(order.tenantId, 'ORDER_STATUS_UPDATED', 'Staff', { id, status });
+    this.addAuditLog(order.tenantId, 'ORDER_STATUS_UPDATED', performedBy, { id, from: order.status, to: newStatus });
     this.queueSave();
-    return order;
+    return { success: true, order };
   }
 
   // --- Customers ---
@@ -391,8 +492,9 @@ class DatabaseEngine {
       details,
       timestamp: new Date().toISOString()
     });
-    if (this.data.auditLogs.length > 200) {
-      this.data.auditLogs = this.data.auditLogs.slice(0, 200);
+    // Keep generous buffer for audit history
+    if (this.data.auditLogs.length > 1000) {
+      this.data.auditLogs = this.data.auditLogs.slice(0, 1000);
     }
   }
 

@@ -5,7 +5,7 @@ import { TenantStore } from '../../src/types';
 
 export const tenantsRouter = Router();
 
-// GET /api/v1/tenants - List all tenants
+// GET /api/v1/tenants - List all tenants (Admin oversight)
 tenantsRouter.get('/', (req: Request, res: Response) => {
   const tenants = db.getTenants();
   res.json({
@@ -16,11 +16,13 @@ tenantsRouter.get('/', (req: Request, res: Response) => {
 
 // GET /api/v1/tenants/current - Get resolved active tenant
 tenantsRouter.get('/current', (req: Request, res: Response) => {
-  if (!req.tenant) {
+  const targetId = req.user ? req.user.tenantId : req.tenantId;
+  const tenant = db.getTenantByIdOrSlug(targetId);
+  if (!tenant) {
     return res.status(404).json({ error: 'Tenant not found' });
   }
   res.json({
-    tenant: req.tenant
+    tenant
   });
 });
 
@@ -62,12 +64,14 @@ tenantsRouter.post('/', (req: Request, res: Response) => {
   });
 });
 
-// PUT /api/v1/tenants/:id - Update tenant settings
+// PUT /api/v1/tenants/:id - Update tenant settings (RBAC guarded: 'settings')
 tenantsRouter.put('/:id', requirePermission('settings'), (req: Request, res: Response) => {
-  const { id } = req.params;
+  const targetId = req.user!.tenantId; // Strictly restricted to authenticated user's store
   const updates = req.body;
 
-  const updated = db.updateTenant(id, updates);
+  delete updates.id; // Immutable ID
+
+  const updated = db.updateTenant(targetId, updates);
   if (!updated) {
     return res.status(404).json({ error: 'Tenant not found' });
   }
@@ -78,16 +82,16 @@ tenantsRouter.put('/:id', requirePermission('settings'), (req: Request, res: Res
   });
 });
 
-// PUT /api/v1/tenants/:id/theme - Update theme and design tokens
+// PUT /api/v1/tenants/:id/theme - Update theme and design tokens (RBAC guarded: 'theme')
 tenantsRouter.put('/:id/theme', requirePermission('theme'), (req: Request, res: Response) => {
-  const { id } = req.params;
+  const targetId = req.user!.tenantId; // Strictly restricted to user's store
   const { theme } = req.body;
 
   if (!theme) {
     return res.status(400).json({ error: 'Theme configuration missing' });
   }
 
-  const updated = db.updateTenantTheme(id, theme);
+  const updated = db.updateTenantTheme(targetId, theme);
   if (!updated) {
     return res.status(404).json({ error: 'Tenant not found' });
   }
@@ -99,10 +103,10 @@ tenantsRouter.put('/:id/theme', requirePermission('theme'), (req: Request, res: 
   });
 });
 
-// DELETE /api/v1/tenants/:id
-tenantsRouter.delete('/:id', (req: Request, res: Response) => {
-  const { id } = req.params;
-  const deleted = db.deleteTenant(id);
+// DELETE /api/v1/tenants/:id (RBAC guarded: 'settings')
+tenantsRouter.delete('/:id', requirePermission('settings'), (req: Request, res: Response) => {
+  const targetId = req.user!.tenantId;
+  const deleted = db.deleteTenant(targetId);
   if (!deleted) {
     return res.status(404).json({ error: 'Tenant not found' });
   }
@@ -112,12 +116,12 @@ tenantsRouter.delete('/:id', (req: Request, res: Response) => {
   });
 });
 
-// POST /api/v1/tenants/:id/verify-domain
-tenantsRouter.post('/:id/verify-domain', (req: Request, res: Response) => {
-  const { id } = req.params;
+// POST /api/v1/tenants/:id/verify-domain (RBAC guarded: 'settings')
+tenantsRouter.post('/:id/verify-domain', requirePermission('settings'), (req: Request, res: Response) => {
+  const targetId = req.user!.tenantId;
   const { domain } = req.body;
 
-  const tenant = db.updateTenant(id, {
+  const tenant = db.updateTenant(targetId, {
     customDomain: domain,
     customDomainVerified: true
   });
