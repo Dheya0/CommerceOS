@@ -188,11 +188,11 @@ class CommerceApiClient {
     items: { productId: string; quantity: number }[];
     paymentMethod: Order['paymentMethod'];
     couponCode?: string;
-    shippingFee?: number;
+    shippingMethodId?: string;
   }): Promise<{ success: boolean; order: Order; message: string }> {
     return this.request('/orders', {
       method: 'POST',
-      body: JSON.stringify({ ...orderData, tenantId: this.activeTenantId })
+      body: JSON.stringify(orderData)
     });
   }
 

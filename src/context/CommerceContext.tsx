@@ -459,6 +459,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const fallbackOrder: Order = {
       ...orderData,
+      tax: orderData.tax || 0,
       id,
       orderNumber,
       createdAt: now,
@@ -468,7 +469,12 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
 
     try {
-      const res = await api.createOrder(orderData);
+      const res = await api.createOrder({
+        customer: orderData.customer,
+        items: orderData.items.map(i => ({ productId: i.productId, quantity: i.quantity })),
+        paymentMethod: orderData.paymentMethod,
+        couponCode: undefined
+      });
       if (res.success && res.order) {
         setOrders(prev => [res.order, ...prev]);
         // Also adjust local product stock to match atomic server inventory

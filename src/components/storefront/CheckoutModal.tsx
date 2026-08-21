@@ -55,7 +55,7 @@ export const CheckoutModal: React.FC = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       const orderItems: OrderItem[] = cart.map(item => ({
         productId: item.product.id,
         productName: item.product.name,
@@ -65,7 +65,7 @@ export const CheckoutModal: React.FC = () => {
         image: item.product.images[0]
       }));
 
-      const newOrd = addOrder({
+      const newOrd = await addOrder({
         tenantId: activeTenant.id,
         customer: {
           name: fullName,
@@ -78,6 +78,7 @@ export const CheckoutModal: React.FC = () => {
         subtotal,
         discount: 0,
         shipping,
+        tax: Math.round(subtotal * 0.15 * 100) / 100,
         total,
         status: 'new',
         paymentMethod,

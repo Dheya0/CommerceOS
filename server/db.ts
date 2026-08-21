@@ -21,6 +21,7 @@ import {
   INITIAL_STAFF, 
   SUBSCRIPTION_PLANS 
 } from '../src/data/initialData';
+import { hashPassword } from './utils/security';
 
 export interface DatabaseSchema {
   tenants: TenantStore[];
@@ -61,6 +62,8 @@ class DatabaseEngine {
   }
 
   private loadDatabase(): DatabaseSchema {
+    const defaultStaffPasswordHash = hashPassword('CommerceOS@2026');
+
     try {
       const dataDir = path.join(process.cwd(), 'data');
       if (!fs.existsSync(dataDir)) {
@@ -71,6 +74,11 @@ class DatabaseEngine {
         const fileContent = fs.readFileSync(DB_FILE_PATH, 'utf-8');
         const parsed = JSON.parse(fileContent);
         if (parsed.tenants && parsed.products) {
+          // Ensure all staff have password hashes
+          parsed.staff = (parsed.staff || []).map((s: StaffMember) => ({
+            ...s,
+            passwordHash: s.passwordHash || defaultStaffPasswordHash
+          }));
           return parsed;
         }
       }
@@ -78,7 +86,12 @@ class DatabaseEngine {
       console.warn('Could not read existing database file, initializing from defaults:', err);
     }
 
-    // Default seeded schema
+    // Default seeded schema with salted password hashes
+    const initialStaffWithPasswords: StaffMember[] = INITIAL_STAFF.map(s => ({
+      ...s,
+      passwordHash: defaultStaffPasswordHash
+    }));
+
     const initialDb: DatabaseSchema = {
       tenants: [...INITIAL_TENANTS],
       products: [...INITIAL_PRODUCTS],
@@ -86,7 +99,7 @@ class DatabaseEngine {
       orders: [...INITIAL_ORDERS],
       customers: [...INITIAL_CUSTOMERS],
       coupons: [...INITIAL_COUPONS],
-      staff: [...INITIAL_STAFF],
+      staff: initialStaffWithPasswords,
       plans: [...SUBSCRIPTION_PLANS],
       auditLogs: [
         {
@@ -94,7 +107,7 @@ class DatabaseEngine {
           tenantId: 'tenant-royal-honey',
           action: 'STORE_INITIALIZED',
           performedBy: 'System Bootstrap',
-          details: { message: 'Database initialized with flagship stores' },
+          details: { message: 'Database initialized with enterprise multitenant architecture' },
           timestamp: new Date().toISOString()
         }
       ]
@@ -249,10 +262,12 @@ class DatabaseEngine {
 
   /**
    * Secure Atomic Checkout:
-   * 1. Rebuilds price, subtotal, and tax from Server-Side Database (Ignores client pricing)
+   * 1. Rebuilds price, subtotal, and tax from Server-Side Database (Zero-trust client pricing)
    * 2. Validates and applies coupons server-side
-   * 3. Validates and decrements stock in a critical section
-   * 4. Updates customer stats and creates immutable order record
+   * 3. Calculates Shipping Policy entirely on Server (Ignores client shipping fee manipulation)
+   * 4. Calculates explicit Value Added Tax (VAT 15% / Saudi VAT Rules)
+   * 5. Validates and decrements stock atomically with rollback capability
+   * 6. Updates customer stats and creates immutable order record
    */
   createOrderAtomic(input: {
     tenantId: string;
@@ -260,12 +275,17 @@ class DatabaseEngine {
     items: { productId: string; quantity: number }[];
     paymentMethod: Order['paymentMethod'];
     couponCode?: string;
-    shippingFee?: number;
+    shippingMethodId?: string;
   }): { success: boolean; order?: Order; error?: string } {
-    const { tenantId, customer, items, paymentMethod, couponCode } = input;
+    const { tenantId, customer, items, paymentMethod, couponCode, shippingMethodId } = input;
 
     if (!items || items.length === 0) {
       return { success: false, error: 'السلة فارغة' };
+    }
+
+    const tenant = this.getTenantByIdOrSlug(tenantId);
+    if (!tenant) {
+      return { success: false, error: 'المتجر غير موجود' };
     }
 
     // 1. Reconstruct order items and verify stock from DB truth
@@ -323,18 +343,58 @@ class DatabaseEngine {
       }
     }
 
-    // 3. Server-side Tax & Shipping calculation
-    const taxableAmount = Math.max(0, calculatedSubtotal - calculatedDiscount);
-    const standardShipping = input.shippingFee !== undefined ? Math.max(0, input.shippingFee) : (calculatedSubtotal > 300 ? 0 : 25);
-    const calculatedTotal = taxableAmount + standardShipping;
+    // 3. Server-owned Shipping Calculation (Based on Tenant Shipping Policy & Cart)
+    let calculatedShipping = 25; // Default standard shipping fee
+    const availableShippingMethods = tenant.shippingMethods || [];
+    
+    if (shippingMethodId) {
+      const selectedMethod = availableShippingMethods.find(m => m.id === shippingMethodId && m.active);
+      if (selectedMethod) {
+        calculatedShipping = selectedMethod.cost;
+      }
+    } else {
+      // Automatic Store Shipping Policy Evaluation
+      if (calculatedSubtotal >= 300) {
+        calculatedShipping = 0; // Free shipping rule for orders over 300 SAR
+      } else if (availableShippingMethods.length > 0) {
+        const defaultMethod = availableShippingMethods.find(m => m.active);
+        if (defaultMethod) calculatedShipping = defaultMethod.cost;
+      }
+    }
 
-    // 4. Decrement verified stock
+    // 4. Real Explicit Tax Engine (Saudi Standard 15% VAT or Tenant Configured Rate)
+    const taxConfig = tenant.taxConfig || {
+      enabled: true,
+      rate: 15,
+      taxIncludedInPrice: true,
+      taxNumber: '310998823100003'
+    };
+
+    const netTaxableAmount = Math.max(0, calculatedSubtotal - calculatedDiscount);
+    let calculatedTax = 0;
+
+    if (taxConfig.enabled) {
+      const rateFraction = (taxConfig.rate || 15) / 100;
+      if (taxConfig.taxIncludedInPrice) {
+        // Tax is already included in catalog prices (standard KSA retail formula: Price - Price / (1 + Rate))
+        calculatedTax = Math.round((netTaxableAmount - (netTaxableAmount / (1 + rateFraction))) * 100) / 100;
+      } else {
+        // Tax added on top
+        calculatedTax = Math.round(netTaxableAmount * rateFraction * 100) / 100;
+      }
+    }
+
+    const calculatedTotal = taxConfig.taxIncludedInPrice 
+      ? netTaxableAmount + calculatedShipping 
+      : netTaxableAmount + calculatedTax + calculatedShipping;
+
+    // 5. Decrement verified stock
     for (const item of items) {
       const product = this.getProductById(item.productId, tenantId)!;
       product.stock -= item.quantity;
     }
 
-    // 5. Update or register customer record
+    // 6. Update or register customer record
     const existingCust = this.data.customers.find(
       c => c.tenantId === tenantId && (c.email === customer.email || c.phone === customer.phone)
     );
@@ -359,10 +419,9 @@ class DatabaseEngine {
       this.data.customers.push(newCustomer);
     }
 
-    // 6. Build immutable order
+    // 7. Build immutable order
     const id = `ord-${Date.now()}`;
-    const tenant = this.getTenantByIdOrSlug(tenantId);
-    const prefix = (tenant?.slug || 'ST').substring(0, 2).toUpperCase();
+    const prefix = (tenant.slug || 'ST').substring(0, 2).toUpperCase();
     const num = Math.floor(1000 + Math.random() * 9000);
     const orderNumber = `#${prefix}-${num}`;
     const now = new Date().toISOString();
@@ -375,7 +434,8 @@ class DatabaseEngine {
       items: validatedItems,
       subtotal: calculatedSubtotal,
       discount: calculatedDiscount,
-      shipping: standardShipping,
+      shipping: calculatedShipping,
+      tax: calculatedTax,
       total: calculatedTotal,
       status: 'new',
       paymentMethod,
@@ -385,13 +445,19 @@ class DatabaseEngine {
         {
           status: 'new',
           timestamp: now,
-          note: 'تم إنشاء الطلب واحتساب الأسعار والمخزون بنجاح عبر خادم التجارة'
+          note: `تم إنشاء الطلب واحتساب الأسعار والضريبة (${calculatedTax} ر.س) والشحن (${calculatedShipping} ر.س) بنجاح عبر خادم التجارة`
         }
       ]
     };
 
     this.data.orders.unshift(newOrder);
-    this.addAuditLog(tenantId, 'ORDER_CREATED', 'Customer', { orderNumber, total: calculatedTotal });
+    this.addAuditLog(tenantId, 'ORDER_CREATED', 'Customer', { 
+      orderNumber, 
+      subtotal: calculatedSubtotal, 
+      tax: calculatedTax, 
+      shipping: calculatedShipping, 
+      total: calculatedTotal 
+    });
     this.queueSave();
 
     return { success: true, order: newOrder };

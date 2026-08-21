@@ -135,6 +135,7 @@ export interface Order {
   subtotal: number;
   discount: number;
   shipping: number;
+  tax: number;
   total: number;
   status: 'new' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   paymentMethod: 'mada' | 'apple_pay' | 'visa' | 'cod' | 'tamara';
@@ -202,6 +203,7 @@ export interface StaffMember {
   permissions: StaffPermissions;
   status: 'active' | 'invited';
   createdAt: string;
+  passwordHash?: string;
 }
 
 export type SubscriptionPlanId = 'starter' | 'business' | 'pro' | 'enterprise';
@@ -280,6 +282,12 @@ export interface TenantStore {
     estimatedDays: string;
     active: boolean;
   }[];
+  taxConfig?: {
+    enabled: boolean;
+    rate: number; // e.g. 15 for 15% VAT
+    taxNumber?: string;
+    taxIncludedInPrice: boolean;
+  };
 }
 
 export interface CartItem {

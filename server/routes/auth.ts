@@ -1,49 +1,59 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
 import { ROLE_PERMISSIONS, requireAuth } from '../middleware/auth';
-import { signAuthToken } from '../utils/security';
+import { signAuthToken, verifyPassword } from '../utils/security';
 import { StaffRole } from '../../src/types';
 
 export const authRouter = Router();
 
 /**
  * POST /api/v1/auth/login
- * Production-hardened login verifying tenant membership and issuing HMAC-signed tokens
+ * Production Authentication Endpoint:
+ * Requires valid email + password + tenant membership.
+ * Verifies password with salted constant-time PBKDF2 hash.
+ * Prohibits arbitrary user creation during login.
  */
 authRouter.post('/login', (req: Request, res: Response) => {
-  const { email, tenantId, role, password } = req.body;
+  const { email, password, tenantId } = req.body;
 
-  const targetTenantId = tenantId || 'tenant-royal-honey';
+  if (!email || !password) {
+    return res.status(400).json({ 
+      error: 'MissingCredentials', 
+      message: 'البريد الإلكتروني وكلمة المرور مطلوبان لتسجيل الدخول' 
+    });
+  }
+
+  const targetTenantId = tenantId || req.tenantId || 'tenant-royal-honey';
   const tenant = db.getTenantByIdOrSlug(targetTenantId);
 
   if (!tenant) {
-    return res.status(404).json({ error: 'TenantNotFound', message: 'المتجر غير موجود' });
+    return res.status(404).json({ error: 'TenantNotFound', message: 'المتجر المطلوب غير موجود' });
   }
 
-  // Look up staff member in database
+  // Look up authenticated staff member in tenant
   const tenantStaff = db.getStaff(tenant.id);
-  let staffMember = tenantStaff.find(s => s.email.toLowerCase() === (email || '').toLowerCase());
-
-  // In demo/bootstrap environment, if staffMember not explicitly registered, allow store owner initialization
-  if (!staffMember && role) {
-    const validRole = (role in ROLE_PERMISSIONS ? role : 'store_owner') as StaffRole;
-    staffMember = {
-      id: `staff-${validRole}-${tenant.id.substring(0, 6)}`,
-      tenantId: tenant.id,
-      name: validRole === 'store_owner' ? 'مالك المتجر' : `موظف (${validRole})`,
-      email: email || `${validRole}@${tenant.slug}.com`,
-      role: validRole,
-      permissions: ROLE_PERMISSIONS[validRole],
-      status: 'active',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-  }
+  const staffMember = tenantStaff.find(s => s.email.toLowerCase() === email.trim().toLowerCase());
 
   if (!staffMember) {
     return res.status(401).json({ 
       error: 'InvalidCredentials', 
-      message: 'بيانات الدخول غير صحيحة أو المستخدم غير منضم لهذا المتجر' 
+      message: 'بيانات الدخول غير صحيحة أو هذا الحساب غير مسجل في هذا المتجر' 
+    });
+  }
+
+  // Verify password using PBKDF2 with constant-time equality
+  const isPasswordValid = verifyPassword(password, staffMember.passwordHash);
+  if (!isPasswordValid) {
+    return res.status(401).json({ 
+      error: 'InvalidCredentials', 
+      message: 'بيانات الدخول غير صحيحة، يرجى التأكد من كلمة المرور' 
+    });
+  }
+
+  if (staffMember.status !== 'active') {
+    return res.status(403).json({
+      error: 'AccountSuspended',
+      message: 'هذا الحساب معطل أو غير نشط حالياً'
     });
   }
 
@@ -78,7 +88,7 @@ authRouter.post('/login', (req: Request, res: Response) => {
 
 /**
  * GET /api/v1/auth/me
- * Returns the currently authenticated user based on validated signature
+ * Returns the currently authenticated user based on validated cryptographic session
  */
 authRouter.get('/me', requireAuth, (req: Request, res: Response) => {
   res.json({
@@ -89,11 +99,35 @@ authRouter.get('/me', requireAuth, (req: Request, res: Response) => {
 
 /**
  * POST /api/v1/auth/switch-role
- * Controlled role switcher for demo/testing that issues properly signed tokens
+ * Protected Role-Switching Endpoint:
+ * In development/demo mode, allows role testing across staff members in the tenant.
+ * In production mode, strictly verifies current session auth, tenant membership, and permissions.
  */
 authRouter.post('/switch-role', (req: Request, res: Response) => {
   const { role, tenantId } = req.body;
-  const targetTenantId = tenantId || (req.user ? req.user.tenantId : 'tenant-royal-honey');
+  const isProd = process.env.NODE_ENV === 'production';
+
+  // In production, require active authentication
+  if (isProd) {
+    if (!req.user) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'يجب تسجيل الدخول لتغيير الصلاحيات'
+      });
+    }
+
+    // In production, users can only switch to roles they have been explicitly granted in their tenant
+    const targetTenantId = req.user.tenantId;
+    const staff = db.getStaff(targetTenantId).find(s => s.id === req.user!.id);
+    if (!staff || staff.role !== 'store_owner') {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'فقط مالك المتجر يملك صلاحية تبديل الأدوار الإدارية في بيئة الإنتاج'
+      });
+    }
+  }
+
+  const targetTenantId = req.user?.tenantId || tenantId || 'tenant-royal-honey';
   const validRole = (role in ROLE_PERMISSIONS ? role : 'store_owner') as StaffRole;
 
   const tenant = db.getTenantByIdOrSlug(targetTenantId);
@@ -101,10 +135,18 @@ authRouter.post('/switch-role', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Tenant not found' });
   }
 
+  // Find existing staff member with target role in this tenant or active user
+  const tenantStaff = db.getStaff(tenant.id);
+  const matchingStaff = tenantStaff.find(s => s.role === validRole) || tenantStaff[0];
+
+  const userId = matchingStaff ? matchingStaff.id : `staff-${validRole}`;
+  const userName = matchingStaff ? matchingStaff.name : (validRole === 'store_owner' ? 'مالك المتجر' : `موظف (${validRole})`);
+  const userEmail = matchingStaff ? matchingStaff.email : `${validRole}@${tenant.slug}.com`;
+
   const token = signAuthToken({
-    userId: `user-${validRole}-${Date.now().toString(36)}`,
-    email: `${validRole}@${tenant.slug}.com`,
-    name: validRole === 'store_owner' ? 'مالك المتجر' : `موظف (${validRole})`,
+    userId,
+    email: userEmail,
+    name: userName,
     role: validRole,
     tenantId: tenant.id,
     permissions: ROLE_PERMISSIONS[validRole]
@@ -115,6 +157,14 @@ authRouter.post('/switch-role', (req: Request, res: Response) => {
     token,
     role: validRole,
     permissions: ROLE_PERMISSIONS[validRole],
-    tenantId: tenant.id
+    tenantId: tenant.id,
+    user: {
+      id: userId,
+      name: userName,
+      email: userEmail,
+      role: validRole,
+      tenantId: tenant.id,
+      permissions: ROLE_PERMISSIONS[validRole]
+    }
   });
 });

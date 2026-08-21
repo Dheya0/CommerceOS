@@ -7,7 +7,7 @@ export const ordersRouter = Router();
 
 // GET /api/v1/orders - List orders (RBAC guarded: 'orders')
 ordersRouter.get('/', requirePermission('orders'), (req: Request, res: Response) => {
-  // STRICT: derives tenant solely from user context
+  // STRICT: derives tenant solely from authenticated user context
   const tenantId = req.user!.tenantId;
   const status = req.query.status as string | undefined;
 
@@ -37,12 +37,15 @@ ordersRouter.get('/:id', requirePermission('orders'), (req: Request, res: Respon
 
 /**
  * POST /api/v1/orders - Public/Storefront Checkout Endpoint
- * Hardened against client pricing manipulation:
- * Rebuilds total, tax, and inventory checks on the server.
+ * Hardened Architecture:
+ * 1. Derives tenant SOLELY from Host/TenantResolver (Ignores any client-injected tenantId in body)
+ * 2. Zero-Trust Client Pricing: Server calculates product pricing, taxes, and shipping policy
+ * 3. Client provides only items, customer info, payment method, coupon code, and optional shippingMethodId
  */
 ordersRouter.post('/', (req: Request, res: Response) => {
-  const targetTenantId = req.body.tenantId || req.tenantId;
-  const { customer, items, paymentMethod, couponCode, shippingFee } = req.body;
+  // Strictly enforce tenant context resolved by server middleware from host/header
+  const targetTenantId = req.tenantId;
+  const { customer, items, paymentMethod, couponCode, shippingMethodId } = req.body;
 
   if (!customer || !customer.name || !customer.phone) {
     return res.status(400).json({ error: 'بيانات العميل (الاسم ورقم الجوال) مطلوبة لإتمام الطلب' });
@@ -61,7 +64,7 @@ ordersRouter.post('/', (req: Request, res: Response) => {
     })),
     paymentMethod: paymentMethod || 'mada',
     couponCode,
-    shippingFee
+    shippingMethodId
   });
 
   if (!result.success) {

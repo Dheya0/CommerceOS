@@ -140,7 +140,13 @@ export const INITIAL_TENANTS: TenantStore[] = [
       { id: 'ship-1', name: 'شحن سريع مبرد (أرامكس)', nameEn: 'Aramex Chilled Express', cost: 25, estimatedDays: '1-2 أيام عمل', active: true },
       { id: 'ship-2', name: 'توصيل فوري بالرياض (خلال 3 ساعات)', nameEn: 'Riyadh Instant 3-Hour Delivery', cost: 35, estimatedDays: 'اليوم نفسه', active: true },
       { id: 'ship-3', name: 'شحن مجاني للطلبات فوق 300 ر.س', nameEn: 'Free Shipping (Over 300 SAR)', cost: 0, estimatedDays: '2-3 أيام', active: true }
-    ]
+    ],
+    taxConfig: {
+      enabled: true,
+      rate: 15,
+      taxNumber: '310998823100003',
+      taxIncludedInPrice: true
+    }
   },
 
   // 2. Coffee House
@@ -529,6 +535,7 @@ export const INITIAL_ORDERS: Order[] = [
     subtotal: 1070,
     discount: 50,
     shipping: 0,
+    tax: 133.04,
     total: 1020,
     status: 'processing',
     paymentMethod: 'apple_pay',
@@ -563,6 +570,7 @@ export const INITIAL_ORDERS: Order[] = [
     subtotal: 520,
     discount: 0,
     shipping: 25,
+    tax: 67.83,
     total: 545,
     status: 'shipped',
     paymentMethod: 'mada',
@@ -597,6 +605,7 @@ export const INITIAL_ORDERS: Order[] = [
     subtotal: 520,
     discount: 0,
     shipping: 0,
+    tax: 67.83,
     total: 520,
     status: 'delivered',
     paymentMethod: 'tamara',

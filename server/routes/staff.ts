@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
 import { requirePermission, ROLE_PERMISSIONS } from '../middleware/auth';
+import { hashPassword } from '../utils/security';
 import { StaffMember, StaffRole } from '../../src/types';
 
 export const staffRouter = Router();
@@ -8,14 +9,18 @@ export const staffRouter = Router();
 // GET /api/v1/staff (RBAC guarded: 'staff')
 staffRouter.get('/', requirePermission('staff'), (req: Request, res: Response) => {
   const tenantId = req.user!.tenantId;
-  const staff = db.getStaff(tenantId);
+  const staff = db.getStaff(tenantId).map(s => {
+    const safe = { ...s };
+    delete safe.passwordHash;
+    return safe;
+  });
   res.json({ staff });
 });
 
 // POST /api/v1/staff - Invite/Add staff member (RBAC guarded: 'staff')
 staffRouter.post('/', requirePermission('staff'), (req: Request, res: Response) => {
   const tenantId = req.user!.tenantId;
-  const { name, email, role = 'support_agent' } = req.body;
+  const { name, email, role = 'support_agent', password } = req.body;
 
   if (!name || !email) {
     return res.status(400).json({ error: 'Name and email are required' });
@@ -23,6 +28,9 @@ staffRouter.post('/', requirePermission('staff'), (req: Request, res: Response) 
 
   const validRole = (role in ROLE_PERMISSIONS ? role : 'support_agent') as StaffRole;
   const id = `staff-${Date.now()}`;
+  const defaultPassword = password || 'CommerceOS@2026';
+  const passwordHash = hashPassword(defaultPassword);
+
   const newStaff: StaffMember = {
     id,
     tenantId,
@@ -32,23 +40,32 @@ staffRouter.post('/', requirePermission('staff'), (req: Request, res: Response) 
     permissions: ROLE_PERMISSIONS[validRole],
     status: 'active',
     avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80`,
-    createdAt: new Date().toISOString().split('T')[0]
+    createdAt: new Date().toISOString().split('T')[0],
+    passwordHash
   };
 
   const created = db.createStaff(newStaff);
+  const safeCreated = { ...created };
+  delete safeCreated.passwordHash;
+
   res.status(201).json({
     success: true,
-    staff: created
+    staff: safeCreated
   });
 });
 
 // PUT /api/v1/staff/:id - Update staff role / status (RBAC guarded: 'staff')
 staffRouter.put('/:id', requirePermission('staff'), (req: Request, res: Response) => {
   const { id } = req.params;
-  const updates = req.body;
+  const updates = { ...req.body };
 
   // Prevent moving staff member across tenants
   delete updates.tenantId;
+
+  if (updates.password) {
+    updates.passwordHash = hashPassword(updates.password);
+    delete updates.password;
+  }
 
   if (updates.role && ROLE_PERMISSIONS[updates.role as StaffRole]) {
     updates.permissions = ROLE_PERMISSIONS[updates.role as StaffRole];
@@ -59,9 +76,12 @@ staffRouter.put('/:id', requirePermission('staff'), (req: Request, res: Response
     return res.status(404).json({ error: 'Staff member not found' });
   }
 
+  const safeUpdated = { ...updated };
+  delete safeUpdated.passwordHash;
+
   res.json({
     success: true,
-    staff: updated
+    staff: safeUpdated
   });
 });
 
