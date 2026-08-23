@@ -268,6 +268,7 @@ class DatabaseEngine {
    * 4. Calculates explicit Value Added Tax (VAT 15% / Saudi VAT Rules)
    * 5. Validates and decrements stock atomically with rollback capability
    * 6. Updates customer stats and creates immutable order record
+   * 7. Sets legitimate payment status: 'pending' / 'pending_verification' (requires gateway webhook/intent or merchant approval)
    */
   createOrderAtomic(input: {
     tenantId: string;
@@ -276,8 +277,10 @@ class DatabaseEngine {
     paymentMethod: Order['paymentMethod'];
     couponCode?: string;
     shippingMethodId?: string;
+    bankTransferDetails?: Order['bankTransferDetails'];
+    paymentIntentId?: string;
   }): { success: boolean; order?: Order; error?: string } {
-    const { tenantId, customer, items, paymentMethod, couponCode, shippingMethodId } = input;
+    const { tenantId, customer, items, paymentMethod, couponCode, shippingMethodId, bankTransferDetails } = input;
 
     if (!items || items.length === 0) {
       return { success: false, error: 'السلة فارغة' };
@@ -286,6 +289,31 @@ class DatabaseEngine {
     const tenant = this.getTenantByIdOrSlug(tenantId);
     if (!tenant) {
       return { success: false, error: 'المتجر غير موجود' };
+    }
+
+    // Verify payment gateway is enabled by tenant
+    if (tenant.paymentGateways) {
+      const isGatewayEnabled = 
+        (paymentMethod === 'mada' && tenant.paymentGateways.mada) ||
+        (paymentMethod === 'visa' && tenant.paymentGateways.visa) ||
+        (paymentMethod === 'apple_pay' && tenant.paymentGateways.applePay) ||
+        (paymentMethod === 'tamara' && tenant.paymentGateways.tamara) ||
+        (paymentMethod === 'cod' && tenant.paymentGateways.cod) ||
+        (paymentMethod === 'bank_transfer' && tenant.paymentGateways.bankTransfer);
+
+      if (!isGatewayEnabled) {
+        return {
+          success: false,
+          error: `طريقة الدفع المختارة (${paymentMethod}) غير مفعلة حالياً في هذا المتجر.`
+        };
+      }
+    }
+
+    if (paymentMethod === 'bank_transfer' && !bankTransferDetails?.receiptImage && !bankTransferDetails?.referenceNumber) {
+      return {
+        success: false,
+        error: 'يرجى إرفاق إيصال التحويل البنكي أو رقم المرجع لتأكيد الطلب'
+      };
     }
 
     // 1. Reconstruct order items and verify stock from DB truth
@@ -419,12 +447,28 @@ class DatabaseEngine {
       this.data.customers.push(newCustomer);
     }
 
-    // 7. Build immutable order
+    // 7. Build immutable order with realistic payment lifecycle
     const id = `ord-${Date.now()}`;
     const prefix = (tenant.slug || 'ST').substring(0, 2).toUpperCase();
     const num = Math.floor(1000 + Math.random() * 9000);
     const orderNumber = `#${prefix}-${num}`;
     const now = new Date().toISOString();
+
+    // Legitimate Payment Lifecycle:
+    // - Bank transfer: 'pending_verification' (requires merchant review of receipt)
+    // - Electronic gateways (mada, visa, apple_pay, tamara): 'pending' (requires gateway authorization)
+    // - COD: 'pending' (paid upon physical delivery)
+    const initialPaymentStatus: Order['paymentStatus'] = 
+      paymentMethod === 'bank_transfer' ? 'pending_verification' : 'pending';
+
+    let initialTimelineNote = `تم إنشاء الطلب واحتساب الأسعار والضريبة (${calculatedTax} ر.س) والشحن (${calculatedShipping} ر.س) بنجاح`;
+    if (paymentMethod === 'bank_transfer') {
+      initialTimelineNote = `تم إنشاء الطلب وتسجيل بيانات الحوالة البنكية (${bankTransferDetails?.bankName || 'تحويل بنكي'})، بانتظار مراجعة الإيصال والاعتماد`;
+    } else if (paymentMethod === 'cod') {
+      initialTimelineNote = `تم إنشاء الطلب مع خيار الدفع عند الاستلام (COD)`;
+    } else {
+      initialTimelineNote = `تم إنشاء الطلب - في انتظار إشعار نجاح الدفع من بوابة (${paymentMethod.toUpperCase()})`;
+    }
 
     const newOrder: Order = {
       id,
@@ -439,13 +483,14 @@ class DatabaseEngine {
       total: calculatedTotal,
       status: 'new',
       paymentMethod,
-      paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
+      paymentStatus: initialPaymentStatus,
+      bankTransferDetails: paymentMethod === 'bank_transfer' ? bankTransferDetails : undefined,
       createdAt: now,
       timeline: [
         {
           status: 'new',
           timestamp: now,
-          note: `تم إنشاء الطلب واحتساب الأسعار والضريبة (${calculatedTax} ر.س) والشحن (${calculatedShipping} ر.س) بنجاح عبر خادم التجارة`
+          note: initialTimelineNote
         }
       ]
     };
@@ -456,7 +501,9 @@ class DatabaseEngine {
       subtotal: calculatedSubtotal, 
       tax: calculatedTax, 
       shipping: calculatedShipping, 
-      total: calculatedTotal 
+      total: calculatedTotal,
+      paymentMethod,
+      paymentStatus: initialPaymentStatus
     });
     this.queueSave();
 
@@ -464,7 +511,7 @@ class DatabaseEngine {
   }
 
   /**
-   * Update order status with strict state-machine validation
+   * Update order status with strict state-machine validation and accurate audit trail
    */
   updateOrderStatus(
     id: string, 
@@ -478,12 +525,14 @@ class DatabaseEngine {
       return { success: false, error: 'الطلب غير موجود' };
     }
 
+    const previousStatus = order.status;
+
     // Validate State Machine
-    const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[order.status] || [];
+    const allowedTransitions = ALLOWED_STATUS_TRANSITIONS[previousStatus] || [];
     if (!allowedTransitions.includes(newStatus)) {
       return {
         success: false,
-        error: `لا يمكن تحويل حالة الطلب من [${order.status}] إلى [${newStatus}]. المسار المسموح به هو: ${allowedTransitions.join(', ') || 'لا يوجد (حالة نهائية)'}`
+        error: `لا يمكن تحويل حالة الطلب من [${previousStatus}] إلى [${newStatus}]. المسار المسموح به هو: ${allowedTransitions.join(', ') || 'لا يوجد (حالة نهائية)'}`
       };
     }
 
@@ -495,10 +544,54 @@ class DatabaseEngine {
     order.timeline.push({
       status: newStatus,
       timestamp: new Date().toISOString(),
-      note: note || `تم تحديث حالة الطلب إلى: ${newStatus}`
+      note: note || `تم تحديث حالة الطلب من [${previousStatus}] إلى [${newStatus}]`
     });
 
-    this.addAuditLog(order.tenantId, 'ORDER_STATUS_UPDATED', performedBy, { id, from: order.status, to: newStatus });
+    // Accurate Audit Trail: captures genuine previousStatus vs newStatus
+    this.addAuditLog(order.tenantId, 'ORDER_STATUS_UPDATED', performedBy, { 
+      id, 
+      from: previousStatus, 
+      to: newStatus 
+    });
+    this.queueSave();
+    return { success: true, order };
+  }
+
+  /**
+   * Approve or verify order payment (for gateway webhooks or bank transfers)
+   */
+  updateOrderPaymentStatus(
+    id: string,
+    newPaymentStatus: Order['paymentStatus'],
+    note?: string,
+    tenantId?: string,
+    performedBy: string = 'PaymentGateway'
+  ): { success: boolean; order?: Order; error?: string } {
+    const order = this.getOrderById(id, tenantId);
+    if (!order) {
+      return { success: false, error: 'الطلب غير موجود' };
+    }
+
+    const previousPaymentStatus = order.paymentStatus;
+    order.paymentStatus = newPaymentStatus;
+
+    if (newPaymentStatus === 'paid' && order.status === 'new') {
+      order.status = 'processing';
+    }
+
+    order.timeline.push({
+      status: order.status,
+      timestamp: new Date().toISOString(),
+      note: note || `تم تحديث حالة الدفع إلى: [${newPaymentStatus}]`
+    });
+
+    this.addAuditLog(order.tenantId, 'ORDER_PAYMENT_STATUS_UPDATED', performedBy, {
+      id,
+      orderNumber: order.orderNumber,
+      from: previousPaymentStatus,
+      to: newPaymentStatus,
+      paymentMethod: order.paymentMethod
+    });
     this.queueSave();
     return { success: true, order };
   }

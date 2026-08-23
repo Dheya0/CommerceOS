@@ -26,7 +26,8 @@ import {
 } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
 import { FontFamily, RadiusPreset, StoreTheme, ThemeLayout, ThemeStyle } from '../../types';
-import { generateDesignTokens, PRESET_COLOR_PALETTES } from '../../utils/themeEngine';
+import { generateDesignTokens, PRESET_COLOR_PALETTES, FONTS_CONFIG } from '../../utils/themeEngine';
+import { ImageUploadCropper } from '../common/ImageUploadCropper';
 import { StorefrontHeader } from '../storefront/StorefrontHeader';
 import { 
   StorefrontHero, 
@@ -265,25 +266,26 @@ export const LiveDesignStudio: React.FC = () => {
               
               {/* Presets Grid */}
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-2">ثيمات جاهزة متناسقة (One-Click Presets)</label>
+                <label className="block text-xs font-bold text-slate-300 mb-2">لوحات الألوان المعتمدة (12 Palette)</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {presets.map((p, idx) => (
+                  {PRESET_COLOR_PALETTES.map((pal) => (
                     <button
-                      key={idx}
+                      key={pal.id}
                       onClick={() => {
-                        handleColorChange(p.hex);
-                        handleStyleChange(p.style);
-                        handleFontChange(p.font);
-                        handleLayoutChange(p.layout);
+                        handleColorChange(pal.hex);
+                        handleStyleChange(pal.style);
                       }}
-                      className={`flex items-center gap-2 p-2 rounded-xl border text-right transition-all ${
-                        (draftTheme.tokens?.primary || '').toLowerCase() === (p.hex || '').toLowerCase()
+                      className={`flex items-center justify-between p-2.5 rounded-xl border text-right transition-all ${
+                        (draftTheme.tokens?.primary || '').toLowerCase() === (pal.hex || '').toLowerCase()
                           ? 'border-amber-500 bg-amber-500/10 text-white'
                           : 'border-slate-800 bg-slate-950/60 text-slate-300 hover:border-slate-700'
                       }`}
                     >
-                      <span className="w-4 h-4 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: p.hex }} />
-                      <span className="text-[11px] font-bold truncate">{p.name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="w-4 h-4 rounded-full shrink-0 shadow-sm border border-white/20" style={{ backgroundColor: pal.hex }} />
+                        <span className="w-3 h-3 rounded-full shrink-0 border border-white/20" style={{ backgroundColor: pal.secondary }} />
+                        <span className="text-[11px] font-bold truncate">{pal.name}</span>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -342,7 +344,8 @@ export const LiveDesignStudio: React.FC = () => {
                     { id: 'modern', label: 'عصري ناصع (Modern)', desc: 'خطوط واضحة وبساطة عملية' },
                     { id: 'organic', label: 'طبيعي دافئ (Organic)', desc: 'ألوان ترابية ولمسات ناعمة' },
                     { id: 'minimal', label: 'مينيمال هادئ (Minimal)', desc: 'تركيز فائق على المنتجات' },
-                    { id: 'tech', label: 'تقني متطور (Tech)', desc: 'تباين عالي وزوايا دقيقة' },
+                    { id: 'bold', label: 'جريء تقني (Bold/Tech)', desc: 'تباين عالي وزوايا دقيقة' },
+                    { id: 'classic', label: 'كلاسيكي إيديتوريال (Classic)', desc: 'أناقة المجلات والماركات' },
                   ].map(s => (
                     <button
                       key={s.id}
@@ -386,44 +389,46 @@ export const LiveDesignStudio: React.FC = () => {
               
               {/* Font Selection */}
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-2">نوع الخط العربي والإنجليزي (Typography Pairing)</label>
-                <div className="space-y-2">
-                  {[
-                    { id: 'tajawal', name: 'Tajawal (تجوال)', sample: 'عسل سدر طبيعي فاخر مضمون', desc: 'عصري، مقروء وأنيق' },
-                    { id: 'alexandria', name: 'Alexandria (الإسكندرية)', sample: 'جودة استثنائية من مناحلنا', desc: 'هندسي حديث وحيوي' },
-                    { id: 'playfair', name: 'Playfair Display + Amiri (أميري ملكي)', sample: 'الفخامة الملكية والذوق الرفيع', desc: 'كلاسيكي فخم للمنتجات الفارهة' },
-                    { id: 'jakarta', name: 'Plus Jakarta Sans + Kufi', sample: 'تكنولوجيا سريعة وأداء متميز', desc: 'تقني ودقيق' }
-                  ].map(f => (
-                    <button
-                      key={f.id}
-                      onClick={() => handleFontChange(f.id as FontFamily)}
-                      className={`w-full p-3 rounded-xl border text-right transition-all ${
-                        draftTheme.fontFamily === f.id
-                          ? 'border-amber-500 bg-amber-500/15 text-white font-bold'
-                          : 'border-slate-800 bg-slate-950 text-slate-300 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold">{f.name}</span>
-                        {draftTheme.fontFamily === f.id && <Check className="w-3.5 h-3.5 text-amber-400" />}
-                      </div>
-                      <div className="text-xs text-amber-300/80 my-1 font-semibold">{f.sample}</div>
-                      <div className="text-[10px] text-slate-500">{f.desc}</div>
-                    </button>
-                  ))}
+                <label className="block text-xs font-bold text-slate-300 mb-2">نوع الخط العربي والإنجليزي (10 Fonts Catalog)</label>
+                <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                  {(Object.keys(FONTS_CONFIG) as FontFamily[]).map(fKey => {
+                    const f = FONTS_CONFIG[fKey];
+                    return (
+                      <button
+                        key={fKey}
+                        onClick={() => handleFontChange(fKey)}
+                        className={`w-full p-3 rounded-xl border text-right transition-all ${
+                          draftTheme.fontFamily === fKey
+                            ? 'border-amber-500 bg-amber-500/15 text-white font-bold'
+                            : 'border-slate-800 bg-slate-950 text-slate-300 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-amber-300">{f.nameAr}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400">{f.category}</span>
+                        </div>
+                        <div 
+                          className="text-xs my-1 font-bold text-slate-200 line-clamp-1"
+                          style={{ fontFamily: f.cssFamily }}
+                        >
+                          {f.previewText}
+                        </div>
+                        <div className="text-[10px] text-slate-500">{f.description}</div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Corner Radius */}
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-2">استدارة الزوايا والحواف (Border Radius)</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {[
-                    { id: 'none', label: 'حادة (Sharp)', rad: '0px' },
-                    { id: 'sm', label: 'ناعمة (Subtle)', rad: '6px' },
-                    { id: 'md', label: 'متوسطة (Modern)', rad: '12px' },
-                    { id: 'lg', label: 'دائرية (Rounded)', rad: '20px' },
-                    { id: 'full', label: 'كبسولة (Pill)', rad: '999px' }
+                    { id: 'none', label: 'حادة', rad: '0px' },
+                    { id: 'sm', label: 'ناعمة', rad: '8px' },
+                    { id: 'md', label: 'متوسطة', rad: '16px' },
+                    { id: 'lg', label: 'دائرية', rad: '24px' }
                   ].map(r => (
                     <button
                       key={r.id}
@@ -454,9 +459,9 @@ export const LiveDesignStudio: React.FC = () => {
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { id: 'luxury', label: 'Luxury Hero Banner', desc: 'بانر عريض مع سرد مميز' },
-                    { id: 'grid', label: 'E-Commerce Grid Pro', desc: 'شبكة منتجات كثيفة وسريعة' },
-                    { id: 'minimal', label: 'Editorial Minimalist', desc: 'مساحات بيضاء نقية' },
-                    { id: 'tech', label: 'High-Tech Showcase', desc: 'بطاقات ديناميكية بصرية' },
+                    { id: 'modern', label: 'Modern Clean Grid', desc: 'شبكة منتجات عصرية وسريعة' },
+                    { id: 'editorial', label: 'Editorial Minimalist', desc: 'مساحات بيضاء نقية' },
+                    { id: 'marketplace', label: 'High-Tech Marketplace', desc: 'بطاقات ديناميكية بصرية' },
                   ].map(l => (
                     <button
                       key={l.id}
@@ -535,20 +540,16 @@ export const LiveDesignStudio: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">رابط الشعار (Logo URL)</label>
-                <input
-                  type="url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+              {/* Enhanced Image Cropper */}
+              <div className="pt-2">
+                <label className="block text-xs font-bold text-slate-300 mb-2">شعار المتجر والأيقونة (Logo & Favicon)</label>
+                <ImageUploadCropper
+                  initialImage={logoUrl}
+                  onImageChange={(newLogo) => setLogoUrl(newLogo)}
+                  isLogoMode={true}
+                  cropTitle="قص وتعديل شعار المتجر"
+                  accentColor={primaryHex}
                 />
-                {logoUrl && (
-                  <div className="mt-2 p-2 bg-slate-950 rounded-xl border border-slate-800 flex items-center gap-3">
-                    <img src={logoUrl} alt="Logo Preview" className="w-10 h-10 rounded-lg object-cover" />
-                    <span className="text-[11px] text-slate-400">معاينة الشعار المباشرة</span>
-                  </div>
-                )}
               </div>
 
             </div>

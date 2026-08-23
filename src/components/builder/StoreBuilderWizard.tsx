@@ -24,46 +24,137 @@ import {
   ShieldAlert, 
   Laptop, 
   Smartphone,
-  Droplet
+  Droplet,
+  Upload,
+  Globe,
+  Building2,
+  MapPin,
+  Coins,
+  ShieldCheck,
+  CheckCircle2,
+  Plus,
+  Trash2,
+  Copy,
+  Zap,
+  Layout,
+  Sun,
+  Moon,
+  ExternalLink,
+  ChevronDown
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCommerce } from '../../context/CommerceContext';
-import { BusinessType, Category, FontFamily, HomepageSection, Product, RadiusPreset, StoreTheme, TenantStore, ThemeLayout, ThemeStyle } from '../../types';
-import { BUSINESS_TYPE_CONFIG, generateDesignTokens, PRESET_COLOR_PALETTES } from '../../utils/themeEngine';
+import { 
+  BusinessType, 
+  Category, 
+  FontFamily, 
+  HomepageSection, 
+  Product, 
+  RadiusPreset, 
+  StoreTheme, 
+  TenantStore, 
+  ThemeLayout, 
+  ThemeStyle,
+  BankAccount 
+} from '../../types';
+import { 
+  BUSINESS_TYPE_CONFIG, 
+  generateDesignTokens, 
+  PRESET_COLOR_PALETTES,
+  ARAB_CURRENCIES,
+  ARAB_COUNTRIES_AND_CITIES,
+  ARAB_PAYMENT_GATEWAYS_CATALOG,
+  FONTS_CONFIG
+} from '../../utils/themeEngine';
+import { ImageUploadCropper } from '../common/ImageUploadCropper';
 
 export const StoreBuilderWizard: React.FC = () => {
-  const { createTenant, setCurrentView, setActiveTenantId } = useCommerce();
+  const { createTenant, setCurrentView, setActiveTenantId, showToast } = useCommerce();
 
+  // Primary Building Path Mode: 'wizard' | 'starter_kits' | 'express'
+  const [buildMode, setBuildMode] = useState<'wizard' | 'starter_kits' | 'express'>('wizard');
+
+  // Wizard Step (1 to 6, 7 is Celebration)
   const [step, setStep] = useState<number>(1);
   const totalSteps = 6;
 
-  // Wizard Form State
+  // Step 1: Business Type & Identity
   const [businessType, setBusinessType] = useState<BusinessType>('honey');
   const [storeName, setStoreName] = useState<string>('متجر النخبة للعسل');
-  const [storeNameEn, setStoreNameEn] = useState<string>('Elite Honey Store');
+  const [storeNameEn, setStoreNameEn] = useState<string>('Elite Honey Boutique');
   const [slug, setSlug] = useState<string>('elite-honey');
   const [slogan, setSlogan] = useState<string>('أجود أنواع العسل الطبيعي المضمون من مناحلنا');
-  const [description, setDescription] = useState<string>('متجر متخصص في توفير أعسال السدر الطبيعية والخلطات الملكية المعتمدة مخبرياً.');
-  const [logoUrl, setLogoUrl] = useState<string>('https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=200&auto=format&fit=crop&q=80');
-  
-  // Design Tokens & Theme Engine
+  const [description, setDescription] = useState<string>('متجر متخصص في توفير أعسال السدر الطبيعية والخلطات الملكية المعتمدة مخبرياً بضمان الجودة.');
+  const [logoUrl, setLogoUrl] = useState<string>('https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=500&auto=format&fit=crop&q=80');
+  const [coverUrl, setCoverUrl] = useState<string>('https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=1200&auto=format&fit=crop&q=80');
+
+  // Step 2 & 3: Architectural Design & Theme
   const [primaryColor, setPrimaryColor] = useState<string>('#D4A017');
   const [themeStyle, setThemeStyle] = useState<ThemeStyle>('luxury');
   const [themeLayout, setThemeLayout] = useState<ThemeLayout>('luxury');
+  const [headerStyle, setHeaderStyle] = useState<'floating' | 'solid' | 'transparent' | 'centered_logo' | 'island_blur'>('floating');
+  const [heroStyle, setHeroStyle] = useState<'split' | 'cinematic' | 'story' | 'spotlight' | 'minimal'>('split');
+  const [cardStyle, setCardStyle] = useState<'elevated' | 'bordered' | 'minimal' | 'glass'>('bordered');
   const [fontFamily, setFontFamily] = useState<FontFamily>('tajawal');
   const [radius, setRadius] = useState<RadiusPreset>('sm');
   const [darkMode, setDarkMode] = useState<boolean>(false);
 
-  // Settings
+  // Step 4: Geographic & Currency Settings
+  const [countryCode, setCountryCode] = useState<string>('SA');
+  const [city, setCity] = useState<string>('الرياض');
   const [currency, setCurrency] = useState<string>('SAR');
   const [contactEmail, setContactEmail] = useState<string>('contact@store.sa');
   const [contactPhone, setContactPhone] = useState<string>('+966 50 000 0000');
-  const [city, setCity] = useState<string>('الرياض');
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState<number>(300);
+  const [shippingCost, setShippingCost] = useState<number>(25);
 
-  // Preview tab within builder
+  // Step 5: Payment Gateways Toggles & Bank Wire Setup
+  const [paymentGateways, setPaymentGateways] = useState({
+    mada: true,
+    applePay: true,
+    visa: true,
+    stcPay: true,
+    tamara: true,
+    tabby: true,
+    knet: false,
+    benefit: false,
+    fawry: false,
+    cliq: false,
+    bankTransfer: true,
+    cod: true
+  });
+
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
+    {
+      id: 'bank-1',
+      bankName: 'مصرف الراجحي (Al Rajhi Bank)',
+      accountHolder: 'مؤسسة النخبة التجارية',
+      accountNumber: '44558899112233',
+      iban: 'SA448000044558899112233',
+      isActive: true
+    },
+    {
+      id: 'bank-2',
+      bankName: 'البنك الأهلي السعودي (SNB)',
+      accountHolder: 'مؤسسة النخبة التجارية',
+      accountNumber: '10022334455667',
+      iban: 'SA1210000010022334455667',
+      isActive: true
+    }
+  ]);
+
+  const [newBankName, setNewBankName] = useState('');
+  const [newAccountHolder, setNewAccountHolder] = useState('');
+  const [newIban, setNewIban] = useState('');
+  const [isAddingBank, setIsAddingBank] = useState(false);
+
+  // Preview Device State
   const [previewTab, setPreviewTab] = useState<'mobile' | 'desktop'>('desktop');
 
-  // Handle Business Type Selection
+  // Compute live tokens
+  const liveTokens = generateDesignTokens(primaryColor, themeStyle, darkMode);
+
+  // Business Type Quick Handler
   const handleSelectBusinessType = (type: BusinessType) => {
     setBusinessType(type);
     const config = BUSINESS_TYPE_CONFIG[type];
@@ -77,40 +168,88 @@ export const StoreBuilderWizard: React.FC = () => {
       setStoreName('متجر النخبة للعسل');
       setStoreNameEn('Elite Honey Boutique');
       setSlug('elite-honey');
-      setLogoUrl('https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=200&auto=format&fit=crop&q=80');
+      setLogoUrl('https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=500&auto=format&fit=crop&q=80');
+      setDescription('متجر متخصص في توفير أعسال السدر الطبيعية والخلطات الملكية المعتمدة مخبرياً بضمان الجودة.');
     } else if (type === 'coffee') {
       setStoreName('محمصة البن الذهبي');
       setStoreNameEn('Golden Roast Coffee');
       setSlug('golden-roast');
-      setLogoUrl('https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=200&auto=format&fit=crop&q=80');
+      setLogoUrl('https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=500&auto=format&fit=crop&q=80');
+      setDescription('محاصيل بن مختصة منتقاة من أرقى مزارع إثيوبيا وكولومبيا لعشاق المذاق الأصيل.');
     } else if (type === 'fashion') {
-      setStoreName('أتيليه فيري للحرير');
+      setStoreName('أتيليه فيري للحرير والأزياء');
       setStoreNameEn('Very Silk Atelier');
       setSlug('very-silk');
-      setLogoUrl('https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=200&auto=format&fit=crop&q=80');
+      setLogoUrl('https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=500&auto=format&fit=crop&q=80');
+      setDescription('إطلالات وعبايات راقية مصممة من أفخر أنواع الحرير والأقمشة العالمية.');
     } else if (type === 'perfume') {
       setStoreName('قصر العود والعطور الملكية');
       setStoreNameEn('Palace Oud & Perfumes');
       setSlug('palace-oud');
-      setLogoUrl('https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=200&auto=format&fit=crop&q=80');
+      setLogoUrl('https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=500&auto=format&fit=crop&q=80');
+      setDescription('نفحات ملكية من أدهان العود الصافي، وخشب البخور المعتق، وعطور النيش الفاخرة.');
     } else if (type === 'tech') {
-      setStoreName('المتجر الذكي للتقنية');
-      setStoreNameEn('SmartTech Pro Store');
+      setStoreName('المتجر الذكي للإلكترونيات');
+      setStoreNameEn('SmartTech Pro Hub');
       setSlug('smart-tech');
-      setLogoUrl('https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&auto=format&fit=crop&q=80');
+      setLogoUrl('https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=80');
+      setDescription('أحدث الأجهزة الذكية وملحقات الهواتف والصوتيات بضمان رسمي وتوصيل فوري.');
     } else {
       setStoreName(`متجر ${config.nameAr}`);
       setStoreNameEn(`${config.nameEn} Store`);
       setSlug(`${type}-store`);
+      setDescription(`أفضل منتجات ${config.nameAr} بأعلى درجات الجودة والخدمة المتميزة.`);
     }
   };
 
-  // Compute live tokens
-  const liveTokens = generateDesignTokens(primaryColor, themeStyle, darkMode);
+  // Country Change Handler
+  const handleCountryChange = (cCode: string) => {
+    setCountryCode(cCode);
+    const countryData = ARAB_COUNTRIES_AND_CITIES[cCode];
+    if (countryData) {
+      setCurrency(countryData.currency);
+      setCity(countryData.cities[0] || 'الرياض');
+      
+      // Auto adjust recommended gateways
+      if (cCode === 'KW') {
+        setPaymentGateways(prev => ({ ...prev, knet: true }));
+      } else if (cCode === 'BH') {
+        setPaymentGateways(prev => ({ ...prev, benefit: true }));
+      } else if (cCode === 'EG') {
+        setPaymentGateways(prev => ({ ...prev, fawry: true }));
+      } else if (cCode === 'JO') {
+        setPaymentGateways(prev => ({ ...prev, cliq: true }));
+      }
+    }
+  };
 
-  // Final submission
-  const handleLaunchStore = () => {
-    const newTenantId = `tenant-${slug}-${Date.now().toString().slice(-4)}`;
+  // Add Bank Account
+  const handleAddBankAccount = () => {
+    if (!newBankName.trim() || !newIban.trim()) {
+      showToast('يرجى كتابة اسم البنك ورقم الآيبان كاملاً', 'warning');
+      return;
+    }
+
+    const newAcc: BankAccount = {
+      id: `bank-${Date.now()}`,
+      bankName: newBankName.trim(),
+      accountHolder: newAccountHolder.trim() || storeName,
+      accountNumber: newIban.replace(/\D/g, '').slice(-12),
+      iban: newIban.trim().toUpperCase(),
+      isActive: true
+    };
+
+    setBankAccounts(prev => [...prev, newAcc]);
+    setNewBankName('');
+    setNewAccountHolder('');
+    setNewIban('');
+    setIsAddingBank(false);
+    showToast('تمت إضافة الحساب البنكي بنجاح', 'success');
+  };
+
+  // Launch Store Function
+  const handleLaunchStore = (customData?: Partial<TenantStore>) => {
+    const newTenantId = `tenant-${slug || 'store'}-${Date.now().toString().slice(-4)}`;
     
     const theme: StoreTheme = {
       style: themeStyle,
@@ -118,8 +257,9 @@ export const StoreBuilderWizard: React.FC = () => {
       fontFamily,
       radius,
       shadow: themeStyle === 'luxury' ? 'subtle' : themeStyle === 'modern' ? 'soft' : 'none',
-      headerStyle: 'floating',
-      cardStyle: themeStyle === 'luxury' ? 'bordered' : themeStyle === 'modern' ? 'elevated' : 'minimal',
+      headerStyle,
+      heroStyle,
+      cardStyle,
       darkMode,
       tokens: liveTokens
     };
@@ -127,23 +267,27 @@ export const StoreBuilderWizard: React.FC = () => {
     const initialSections: HomepageSection[] = [
       { id: `sec-1-${Date.now()}`, type: 'hero', title: slogan || storeName, titleEn: storeNameEn, subtitle: description, subtitleEn: 'Best premium selection tailored for you', enabled: true, order: 1 },
       { id: `sec-2-${Date.now()}`, type: 'categories', title: 'أقسام وتصنيفات المتجر', titleEn: 'Store Categories', enabled: true, order: 2 },
-      { id: `sec-3-${Date.now()}`, type: 'featured_products', title: 'المنتجات المميزة والأكثر طلباً', titleEn: 'Featured Products', subtitle: 'مختارات حصرية بأعلى درجات الجودة', enabled: true, order: 3 },
-      { id: `sec-4-${Date.now()}`, type: 'benefits', title: 'لماذا تختار متجرنا؟', titleEn: 'Our Core Commitments', subtitle: 'ضمان الجودة، وسرعة التوصيل، ودعم فني متواصل', enabled: true, order: 4 },
-      { id: `sec-5-${Date.now()}`, type: 'testimonials', title: 'آراء وتقييمات العملاء', titleEn: 'Verified Reviews', enabled: true, order: 5 }
+      { id: `sec-3-${Date.now()}`, type: 'featured_products', title: 'المنتجات المميزة والأكثر طلباً', titleEn: 'Featured Products', subtitle: 'مختارات حصرية بأعلى درجات الجودة والضمان', enabled: true, order: 3 },
+      { id: `sec-4-${Date.now()}`, type: 'benefits', title: 'لماذا تختار متجرنا؟', titleEn: 'Our Core Commitments', subtitle: 'ضمان ذهبي 100%، وسرعة تجهيز الشحن، ودعم فني متواصل', enabled: true, order: 4 },
+      { id: `sec-5-${Date.now()}`, type: 'testimonials', title: 'آراء وتقييمات العملاء الموثقة', titleEn: 'Verified Customer Reviews', enabled: true, order: 5 },
+      { id: `sec-6-${Date.now()}`, type: 'faq', title: 'الأسئلة الشائعة وتفاصيل الطلب', titleEn: 'Frequently Asked Questions', enabled: true, order: 6 }
     ];
+
+    const currencySymbol = ARAB_CURRENCIES[currency]?.symbol || 'ر.س';
+    const countryName = ARAB_COUNTRIES_AND_CITIES[countryCode]?.countryAr || 'المملكة العربية السعودية';
 
     const newTenant: TenantStore = {
       id: newTenantId,
       name: storeName,
       nameEn: storeNameEn || storeName,
-      slug,
+      slug: slug || 'store',
       description,
       slogan,
       businessType,
       logo: logoUrl,
       currency,
-      currencySymbol: currency === 'SAR' ? 'ر.س' : currency === 'AED' ? 'د.إ' : '$',
-      domain: `${slug}.commerceos.app`,
+      currencySymbol,
+      domain: `${slug || 'store'}.commerceos.app`,
       plan: 'business',
       status: 'active',
       createdAt: new Date().toISOString(),
@@ -151,10 +295,10 @@ export const StoreBuilderWizard: React.FC = () => {
         email: contactEmail,
         phone: contactPhone,
         city,
-        country: 'المملكة العربية السعودية'
+        country: countryName
       },
       social: {
-        instagram: `@${slug}`
+        instagram: `@${slug || 'store'}`
       },
       theme,
       sections: initialSections,
@@ -165,25 +309,40 @@ export const StoreBuilderWizard: React.FC = () => {
         backgroundColor: liveTokens.background,
         enablePush: true
       },
-      paymentGateways: {
-        mada: true,
-        applePay: true,
-        visa: true,
-        cod: true,
-        tamara: true
-      },
+      paymentGateways,
+      bankAccounts,
       shippingMethods: [
-        { id: `sm-1-${Date.now()}`, name: 'توصيل سريع مبرد ومضمون', nameEn: 'Express Safe Delivery', cost: 25, estimatedDays: '1-3 أيام عمل', active: true },
-        { id: `sm-2-${Date.now()}`, name: 'شحن مجاني للطلبات فوق 300 ر.س', nameEn: 'Free Shipping', cost: 0, estimatedDays: '2-4 أيام', active: true }
-      ]
+        { 
+          id: `sm-1-${Date.now()}`, 
+          name: 'توصيل سريع مبرد ومضمون لباب البيت', 
+          nameEn: 'Express Doorstep Delivery', 
+          cost: shippingCost, 
+          estimatedDays: '1-3 أيام عمل', 
+          active: true 
+        },
+        { 
+          id: `sm-2-${Date.now()}`, 
+          name: `شحن مجاني للطلبات فوق ${freeShippingThreshold} ${currencySymbol}`, 
+          nameEn: `Free Express Shipping over ${freeShippingThreshold}`, 
+          cost: 0, 
+          estimatedDays: '2-4 أيام', 
+          active: true 
+        }
+      ],
+      ...customData
     };
 
     // Create 3 tailored sample categories & products
     const catId1 = `cat-gen-1-${Date.now()}`;
     const catId2 = `cat-gen-2-${Date.now()}`;
+    const catId3 = `cat-gen-3-${Date.now()}`;
+
+    const sampleCats = BUSINESS_TYPE_CONFIG[businessType]?.sampleCategories || ['المنتجات الرئيسية', 'العروض المميزة', 'البكجات التوفيرية'];
+
     const sampleCategories: Category[] = [
-      { id: catId1, tenantId: newTenantId, name: BUSINESS_TYPE_CONFIG[businessType].sampleCategories[0] || 'المنتجات الرئيسية', nameEn: 'Main Collection', productCount: 2 },
-      { id: catId2, tenantId: newTenantId, name: BUSINESS_TYPE_CONFIG[businessType].sampleCategories[1] || 'العروض الخاصة', nameEn: 'Special Offers', productCount: 1 }
+      { id: catId1, tenantId: newTenantId, name: sampleCats[0] || 'المنتجات الرئيسية', nameEn: 'Main Collection', productCount: 2 },
+      { id: catId2, tenantId: newTenantId, name: sampleCats[1] || 'العروض الخاصة', nameEn: 'Special Offers', productCount: 1 },
+      { id: catId3, tenantId: newTenantId, name: sampleCats[2] || 'البكجات التوفيرية', nameEn: 'Value Bundles', productCount: 1 }
     ];
 
     const sampleProducts: Product[] = [
@@ -192,7 +351,7 @@ export const StoreBuilderWizard: React.FC = () => {
         tenantId: newTenantId,
         name: `${storeName} - الصنف الملكي الفاخر`,
         nameEn: `${storeNameEn} - Premium Royal Choice`,
-        description: `أفضل وأجود أنواع ${storeName} بمواصفات حصرية وضمان استرجاع ذهبي. فحص معتمد وتغليف فاخر.`,
+        description: `أفضل وأجود أنواع ${storeName} بمواصفات حصرية وضمان استرجاع ذهبي. فحص معتمد وتغليف فاخر مع بطاقة إهداء.`,
         categoryId: catId1,
         price: 280,
         comparePrice: 350,
@@ -201,28 +360,49 @@ export const StoreBuilderWizard: React.FC = () => {
         lowStockAlert: 5,
         images: [logoUrl],
         rating: 5.0,
-        reviewsCount: 18,
+        reviewsCount: 24,
         isFeatured: true,
         isBestseller: true,
+        weight: '1 كجم صافي',
         tags: ['مميز', 'أفضل مبيعاً', businessType]
       },
       {
         id: `prod-sample-2-${Date.now()}`,
         tenantId: newTenantId,
-        name: `${storeName} - البكج التوفيري المميز`,
-        nameEn: `${storeNameEn} - Value Bundle Set`,
-        description: 'باقة توفيرية تحتوي على تشكيلة منوعة لتجربة متكاملة بسعر منافس وجودة فائقة.',
+        name: `${storeName} - البكج التوفيري الثلاثي`,
+        nameEn: `${storeNameEn} - Value Bundle Set (3x)`,
+        description: 'باقة توفيرية تحتوي على تشكيلة منوعة لتجربة متكاملة بسعر منافس وجودة فائقة مع شحن مجاني.',
         categoryId: catId2,
         price: 490,
-        comparePrice: 580,
+        comparePrice: 590,
         sku: `${(slug || 'ST').toUpperCase()}-002`,
         stock: 20,
         lowStockAlert: 3,
         images: [logoUrl],
         rating: 4.9,
-        reviewsCount: 12,
+        reviewsCount: 18,
         isFeatured: true,
+        weight: '3 عبوات مختارة',
         tags: ['بكج', 'توفير', businessType]
+      },
+      {
+        id: `prod-sample-3-${Date.now()}`,
+        tenantId: newTenantId,
+        name: `${storeName} - خلطة الضيافة الخاصة`,
+        nameEn: `${storeNameEn} - Special Hospitality Blend`,
+        description: 'إصدار محدود ومميز تم إنتاجه بعناية فائقة لتقديم أرقى تجربة للضيوف والمناسبات السعيدة.',
+        categoryId: catId3,
+        price: 195,
+        comparePrice: 240,
+        sku: `${(slug || 'ST').toUpperCase()}-003`,
+        stock: 15,
+        lowStockAlert: 2,
+        images: [logoUrl],
+        rating: 4.8,
+        reviewsCount: 11,
+        isFeatured: false,
+        weight: '500 جم',
+        tags: ['ضيافة', 'إصدار خاص', businessType]
       }
     ];
 
@@ -231,13 +411,89 @@ export const StoreBuilderWizard: React.FC = () => {
 
     // Fire celebratory confetti!
     confetti({
-      particleCount: 120,
-      spread: 70,
+      particleCount: 140,
+      spread: 80,
       origin: { y: 0.6 }
     });
 
     setStep(7); // Show celebration & launch pad
   };
+
+  // Turnkey Starter Kits
+  const STARTER_KITS = [
+    {
+      id: 'kit-honey',
+      title: 'مناحل النخبة للعسل الملكي',
+      subtitle: 'هوية فاخرة بألوان الذهب والعنبر، خط تجوال، بوابات الدفع والتقسيط مع التحويل البنكي',
+      businessType: 'honey' as BusinessType,
+      primaryColor: '#D4A017',
+      font: 'tajawal' as FontFamily,
+      style: 'luxury' as ThemeStyle,
+      layout: 'luxury' as ThemeLayout,
+      logo: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=500&auto=format&fit=crop&q=80',
+      badge: 'الأكثر مبيعاً ⭐'
+    },
+    {
+      id: 'kit-coffee',
+      title: 'محمصة البن الذهبي والمختص',
+      subtitle: 'هوية دافئة باللون الإسبريسو والكراميل، خط الإسكندرية، تصميم عصري للمحاصيل والأدوات',
+      businessType: 'coffee' as BusinessType,
+      primaryColor: '#78350F',
+      font: 'alexandria' as FontFamily,
+      style: 'modern' as ThemeStyle,
+      layout: 'modern' as ThemeLayout,
+      logo: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=500&auto=format&fit=crop&q=80',
+      badge: 'محاصيل مختصة ☕'
+    },
+    {
+      id: 'kit-fashion',
+      title: 'دار فيري للحرير والأزياء الراقية',
+      subtitle: 'طابع مخملي إيديتوريال ناعم، خط المسيري، مخصص للعبايات والفساتين والماركات الفاخرة',
+      businessType: 'fashion' as BusinessType,
+      primaryColor: '#BE123C',
+      font: 'el_messiri' as FontFamily,
+      style: 'classic' as ThemeStyle,
+      layout: 'editorial' as ThemeLayout,
+      logo: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=500&auto=format&fit=crop&q=80',
+      badge: 'أناقة حصرية 👗'
+    },
+    {
+      id: 'kit-perfume',
+      title: 'قصر العود والعطور الملكية',
+      subtitle: 'هوية ملوكية ساحرة بألوان العود والبنفسجي، خط أميري وتجوال، أدهان عود وبخور فاخر',
+      businessType: 'perfume' as BusinessType,
+      primaryColor: '#7C3AED',
+      font: 'amiri' as FontFamily,
+      style: 'luxury' as ThemeStyle,
+      layout: 'luxury' as ThemeLayout,
+      logo: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=500&auto=format&fit=crop&q=80',
+      badge: 'نفحات ملكية 👑'
+    },
+    {
+      id: 'kit-tech',
+      title: 'عالم التقنية والأجهزة الذكية',
+      subtitle: 'طابع ياقوتي إلكتروني جريء، خط ريدكس برو، تصميم شبكي عالي الكثافة للمنتجات',
+      businessType: 'tech' as BusinessType,
+      primaryColor: '#2563EB',
+      font: 'readex' as FontFamily,
+      style: 'bold' as ThemeStyle,
+      layout: 'marketplace' as ThemeLayout,
+      logo: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=80',
+      badge: 'أجهزة ذكية ⚡'
+    },
+    {
+      id: 'kit-organic',
+      title: 'صيدلية العناية والجمال العضوي',
+      subtitle: 'ألوان الزيتون والنعناع المهدئة، خط المراعي الواضح، مستحضرات طبيعية وعناية متكاملة',
+      businessType: 'beauty' as BusinessType,
+      primaryColor: '#15803D',
+      font: 'almarai' as FontFamily,
+      style: 'organic' as ThemeStyle,
+      layout: 'classic' as ThemeLayout,
+      logo: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=500&auto=format&fit=crop&q=80',
+      badge: '100% طبيعي 🌿'
+    }
+  ];
 
   const businessTypeIcons: Record<BusinessType, React.FC<{ className?: string }>> = {
     honey: Droplet,
@@ -256,39 +512,80 @@ export const StoreBuilderWizard: React.FC = () => {
     <div className="min-h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 py-8 px-3 sm:px-6">
       <div className="max-w-7xl mx-auto">
         
-        {/* Progress Bar & Header */}
-        <div className="mb-8 text-center max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 text-xs font-bold mb-3">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>معالج إنشاء المتاجر الذكية (Store Builder Wizard)</span>
+        {/* Top Header & Architecture Selector */}
+        <div className="mb-8 text-center max-w-3xl mx-auto space-y-3">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 text-xs font-black shadow-inner">
+            <Sparkles className="w-4 h-4" />
+            <span>منظومة بناء وتخصيص المتاجر الإلكترونية المتكاملة (CommerceOS Architecture)</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            أنشئ متجرك الإلكتروني الاحترافي خلال دقائق
+
+          <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-snug">
+            صمّم متجرك الإلكتروني الاحترافي بحرية تامة وتفاصيل عميقة
           </h1>
-          <p className="text-sm text-slate-400 mt-2">
-            بدون أي برمجة — اختر نوع نشاطك، وهويتك البصرية، والمنصة تتكفل بإنشاء المتجر ولوحة الإدارة وتطبيق الـ PWA.
+
+          <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-2xl mx-auto">
+            حرية كاملة في اختيار طريقة البناء، رفع الشعار وقصه مع أيقونة Favicon .ico، اختيار أرقى الخطوط العربية واللاتينية، تخصيص العملات والمدن وبوابات الدفع والتحويل البنكي المباشر.
           </p>
 
-          {/* Stepper Dots */}
+          {/* Building Path Selector Tabs */}
           {step <= totalSteps && (
-            <div className="flex items-center justify-center gap-2 mt-6">
-              {[1, 2, 3, 4, 5, 6].map(s => (
-                <div key={s} className="flex items-center">
+            <div className="flex items-center justify-center pt-3">
+              <div className="p-1 rounded-2xl bg-slate-900 border border-slate-800 flex flex-wrap items-center gap-1 shadow-xl">
+                <button
+                  type="button"
+                  onClick={() => { setBuildMode('wizard'); setStep(1); }}
+                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
+                    buildMode === 'wizard' ? 'bg-amber-500 text-slate-950 shadow-md scale-105' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Sliders className="w-4 h-4" />
+                  <span>المعالج التفاعلي المتكامل (6 خطوات دقيقة)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBuildMode('starter_kits')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
+                    buildMode === 'starter_kits' ? 'bg-amber-500 text-slate-950 shadow-md scale-105' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Rocket className="w-4 h-4" />
+                  <span>باقات الإطلاق القطاعية الجاهزة (بنقرة واحدة)</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Stepper Steps (Only in Wizard Mode) */}
+          {buildMode === 'wizard' && step <= totalSteps && (
+            <div className="flex items-center justify-center gap-2 pt-4">
+              {[
+                { s: 1, label: 'القطاع والهوية' },
+                { s: 2, label: 'الشعار والأيقونة' },
+                { s: 3, label: 'الألوان والخطوط' },
+                { s: 4, label: 'العملات والمدن' },
+                { s: 5, label: 'بوابات الدفع' },
+                { s: 6, label: 'المعاينة والإطلاق' }
+              ].map(item => (
+                <div key={item.s} className="flex items-center gap-1.5">
                   <button
-                    onClick={() => s < step && setStep(s)}
-                    disabled={s > step}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                      s === step
-                        ? 'bg-amber-500 text-slate-950 ring-4 ring-amber-500/20 shadow-lg shadow-amber-500/30'
-                        : s < step
-                        ? 'bg-emerald-600 text-white cursor-pointer'
-                        : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                    onClick={() => item.s < step && setStep(item.s)}
+                    disabled={item.s > step}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                      step === item.s 
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md scale-105' 
+                        : item.s < step 
+                          ? 'bg-slate-800 text-emerald-400 border-emerald-500/30' 
+                          : 'bg-slate-900 text-slate-600 border-slate-800'
                     }`}
                   >
-                    {s < step ? <Check className="w-4 h-4" /> : s}
+                    <span className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-black bg-black/20">
+                      {item.s < step ? '✓' : item.s}
+                    </span>
+                    <span className="hidden sm:inline">{item.label}</span>
                   </button>
-                  {s < totalSteps && (
-                    <div className={`w-6 sm:w-10 h-0.5 mx-1 transition-colors ${s < step ? 'bg-emerald-600' : 'bg-slate-800'}`} />
+                  {item.s < totalSteps && (
+                    <div className={`w-3 h-0.5 ${item.s < step ? 'bg-emerald-500' : 'bg-slate-800'}`} />
                   )}
                 </div>
               ))}
@@ -296,77 +593,106 @@ export const StoreBuilderWizard: React.FC = () => {
           )}
         </div>
 
-        {/* Step 7: Launch Celebration & Ready State */}
-        {step === 7 ? (
-          <div className="max-w-2xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-slate-950 font-black shadow-xl shadow-amber-500/25 mb-6">
-              <Rocket className="w-10 h-10 animate-bounce" />
-            </div>
-            
-            <h2 className="text-3xl font-extrabold text-white mb-2">
-              مبروك! تم تدشين متجر "{storeName}" بنجاح 🚀
-            </h2>
-            <p className="text-slate-400 text-sm mb-6">
-              متجرك الإلكتروني جاهز الآن بنظام Multi-Tenant كامل، مع واجهة الزبائن، لوحة الإدارة، محرك التصميم، ودعم تثبيت PWA.
-            </p>
+        {/* ======================================================== */}
+        {/* MODE 2: STARTER KITS (READY-TO-LAUNCH INDUSTRY BUNDLES) */}
+        {/* ======================================================== */}
+        {buildMode === 'starter_kits' && step <= totalSteps && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {STARTER_KITS.map(kit => (
+                <div
+                  key={kit.id}
+                  className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/50 hover:shadow-2xl transition-all flex flex-col justify-between group relative overflow-hidden"
+                >
+                  <div className="absolute top-4 left-4">
+                    <span className="px-3 py-1 rounded-full text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      {kit.badge}
+                    </span>
+                  </div>
 
-            <div className="bg-slate-950 rounded-xl p-4 border border-slate-800 mb-6 text-right space-y-2.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">رابط المتجر الحي:</span>
-                <span className="font-mono text-amber-400 font-bold">{slug}.commerceos.app</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">نوع النشاط والهوية:</span>
-                <span className="text-slate-200">{BUSINESS_TYPE_CONFIG[businessType].nameAr} ({themeStyle})</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">اللون الأساسي للعلامة:</span>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: primaryColor }} />
-                  <span className="font-mono text-slate-300">{primaryColor}</span>
+                  <div className="space-y-4">
+                    <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg border border-slate-700 bg-slate-950">
+                      <img src={kit.logo} alt={kit.title} className="w-full h-full object-cover" />
+                    </div>
+
+                    <div className="text-right space-y-1">
+                      <h3 className="text-lg font-black text-white group-hover:text-amber-400 transition-colors">
+                        {kit.title}
+                      </h3>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        {kit.subtitle}
+                      </p>
+                    </div>
+
+                    {/* Meta Specs */}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: kit.primaryColor }} />
+                        <span className="font-mono">{kit.primaryColor}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Type className="w-3.5 h-3.5 text-amber-400" />
+                        <span>خط {kit.font}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-6">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleSelectBusinessType(kit.businessType);
+                        setPrimaryColor(kit.primaryColor);
+                        setFontFamily(kit.font);
+                        setThemeStyle(kit.style);
+                        setThemeLayout(kit.layout);
+                        setLogoUrl(kit.logo);
+                        setStoreName(kit.title);
+                        setStoreNameEn(kit.title);
+                        setSlug(kit.id.replace('kit-', ''));
+                        handleLaunchStore({
+                          businessType: kit.businessType,
+                          name: kit.title,
+                          logo: kit.logo
+                        });
+                      }}
+                      className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-xl hover:scale-102 flex items-center justify-center gap-2 transition-all"
+                    >
+                      <Rocket className="w-4 h-4" />
+                      <span>إطلاق هذا القالب بنقرة واحدة 🚀</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                onClick={() => setCurrentView('storefront')}
-                className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-sm shadow-lg shadow-amber-500/20 transition-all"
-              >
-                <Eye className="w-4 h-4" />
-                <span>زيارة متجر العميل الآن (Live)</span>
-              </button>
-
-              <button
-                onClick={() => setCurrentView('merchant_dashboard')}
-                className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm border border-slate-700 transition-all"
-              >
-                <Layers className="w-4 h-4" />
-                <span>فتح لوحة إدارة المتجر</span>
-              </button>
+              ))}
             </div>
           </div>
-        ) : (
-          
-          /* Split View: Left Controls / Right Real-time Preview */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        )}
+
+        {/* ======================================================== */}
+        {/* MODE 1: DEEP INTERACTIVE WIZARD (6 STEPS)               */}
+        {/* ======================================================== */}
+        {buildMode === 'wizard' && step <= totalSteps && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
-            {/* Form Steps Card (8 Cols on Desktop) */}
-            <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl">
+            {/* Left Column: Interactive Form Steps (8 cols) */}
+            <div className="lg:col-span-8 space-y-6">
               
-              {/* Step 1: Business Type */}
+              {/* STEP 1: BUSINESS SECTOR & BRAND DATA */}
               {step === 1 && (
-                <div className="space-y-6 animate-in fade-in">
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-1">المرحلة الأولى: اختر نشاط متجرك</h2>
-                    <p className="text-xs text-slate-400">
-                      اختيار النشاط يهيئ تلقائياً هيكل الأقسام، والألوان المقترحة، والخطوط، والمنتجات الافتراضية.
+                <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 animate-in fade-in duration-200">
+                  <div className="text-right border-b border-slate-800 pb-4">
+                    <h2 className="text-xl font-black text-white flex items-center gap-2">
+                      <ShoppingBag className="w-5 h-5 text-amber-400" />
+                      <span>الخطوة 1: حدد قطاع نشاطك التجاري والبيانات الأساسية</span>
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1">
+                      اختر تصنيف المتجر لتوليد الإعدادات والهوية والأصناف النموذجية الملائمة له تلقائياً.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {/* Business Type Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                     {(Object.keys(BUSINESS_TYPE_CONFIG) as BusinessType[]).map(type => {
-                      const config = BUSINESS_TYPE_CONFIG[type];
                       const Icon = businessTypeIcons[type] || Store;
                       const isSelected = businessType === type;
                       return (
@@ -374,378 +700,622 @@ export const StoreBuilderWizard: React.FC = () => {
                           key={type}
                           type="button"
                           onClick={() => handleSelectBusinessType(type)}
-                          className={`p-4 rounded-xl border text-right transition-all flex flex-col justify-between gap-3 ${
-                            isSelected
-                              ? 'bg-amber-500/10 border-amber-500 text-amber-300 ring-2 ring-amber-500/20 shadow-md'
-                              : 'bg-slate-950/60 border-slate-800 hover:border-slate-700 text-slate-300 hover:bg-slate-800/40'
+                          className={`p-3.5 rounded-2xl border text-right flex flex-col justify-between gap-3 transition-all ${
+                            isSelected 
+                              ? 'bg-amber-500/10 border-amber-500 shadow-lg text-amber-300 scale-105' 
+                              : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
                           }`}
                         >
                           <div className="flex items-center justify-between w-full">
-                            <div className={`p-2 rounded-lg ${isSelected ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-400'}`}>
-                              <Icon className="w-5 h-5" />
-                            </div>
-                            <div className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: config.defaultColor }} />
+                            <Icon className={`w-5 h-5 ${isSelected ? 'text-amber-400' : 'text-slate-500'}`} />
+                            {isSelected && <Check className="w-4 h-4 text-amber-400" />}
                           </div>
                           <div>
-                            <div className="text-xs font-bold text-white">{config.nameAr}</div>
-                            <div className="text-[10px] text-slate-400">{config.nameEn}</div>
+                            <div className="text-xs font-bold">{BUSINESS_TYPE_CONFIG[type].nameAr}</div>
+                            <div className="text-[10px] text-slate-500 truncate">{BUSINESS_TYPE_CONFIG[type].nameEn}</div>
                           </div>
                         </button>
                       );
                     })}
                   </div>
-                </div>
-              )}
 
-              {/* Step 2: Store Identity */}
-              {step === 2 && (
-                <div className="space-y-5 animate-in fade-in">
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-1">المرحلة الثانية: هوية وبيانات المتجر</h2>
-                    <p className="text-xs text-slate-400">
-                      حدد اسم متجرك وعنوان النطاق الخاص والشعار لظهوره في رأس الصفحة وتطبيق PWA.
-                    </p>
-                  </div>
-
-                  <div className="space-y-4 text-right">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">اسم المتجر (بالعربية) *</label>
+                  {/* Store Name & Slug Inputs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-800 text-right">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300">اسم المتجر بالعربية *</label>
                       <input
                         type="text"
                         value={storeName}
-                        onChange={e => setStoreName(e.target.value)}
-                        placeholder="مثال: متجر الملكي للعسل"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                        onChange={(e) => {
+                          setStoreName(e.target.value);
+                          if (!slug || slug === 'elite-honey') {
+                            setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'));
+                          }
+                        }}
+                        placeholder="مثال: متجر النخبة للعسل"
+                        className="w-full py-2.5 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-300 mb-1.5">الاسم بالإنجليزية (English Name)</label>
-                        <input
-                          type="text"
-                          value={storeNameEn}
-                          onChange={e => setStoreNameEn(e.target.value)}
-                          placeholder="e.g. Royal Honey"
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 text-left"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-300 mb-1.5">النطاق الفرعي (Slug URL)</label>
-                        <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-400">
-                          <span className="text-xs text-slate-500">.commerceos.app</span>
-                          <input
-                            type="text"
-                            value={slug}
-                            onChange={e => setSlug((e.target.value || '').toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                            className="bg-transparent text-amber-400 font-mono text-xs w-full text-left focus:outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">الشعار الرئيسي (رابط الصورة / Logo URL)</label>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300">اسم المتجر بالإنجليزية *</label>
                       <input
                         type="text"
-                        value={logoUrl}
-                        onChange={e => setLogoUrl(e.target.value)}
-                        placeholder="https://..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500 text-left font-mono text-xs"
+                        value={storeNameEn}
+                        onChange={(e) => setStoreNameEn(e.target.value)}
+                        placeholder="e.g. Elite Honey Boutique"
+                        className="w-full py-2.5 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500 text-left font-mono"
+                        dir="ltr"
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">شعار المتجر اللفظي (Slogan / Tagline)</label>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300">الرابط الفرعي للمتجر (Slug)</label>
+                      <div className="flex items-center rounded-xl bg-slate-950 border border-slate-800 overflow-hidden px-3" dir="ltr">
+                        <input
+                          type="text"
+                          value={slug}
+                          onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                          className="py-2.5 bg-transparent text-xs text-amber-400 font-mono focus:outline-none flex-1 text-left"
+                        />
+                        <span className="text-[11px] text-slate-500 font-mono">.commerceos.app</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300">شعار لفظي / سلوجان ترويجي</label>
                       <input
                         type="text"
                         value={slogan}
-                        onChange={e => setSlogan(e.target.value)}
-                        placeholder="مثال: نقاء الطبيعة في كل قطرة"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500"
+                        onChange={(e) => setSlogan(e.target.value)}
+                        placeholder="مثال: أنقى خيرات الطبيعة بأعلى معايير الجودة"
+                        className="w-full py-2.5 px-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
                       />
                     </div>
+                  </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">نبذة مختصرة عن المتجر</label>
-                      <textarea
-                        rows={2}
-                        value={description}
-                        onChange={e => setDescription(e.target.value)}
-                        placeholder="وصف ترحيبي يظهر للزبائن في أسفل المتجر ومحركات البحث..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-amber-500 resize-none"
-                      />
-                    </div>
+                  <div className="space-y-1.5 text-right">
+                    <label className="text-xs font-bold text-slate-300">وصف المتجر ومجال التميز</label>
+                    <textarea
+                      rows={2}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="اكتب نبذة تعريفية قصيرة تظهر في ترويسة المتجر وتساعد في تحسين محركات البحث SEO..."
+                      className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500 leading-relaxed"
+                    />
                   </div>
                 </div>
               )}
 
-              {/* Step 3: Design Engine & Token Generator */}
+              {/* STEP 2: LOGO & VISUAL ASSETS (CROP + FAVICON .ICO) */}
+              {step === 2 && (
+                <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 animate-in fade-in duration-200">
+                  <div className="text-right border-b border-slate-800 pb-4">
+                    <h2 className="text-xl font-black text-white flex items-center gap-2">
+                      <Crown className="w-5 h-5 text-amber-400" />
+                      <span>الخطوة 2: الشعار، أيقونة المتصفح (.ico)، والصور البصرية</span>
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1">
+                      ارفع الشعار إما بملف من جهازك أو عبر رابط، مع إمكانية القص والتكبير والتدوير والمعاينة الحية لـ Favicon وأيقونة PWA.
+                    </p>
+                  </div>
+
+                  {/* Logo Image Upload with Interactive Cropper */}
+                  <div className="space-y-3 text-right">
+                    <h3 className="text-sm font-black text-slate-200 flex items-center gap-2">
+                      <Upload className="w-4 h-4 text-amber-400" />
+                      <span>شعار المتجر الرسمي (Logo & App Favicon)</span>
+                    </h3>
+                    <ImageUploadCropper
+                      initialImage={logoUrl}
+                      onImageChange={(newLogo) => setLogoUrl(newLogo)}
+                      isLogoMode={true}
+                      cropTitle="قص وتجهيز شعار المتجر وأيقونة الـ Favicon"
+                      recommendedSize="512x512 بكسل (مربع)"
+                      accentColor={primaryColor}
+                    />
+                  </div>
+
+                  {/* Optional Cover Banner */}
+                  <div className="space-y-3 text-right pt-4 border-t border-slate-800">
+                    <h3 className="text-sm font-black text-slate-200 flex items-center gap-2">
+                      <Layout className="w-4 h-4 text-amber-400" />
+                      <span>صورة الغلاف / الهيرو بنر (Store Cover Banner)</span>
+                    </h3>
+                    <ImageUploadCropper
+                      initialImage={coverUrl}
+                      onImageChange={(newCover) => setCoverUrl(newCover)}
+                      isLogoMode={false}
+                      aspectRatio={16/9}
+                      cropTitle="قص وتجهيز بانر الترويسة الرئيسية"
+                      recommendedSize="1200x600 بكسل (16:9)"
+                      accentColor={primaryColor}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: DESIGN TOKENS, EXPANDED FONTS & PALETTES */}
               {step === 3 && (
-                <div className="space-y-6 animate-in fade-in">
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-1">المرحلة الثالثة: محرك الألوان و الـ Design Tokens</h2>
-                    <p className="text-xs text-slate-400">
-                      اختر اللون الأساسي، وسيقوم محرك التصميم بتوليد 12 لوناً متناسقاً بدقة لتغذية كافة عناصر المتجر.
+                <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 animate-in fade-in duration-200">
+                  <div className="text-right border-b border-slate-800 pb-4">
+                    <h2 className="text-xl font-black text-white flex items-center gap-2">
+                      <Palette className="w-5 h-5 text-amber-400" />
+                      <span>الخطوة 3: لوحة الألوان الموسعة، الخطوط العربية، والأنماط المعمارية</span>
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1">
+                      اختر من بين 12 لوحة لونية احترافية و10 خطوط معتمدة تمنح متجرك هوية فريدة بعيداً عن القوالب المكررة.
                     </p>
                   </div>
 
-                  {/* Preset Palettes */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-2">لوحات الألوان الجاهزة المقترحة</label>
-                    <div className="grid grid-cols-3 gap-2.5">
-                      {PRESET_COLOR_PALETTES.map(palette => (
-                        <button
-                          key={palette.id}
-                          type="button"
-                          onClick={() => {
-                            setPrimaryColor(palette.hex);
-                            setThemeStyle(palette.style);
-                          }}
-                          className={`p-2.5 rounded-xl border flex items-center justify-between transition-all ${
-                            primaryColor === palette.hex
-                              ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/20'
-                              : 'border-slate-800 bg-slate-950 hover:border-slate-700'
-                          }`}
-                        >
-                          <div className="text-right">
-                            <div className="text-[11px] font-bold text-white">{palette.name}</div>
-                            <div className="text-[9px] text-slate-400 font-mono">{palette.hex}</div>
-                          </div>
-                          <div className="flex items-center -space-x-1">
-                            <div className="w-4 h-4 rounded-full border border-slate-900" style={{ backgroundColor: palette.hex }} />
-                            <div className="w-4 h-4 rounded-full border border-slate-900" style={{ backgroundColor: palette.secondary }} />
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Custom Color Picker */}
-                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-bold text-white">أو اختر لون مخصص (Custom Hex)</div>
-                      <div className="text-[11px] text-slate-400">أدخل أي كود لوني ليقوم النظام ببناء منظومة الألوان منه</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={primaryColor}
-                        onChange={e => setPrimaryColor(e.target.value)}
-                        className="w-9 h-9 rounded-lg cursor-pointer bg-transparent border-0"
-                      />
-                      <input
-                        type="text"
-                        value={primaryColor}
-                        onChange={e => setPrimaryColor(e.target.value)}
-                        className="w-24 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white font-mono uppercase text-center"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Generated Tokens Preview Matrix */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-2">منظومة الـ Design Tokens المولّدة تلقائياً</label>
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                      {Object.entries(liveTokens).map(([key, val]) => (
-                        <div key={key} className="bg-slate-950 p-2 rounded-lg border border-slate-800 text-center">
-                          <div className="w-full h-5 rounded mb-1 shadow-inner" style={{ backgroundColor: val }} />
-                          <div className="text-[9px] font-bold text-slate-300 truncate">{key}</div>
-                          <div className="text-[8px] text-slate-500 font-mono">{val}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 4: Theme Style & Layout */}
-              {step === 4 && (
-                <div className="space-y-6 animate-in fade-in">
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-1">المرحلة الرابعة: نمط التصميم وتنسيق الصفحة</h2>
-                    <p className="text-xs text-slate-400">
-                      التصميم لا يقتصر على الألوان؛ حدد شخصية متجرك وطريقة عرض البطاقات والخطوط.
-                    </p>
-                  </div>
-
-                  {/* Styles: Luxury, Modern, Minimal, Organic, Bold */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-2">نمط التصميم (Design Style)</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                      {[
-                        { id: 'luxury', nameAr: 'فاخر وملكي (Luxury)', desc: 'زوايا حادة، لمسات ذهبية راقية، مساحات أنيقة', icon: Crown },
-                        { id: 'modern', nameAr: 'عصري ناعم (Modern)', desc: 'زوايا مستديرة، ظلال ناعمة، أسلوب مريح', icon: Sparkles },
-                        { id: 'minimal', nameAr: 'مبسط (Minimal)', desc: 'مساحات بيضاء واسعة، حدود رفيعة، هدوء بصري', icon: Sliders },
-                        { id: 'organic', nameAr: 'طبيعي عضوي (Organic)', desc: 'ألوان أرضية، خطوط دافئة، مناسب للأغذية', icon: Droplet },
-                        { id: 'bold', nameAr: 'جريء وتقني (Bold)', desc: 'تباين عالي، بطاقات بارزة، مناسب للإلكترونيات', icon: Cpu }
-                      ].map(item => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setThemeStyle(item.id as ThemeStyle)}
-                          className={`p-3 rounded-xl border text-right transition-all ${
-                            themeStyle === item.id
-                              ? 'border-amber-500 bg-amber-500/10 ring-2 ring-amber-500/20 text-amber-300'
-                              : 'border-slate-800 bg-slate-950 text-slate-300 hover:border-slate-700'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1.5 font-bold text-xs text-white mb-1">
-                            <item.icon className="w-3.5 h-3.5 text-amber-400" />
-                            <span>{item.nameAr}</span>
-                          </div>
-                          <div className="text-[10px] text-slate-400 leading-relaxed">{item.desc}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Typography Font */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-2">الخط العربي الرئيسي (Font)</label>
-                      <select
-                        value={fontFamily}
-                        onChange={e => setFontFamily(e.target.value as FontFamily)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                      >
-                        <option value="tajawal">خط تجوال (Tajawal - رسمي وفاخر)</option>
-                        <option value="alexandria">خط الإسكندرية (Alexandria - عصري وحديث)</option>
-                        <option value="jakarta">خط بلس جاكرتا (Plus Jakarta - تقني وجذاب)</option>
-                        <option value="playfair">خط بلايفير (Playfair - أزياء وأناقة)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-2">انحناء حواف البطاقات (Border Radius)</label>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {[
-                          { id: 'none', label: 'حادة 0px' },
-                          { id: 'sm', label: 'خفيفة 6px' },
-                          { id: 'md', label: 'متوسطة 12px' },
-                          { id: 'lg', label: 'دائرية 20px' }
-                        ].map(r => (
-                          <button
-                            key={r.id}
-                            type="button"
-                            onClick={() => setRadius(r.id as RadiusPreset)}
-                            className={`py-2 px-1 text-[10px] font-bold rounded-lg border transition-all ${
-                              radius === r.id
-                                ? 'bg-amber-500 text-slate-950 border-amber-500'
-                                : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
-                            }`}
-                          >
-                            {r.label}
-                          </button>
-                        ))}
+                  {/* 12 Color Palettes */}
+                  <div className="space-y-3 text-right">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black text-slate-300">لوحات الألوان المقترحة (12 Palette)</label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-slate-400 font-mono">اللون الأساسي: {primaryColor}</span>
+                        <input
+                          type="color"
+                          value={primaryColor}
+                          onChange={(e) => setPrimaryColor(e.target.value)}
+                          className="w-7 h-7 rounded-lg cursor-pointer bg-transparent border border-slate-700"
+                        />
                       </div>
                     </div>
-                  </div>
-                </div>
-              )}
 
-              {/* Step 5: Store Setup & Gateways */}
-              {step === 5 && (
-                <div className="space-y-6 animate-in fade-in">
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-1">المرحلة الخامسة: بوابات الدفع والشحن</h2>
-                    <p className="text-xs text-slate-400">
-                      فعل طرق الدفع الإلكترونية السريعة (مدى، Apple Pay، فيزا) والشحن السريع.
-                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                      {PRESET_COLOR_PALETTES.map(pal => {
+                        const isSelected = primaryColor.toLowerCase() === pal.hex.toLowerCase();
+                        return (
+                          <button
+                            key={pal.id}
+                            type="button"
+                            onClick={() => {
+                              setPrimaryColor(pal.hex);
+                              setThemeStyle(pal.style);
+                            }}
+                            className={`p-3 rounded-2xl border text-right flex items-center justify-between gap-2 transition-all ${
+                              isSelected 
+                                ? 'bg-slate-800 border-amber-400 shadow-md scale-102' 
+                                : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-5 h-5 rounded-full border border-white/20 shadow-sm" style={{ backgroundColor: pal.hex }} />
+                              <div className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ backgroundColor: pal.secondary }} />
+                            </div>
+                            <div className="text-[11px] font-bold text-slate-200 truncate">{pal.name}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">العملة الافتراضية</label>
+                  {/* 10 Arabic & Latin Fonts */}
+                  <div className="space-y-3 text-right pt-4 border-t border-slate-800">
+                    <label className="text-xs font-black text-slate-300">الخطوط العربية واللاتينية المعتمدة (10 Fonts)</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {(Object.keys(FONTS_CONFIG) as FontFamily[]).map(fKey => {
+                        const f = FONTS_CONFIG[fKey];
+                        const isSelected = fontFamily === fKey;
+                        return (
+                          <button
+                            key={fKey}
+                            type="button"
+                            onClick={() => setFontFamily(fKey)}
+                            className={`p-3.5 rounded-2xl border text-right transition-all flex flex-col justify-between gap-2 ${
+                              isSelected 
+                                ? 'bg-amber-500/10 border-amber-400 shadow-md text-white' 
+                                : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-xs font-bold text-amber-300">{f.nameAr}</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400">{f.category}</span>
+                            </div>
+                            <div 
+                              className="text-sm font-bold text-slate-200 line-clamp-1 py-1"
+                              style={{ fontFamily: f.cssFamily }}
+                            >
+                              {f.previewText}
+                            </div>
+                            <div className="text-[10px] text-slate-500">{f.description}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Layout & Architectural Controls */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-800 text-right">
+                    
+                    {/* Header Style */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300">تنسيق الهيدر</label>
                       <select
-                        value={currency}
-                        onChange={e => setCurrency(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        value={headerStyle}
+                        onChange={(e) => setHeaderStyle(e.target.value as any)}
+                        className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
                       >
-                        <option value="SAR">ريال سعودي (SAR)</option>
-                        <option value="AED">درهم إماراتي (AED)</option>
-                        <option value="KWD">دينار كويتي (KWD)</option>
-                        <option value="USD">دولار أمريكي (USD)</option>
+                        <option value="floating">عائم زجاجي (Floating Glass)</option>
+                        <option value="solid">شريط ثابت كلاسيكي (Solid Bar)</option>
+                        <option value="island_blur">جزيرة تفاعلية (Island Blur)</option>
+                        <option value="centered_logo">شعار في المنتصف (Centered Atelier)</option>
                       </select>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-1.5">مدينة المستودع الرئيسي</label>
-                      <input
-                        type="text"
-                        value={city}
-                        onChange={e => setCity(e.target.value)}
-                        placeholder="الرياض، جدة..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500"
-                      />
+                    {/* Card Radius */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300">انحناء الحواف (Radius)</label>
+                      <select
+                        value={radius}
+                        onChange={(e) => setRadius(e.target.value as RadiusPreset)}
+                        className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                      >
+                        <option value="none">حواف حادة (0px Square)</option>
+                        <option value="sm">انحناء طفيف ناعم (8px)</option>
+                        <option value="md">انحناء متوازن عريض (16px)</option>
+                        <option value="lg">انحناء مريح حديث (24px)</option>
+                      </select>
                     </div>
-                  </div>
 
-                  {/* Payment Gateways Toggles */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-2">بوابات الدفع المدعومة تلقائياً</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                      {[
-                        { name: 'مدى (Mada)', sub: 'مفعلة فورياً', active: true },
-                        { name: 'Apple Pay', sub: 'بنقرة واحدة', active: true },
-                        { name: 'Visa / MasterCard', sub: 'دولي ومحلي', active: true },
-                        { name: 'تمارا (Tamara)', sub: 'تقسيط مشتريات', active: true }
-                      ].map((gw, i) => (
-                        <div key={i} className="bg-slate-950 p-3 rounded-xl border border-emerald-500/30 text-right">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-bold text-white">{gw.name}</span>
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          </div>
-                          <span className="text-[10px] text-emerald-400 font-medium">{gw.sub}</span>
-                        </div>
-                      ))}
+                    {/* Card Style */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300">نمط بطاقات المنتجات</label>
+                      <select
+                        value={cardStyle}
+                        onChange={(e) => setCardStyle(e.target.value as any)}
+                        className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                      >
+                        <option value="bordered">إطار فاخر محدد (Luxury Bordered)</option>
+                        <option value="elevated">ظل ناعم مرتفع (Elevated Soft)</option>
+                        <option value="minimal">مينيمال مسطح (Flat Line Minimal)</option>
+                        <option value="glass">زجاجي مبرد (Frosted Glass)</option>
+                      </select>
                     </div>
+
                   </div>
                 </div>
               )}
 
-              {/* Step 6: Review & Final Confirmation */}
-              {step === 6 && (
-                <div className="space-y-6 animate-in fade-in">
-                  <div>
-                    <h2 className="text-xl font-bold text-white mb-1">المرحلة السادسة: مراجعة وإطلاق المتجر</h2>
-                    <p className="text-xs text-slate-400">
-                      راجع ملخص الهوية والإعدادات، ثم اضغط على زر "تدشين المتجر الآن".
+              {/* STEP 4: CURRENCIES, ARAB COUNTRIES, CITIES & SHIPPING */}
+              {step === 4 && (
+                <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 animate-in fade-in duration-200">
+                  <div className="text-right border-b border-slate-800 pb-4">
+                    <h2 className="text-xl font-black text-white flex items-center gap-2">
+                      <Coins className="w-5 h-5 text-amber-400" />
+                      <span>الخطوة 4: العملات العربية، الدول، المدن، وسياسات التوصيل</span>
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1">
+                      حدد الدولة المستهدفة والعملة الرسمية وقائمة المدن المغطاة مع ضبط أسعار الشحن والشحن المجاني.
                     </p>
                   </div>
 
-                  <div className="bg-slate-950 rounded-xl p-5 border border-slate-800 space-y-3 text-right">
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
-                      <span className="text-xs text-slate-400">اسم المتجر:</span>
-                      <span className="text-sm font-bold text-white">{storeName}</span>
+                  {/* Country Selector */}
+                  <div className="space-y-3 text-right">
+                    <label className="text-xs font-black text-slate-300">الدولة المستهدفة الأساسية</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                      {Object.entries(ARAB_COUNTRIES_AND_CITIES).map(([cCode, cData]) => {
+                        const isSelected = countryCode === cCode;
+                        return (
+                          <button
+                            key={cCode}
+                            type="button"
+                            onClick={() => handleCountryChange(cCode)}
+                            className={`p-3 rounded-2xl border text-right transition-all flex items-center gap-2 ${
+                              isSelected 
+                                ? 'bg-amber-500/15 border-amber-400 text-amber-300 shadow-md' 
+                                : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700'
+                            }`}
+                          >
+                            <span className="text-xl">{cData.flag}</span>
+                            <div className="truncate">
+                              <div className="text-xs font-bold">{cData.countryAr}</div>
+                              <div className="text-[10px] text-slate-500 font-mono">{cData.currency}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
-                      <span className="text-xs text-slate-400">نوع النشاط:</span>
-                      <span className="text-xs text-amber-400 font-bold">{BUSINESS_TYPE_CONFIG[businessType].nameAr}</span>
+                  </div>
+
+                  {/* Currencies Grid */}
+                  <div className="space-y-3 text-right pt-4 border-t border-slate-800">
+                    <label className="text-xs font-black text-slate-300">العملة الرسمية لمتجرك (Store Currency)</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                      {Object.entries(ARAB_CURRENCIES).map(([currKey, curr]) => {
+                        const isSelected = currency === currKey;
+                        return (
+                          <button
+                            key={currKey}
+                            type="button"
+                            onClick={() => setCurrency(currKey)}
+                            className={`p-2.5 rounded-xl border text-right flex items-center justify-between gap-1 transition-all ${
+                              isSelected 
+                                ? 'bg-amber-500 text-slate-950 font-black border-amber-400 shadow-md' 
+                                : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:border-slate-700'
+                            }`}
+                          >
+                            <span className="text-xs">{curr.flag}</span>
+                            <div className="text-right">
+                              <div className="text-xs font-bold">{curr.symbol}</div>
+                              <div className="text-[9px] opacity-80">{curr.code}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
-                      <span className="text-xs text-slate-400">طراز التصميم (Theme Style):</span>
-                      <span className="text-xs text-slate-200 capitalize font-medium">{themeStyle} (زوايا {radius})</span>
+                  </div>
+
+                  {/* City Selector & Shipping Costs */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-800 text-right">
+                    
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300">مدينة المقر الرئيسي للمتجر</label>
+                      <select
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                      >
+                        {(ARAB_COUNTRIES_AND_CITIES[countryCode]?.cities || ['الرياض', 'جدة', 'الدمام']).map(ct => (
+                          <option key={ct} value={ct}>{ct}</option>
+                        ))}
+                      </select>
                     </div>
-                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
-                      <span className="text-xs text-slate-400">الرابط الفرعي (Subdomain):</span>
-                      <span className="font-mono text-xs text-amber-400 font-bold">{slug}.commerceos.app</span>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300">تكلفة الشحن القياسي ({ARAB_CURRENCIES[currency]?.symbol})</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={shippingCost}
+                        onChange={(e) => setShippingCost(Number(e.target.value))}
+                        className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                      />
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-400">تطبيق الـ PWA:</span>
-                      <span className="text-xs text-emerald-400 font-bold">جاهز للتثبيت على Android و iOS</span>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-300">حد الشحن المجاني ({ARAB_CURRENCIES[currency]?.symbol})</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={freeShippingThreshold}
+                        onChange={(e) => setFreeShippingThreshold(Number(e.target.value))}
+                        className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                      />
                     </div>
+
                   </div>
                 </div>
               )}
 
-              {/* Navigation Controls (Prev / Next) */}
-              <div className="mt-8 pt-4 border-t border-slate-800 flex items-center justify-between">
+              {/* STEP 5: PAYMENT GATEWAYS & DIRECT BANK TRANSFER */}
+              {step === 5 && (
+                <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 animate-in fade-in duration-200">
+                  <div className="text-right border-b border-slate-800 pb-4">
+                    <h2 className="text-xl font-black text-white flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-amber-400" />
+                      <span>الخطوة 5: بوابات الدفع الإلكتروني، التقسيط، والتحويل البنكي</span>
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1">
+                      فعّل أو عطل وسائل الدفع المتوافقة مع بلد عملائك (مدى، أبل باي، فيزا، تمارا، تابي، كي نت، بنفت، فوري، والتحويل البنكي مع الحسابات).
+                    </p>
+                  </div>
+
+                  {/* Payment Gateways Toggle Grid */}
+                  <div className="space-y-3 text-right">
+                    <label className="text-xs font-black text-slate-300">بوابات الدفع الإلكتروني ومحافظ الجوال</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {ARAB_PAYMENT_GATEWAYS_CATALOG.map(gw => {
+                        const isEnabled = (paymentGateways as any)[gw.key] ?? false;
+                        return (
+                          <div
+                            key={gw.id}
+                            className={`p-4 rounded-2xl border transition-all flex items-start justify-between gap-3 ${
+                              isEnabled 
+                                ? 'bg-slate-900 border-amber-500/50 shadow-md' 
+                                : 'bg-slate-950/60 border-slate-800 opacity-60'
+                            }`}
+                          >
+                            <div className="text-right space-y-1 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-black text-white">{gw.nameAr}</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-amber-300">
+                                  {gw.category}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-400 leading-snug">{gw.descAr}</p>
+                              <div className="text-[10px] text-emerald-400 font-bold pt-1">{gw.badge}</div>
+                            </div>
+
+                            {/* Switch Toggle */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPaymentGateways(prev => ({
+                                  ...prev,
+                                  [gw.key]: !isEnabled
+                                }));
+                              }}
+                              className={`w-12 h-6 rounded-full p-1 transition-colors shrink-0 flex items-center ${
+                                isEnabled ? 'bg-emerald-500 justify-end' : 'bg-slate-800 justify-start'
+                              }`}
+                            >
+                              <div className="w-4 h-4 rounded-full bg-white shadow-md" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Bank Accounts Section (If Bank Transfer is enabled) */}
+                  {paymentGateways.bankTransfer && (
+                    <div className="space-y-4 pt-4 border-t border-slate-800 text-right">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-amber-400" />
+                          <h3 className="text-xs font-black text-slate-200">
+                            الحسابات البنكية المعتمدة للتحويل المباشر ({bankAccounts.length})
+                          </h3>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingBank(true)}
+                          className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center gap-1 transition-colors"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>إضافة حساب بنكي جديد</span>
+                        </button>
+                      </div>
+
+                      {/* Bank Accounts List */}
+                      <div className="space-y-2">
+                        {bankAccounts.map((acc, idx) => (
+                          <div
+                            key={acc.id}
+                            className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3 text-right"
+                          >
+                            <div className="space-y-0.5 flex-1">
+                              <div className="text-xs font-black text-white flex items-center gap-2">
+                                <span>{acc.bankName}</span>
+                                <span className="text-[10px] text-emerald-400 bg-emerald-950/80 px-2 py-0.2 rounded-full">نشط</span>
+                              </div>
+                              <div className="text-[11px] text-slate-400">اسم الحساب: {acc.accountHolder}</div>
+                              <div className="text-xs text-amber-300 font-mono font-bold" dir="ltr">{acc.iban}</div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setBankAccounts(prev => prev.filter(b => b.id !== acc.id))}
+                              className="p-2 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-900 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Add Bank Form Modal/Drawer */}
+                      {isAddingBank && (
+                        <div className="p-4 rounded-2xl bg-slate-950 border border-amber-500/40 space-y-3 animate-in fade-in duration-150">
+                          <div className="text-xs font-black text-amber-300">إضافة حساب بنكي جديد لمتجرك</div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <input
+                              type="text"
+                              placeholder="اسم البنك (مثال: مصرف الإنماء)"
+                              value={newBankName}
+                              onChange={(e) => setNewBankName(e.target.value)}
+                              className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                            />
+                            <input
+                              type="text"
+                              placeholder="اسم المستفيد / المؤسسة"
+                              value={newAccountHolder}
+                              onChange={(e) => setNewAccountHolder(e.target.value)}
+                              className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                            />
+                            <input
+                              type="text"
+                              placeholder="رقم الآيبان (SA...)"
+                              value={newIban}
+                              onChange={(e) => setNewIban(e.target.value)}
+                              className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500 font-mono text-left"
+                              dir="ltr"
+                            />
+                          </div>
+
+                          <div className="flex justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setIsAddingBank(false)}
+                              className="px-3 py-1.5 rounded-xl text-slate-400 hover:text-slate-200 text-xs"
+                            >
+                              إلغاء
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAddBankAccount}
+                              className="px-4 py-1.5 rounded-xl bg-amber-500 text-slate-950 text-xs font-black shadow-md hover:bg-amber-400"
+                            >
+                              حفظ الحساب
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+              {/* STEP 6: PRE-LAUNCH SUMMARY & REVIEW */}
+              {step === 6 && (
+                <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 animate-in fade-in duration-200 text-right">
+                  <div className="border-b border-slate-800 pb-4">
+                    <h2 className="text-xl font-black text-white flex items-center gap-2">
+                      <Rocket className="w-5 h-5 text-amber-400" />
+                      <span>الخطوة 6: مراجعة الإعدادات وجاهزية الإطلاق الفوري</span>
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1">
+                      تم تجهيز كامل إعدادات المتجر، التصاميم، بوابات الدفع، والمنتجات النموذجية. اضغط زر الإطلاق لبدء التجربة الحية.
+                    </p>
+                  </div>
+
+                  {/* Summary Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                      <div className="text-xs font-bold text-amber-300">معلومات الهوية والمتجر</div>
+                      <div className="text-sm font-black text-white">{storeName}</div>
+                      <div className="text-xs text-slate-400">{slogan}</div>
+                      <div className="text-xs font-mono text-slate-500" dir="ltr">{slug}.commerceos.app</div>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                      <div className="text-xs font-bold text-amber-300">المظهر والهوية البصرية</div>
+                      <div className="flex items-center gap-2 text-xs text-slate-200">
+                        <div className="w-4 h-4 rounded-full" style={{ backgroundColor: primaryColor }} />
+                        <span>اللون الأساسي: {primaryColor}</span>
+                      </div>
+                      <div className="text-xs text-slate-400">الخط العربي: {FONTS_CONFIG[fontFamily]?.nameAr}</div>
+                      <div className="text-xs text-slate-400">النمط: {themeStyle} / {themeLayout}</div>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                      <div className="text-xs font-bold text-amber-300">العملة والتغطية الجغرافية</div>
+                      <div className="text-xs text-slate-200">الدولة: {ARAB_COUNTRIES_AND_CITIES[countryCode]?.countryAr}</div>
+                      <div className="text-xs text-slate-200">العملة: {ARAB_CURRENCIES[currency]?.nameAr} ({currency})</div>
+                      <div className="text-xs text-slate-400">المدينة: {city} - الشحن المجاني من {freeShippingThreshold} {ARAB_CURRENCIES[currency]?.symbol}</div>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                      <div className="text-xs font-bold text-amber-300">وسائل الدفع المفعلة</div>
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {paymentGateways.mada && <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[10px] text-slate-200 font-bold">مدى</span>}
+                        {paymentGateways.applePay && <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[10px] text-slate-200 font-bold">Apple Pay</span>}
+                        {paymentGateways.visa && <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[10px] text-slate-200 font-bold">Visa/Master</span>}
+                        {paymentGateways.tamara && <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[10px] text-slate-200 font-bold">تمارا</span>}
+                        {paymentGateways.tabby && <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[10px] text-slate-200 font-bold">تابي</span>}
+                        {paymentGateways.bankTransfer && <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[10px] text-slate-200 font-bold">تحويل بنكي ({bankAccounts.length})</span>}
+                        {paymentGateways.cod && <span className="px-2 py-0.5 rounded-md bg-slate-800 text-[10px] text-slate-200 font-bold">عند الاستلام</span>}
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation Actions Bar */}
+              <div className="flex items-center justify-between pt-2">
                 {step > 1 ? (
                   <button
                     type="button"
-                    onClick={() => setStep(step - 1)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition-colors"
+                    onClick={() => setStep(prev => Math.max(1, prev - 1))}
+                    className="py-3 px-6 rounded-2xl border border-slate-700 bg-slate-900 text-slate-300 text-xs font-bold hover:bg-slate-800 flex items-center gap-2 transition-all"
                   >
                     <ArrowRight className="w-4 h-4" />
                     <span>السابق</span>
@@ -755,164 +1325,201 @@ export const StoreBuilderWizard: React.FC = () => {
                 {step < totalSteps ? (
                   <button
                     type="button"
-                    onClick={() => setStep(step + 1)}
-                    className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 text-xs font-black shadow-lg shadow-amber-500/20 transition-all"
+                    onClick={() => setStep(prev => Math.min(totalSteps, prev + 1))}
+                    className="py-3.5 px-8 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-xl hover:scale-105 flex items-center gap-2 transition-all"
                   >
-                    <span>المتابعة للمرحلة التالية</span>
+                    <span>المتابعة للخطوة التالية</span>
                     <ArrowLeft className="w-4 h-4" />
                   </button>
                 ) : (
                   <button
                     type="button"
-                    onClick={handleLaunchStore}
-                    className="flex items-center gap-2 px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-sm font-black shadow-xl shadow-emerald-500/25 transition-all animate-pulse-subtle"
+                    onClick={() => handleLaunchStore()}
+                    className="py-4 px-10 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 text-sm font-black shadow-2xl hover:scale-105 flex items-center gap-2.5 transition-all"
                   >
-                    <Rocket className="w-4 h-4" />
-                    <span>تدشين المتجر وإطلاقه الآن 🚀</span>
+                    <Rocket className="w-5 h-5" />
+                    <span>إطلاق متجري الإلكتروني الآن 🚀</span>
                   </button>
                 )}
               </div>
+
             </div>
 
-            {/* Right Interactive Live Preview Card (5 Cols on Desktop) */}
-            <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl sticky top-20">
-              <div className="flex items-center justify-between mb-3 border-b border-slate-800 pb-2.5">
-                <div className="flex items-center gap-1.5">
-                  <Eye className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs font-bold text-white">المعاينة الحية الفورية (Live Preview)</span>
-                </div>
-                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewTab('desktop')}
-                    className={`p-1 rounded ${previewTab === 'desktop' ? 'bg-slate-800 text-amber-400' : 'text-slate-500'}`}
-                  >
-                    <Laptop className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewTab('mobile')}
-                    className={`p-1 rounded ${previewTab === 'mobile' ? 'bg-slate-800 text-amber-400' : 'text-slate-500'}`}
-                  >
-                    <Smartphone className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Dynamic Styled Preview Frame */}
-              <div 
-                className={`mx-auto rounded-xl border overflow-hidden transition-all duration-300 shadow-2xl ${
-                  previewTab === 'mobile' ? 'max-w-[280px]' : 'w-full'
-                }`}
-                style={{ 
-                  backgroundColor: liveTokens.background,
-                  borderColor: liveTokens.border,
-                  color: liveTokens.text
-                }}
-              >
-                {/* Mock Store Header */}
-                <div 
-                  className="p-3 border-b flex items-center justify-between"
-                  style={{ backgroundColor: liveTokens.surface, borderColor: liveTokens.border }}
-                >
+            {/* Right Column: Live Storefront Preview (4 cols) */}
+            <div className="lg:col-span-4 space-y-4">
+              <div className="p-4 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-4 sticky top-6">
+                
+                {/* Preview Header & Device Toggles */}
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                   <div className="flex items-center gap-2">
-                    <img 
-                      src={logoUrl} 
-                      alt="Logo" 
-                      className="w-6 h-6 rounded object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                    <div className="text-xs font-bold truncate max-w-[120px]" style={{ color: liveTokens.text }}>
-                      {storeName || 'اسم المتجر'}
-                    </div>
+                    <Eye className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs font-black text-slate-200">المعاينة الحية الفورية</span>
                   </div>
-                  <div 
-                    className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold text-white"
-                    style={{ backgroundColor: liveTokens.primary }}
-                  >
-                    <ShoppingBag className="w-3 h-3" />
+
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewTab('desktop')}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        previewTab === 'desktop' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                      title="معاينة شاشة الديسكتوب"
+                    >
+                      <Laptop className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewTab('mobile')}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        previewTab === 'mobile' ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                      title="معاينة شاشة الجوال وتطبيق الـ PWA"
+                    >
+                      <Smartphone className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 
-                {/* Mock Hero Section */}
+                {/* Simulated Storefront Card */}
                 <div 
-                  className="p-4 text-center border-b relative overflow-hidden"
-                  style={{ 
-                    backgroundColor: themeStyle === 'luxury' ? liveTokens.surfaceMuted : liveTokens.surface,
-                    borderColor: liveTokens.border 
+                  className={`border rounded-2xl overflow-hidden shadow-2xl transition-all ${
+                    previewTab === 'mobile' ? 'max-w-[280px] mx-auto text-xs' : 'w-full'
+                  }`}
+                  style={{
+                    backgroundColor: liveTokens.background,
+                    borderColor: liveTokens.border,
+                    fontFamily: FONTS_CONFIG[fontFamily]?.cssFamily
                   }}
                 >
-                  <span 
-                    className="inline-block text-[9px] font-bold px-2 py-0.5 rounded-full mb-1.5"
-                    style={{ backgroundColor: liveTokens.primaryLight, color: liveTokens.primaryDark }}
-                  >
-                    {BUSINESS_TYPE_CONFIG[businessType].nameAr}
-                  </span>
-                  <div className="text-sm font-extrabold mb-1" style={{ color: liveTokens.text }}>
-                    {slogan || 'شعار المتجر'}
-                  </div>
-                  <p className="text-[10px] opacity-75 mb-3 line-clamp-2 max-w-xs mx-auto">
-                    {description || 'نبذة عن المتجر وأجود المنتجات المختارة بعناية'}
-                  </p>
-                  <button
-                    className="text-[11px] font-bold px-4 py-1.5 rounded-lg text-white shadow-md"
-                    style={{ backgroundColor: liveTokens.primary }}
-                  >
-                    تسوق الآن
-                  </button>
-                </div>
-
-                {/* Mock Featured Product Card */}
-                <div className="p-3">
-                  <div className="text-[11px] font-bold mb-2 flex items-center justify-between opacity-85">
-                    <span>المنتجات الأكثر طلباً</span>
-                    <span className="text-[9px] font-mono" style={{ color: liveTokens.primary }}>عرض الكل</span>
-                  </div>
-
+                  {/* Store Header Bar */}
                   <div 
-                    className="p-2.5 rounded-lg border"
-                    style={{ 
-                      backgroundColor: liveTokens.surface, 
-                      borderColor: liveTokens.border,
-                      borderRadius: radius === 'none' ? '0px' : radius === 'sm' ? '6px' : radius === 'md' ? '12px' : '16px'
-                    }}
+                    className="p-3 border-b flex items-center justify-between"
+                    style={{ backgroundColor: liveTokens.surface, borderColor: liveTokens.border }}
                   >
-                    <div className="w-full h-24 rounded bg-slate-800/10 mb-2 overflow-hidden relative">
-                      <img src={logoUrl} alt="Product" className="w-full h-full object-cover" />
-                      <span 
-                        className="absolute top-1 right-1 text-[8px] font-bold px-1.5 py-0.5 rounded text-white"
-                        style={{ backgroundColor: liveTokens.primary }}
-                      >
-                        الأكثر طلباً
-                      </span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg overflow-hidden bg-slate-950 shrink-0 border" style={{ borderColor: liveTokens.border }}>
+                        <img src={logoUrl} alt="logo" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs font-black truncate max-w-[130px]" style={{ color: liveTokens.text }}>
+                          {storeName}
+                        </div>
+                        <div className="text-[9px] truncate max-w-[130px]" style={{ color: liveTokens.primary }}>
+                          {slogan}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-[11px] font-bold truncate mb-1">{storeName} - الصنف الملكي</div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black" style={{ color: liveTokens.primary }}>
-                        280 {currency}
-                      </span>
-                      <button 
-                        className="text-[9px] font-bold px-2 py-1 rounded text-white"
-                        style={{ backgroundColor: liveTokens.primary }}
-                      >
-                        + إضافة
-                      </button>
+
+                    <div className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg text-white" style={{ backgroundColor: liveTokens.primary }}>
+                      <ShoppingBag className="w-3 h-3" />
+                      <span>السلة (0)</span>
                     </div>
+                  </div>
+
+                  {/* Hero Mock */}
+                  <div className="p-4 text-right space-y-2 border-b" style={{ backgroundColor: liveTokens.surfaceMuted, borderColor: liveTokens.border }}>
+                    <div className="inline-block px-2 py-0.5 rounded-full text-[9px] font-black" style={{ backgroundColor: liveTokens.primaryLight, color: liveTokens.primaryDark }}>
+                      المتجر المعتمد ⭐️
+                    </div>
+                    <div className="text-sm font-black leading-tight" style={{ color: liveTokens.text }}>
+                      {slogan || storeName}
+                    </div>
+                    <p className="text-[10px] opacity-75 line-clamp-2" style={{ color: liveTokens.textMuted }}>
+                      {description}
+                    </p>
+                    <button 
+                      className="py-1.5 px-3 rounded-lg text-[10px] font-black text-white shadow-md flex items-center gap-1"
+                      style={{ backgroundColor: liveTokens.primary }}
+                    >
+                      <span>تسوق الآن</span>
+                      <ArrowLeft className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  {/* Sample Product Card Mock */}
+                  <div className="p-3 space-y-2">
+                    <div className="text-[11px] font-bold text-right" style={{ color: liveTokens.text }}>
+                      المنتجات الأكثر طلباً:
+                    </div>
+                    <div className="p-2.5 rounded-xl border flex items-center gap-2.5 text-right" style={{ backgroundColor: liveTokens.surface, borderColor: liveTokens.border }}>
+                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-900 shrink-0">
+                        <img src={logoUrl} alt="sample" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold truncate" style={{ color: liveTokens.text }}>{storeName} - الصنف الملكي</div>
+                        <div className="text-xs font-black pt-0.5" style={{ color: liveTokens.primary }}>
+                          280 {ARAB_CURRENCIES[currency]?.symbol || 'ر.س'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer Mock */}
+                  <div className="p-2 text-center text-[9px] opacity-60 border-t" style={{ borderColor: liveTokens.border, color: liveTokens.textMuted }}>
+                    جميع الحقوق محفوظة © {storeName} 2026
                   </div>
                 </div>
 
-                {/* Mock Footer */}
-                <div 
-                  className="p-2.5 text-center text-[9px] border-t opacity-70"
-                  style={{ backgroundColor: liveTokens.surfaceMuted, borderColor: liveTokens.border }}
-                >
-                  جميع الحقوق محفوظة © {storeName} 2026
+                <div className="text-center">
+                  <span className="text-[11px] text-slate-500">
+                    تتغير المعاينة الحية فورياً مع كل تعديل في الألوان والخطوط 🎨
+                  </span>
                 </div>
+
               </div>
             </div>
 
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* STEP 7: CELEBRATION & LAUNCH SUCCESS PAD                 */}
+        {/* ======================================================== */}
+        {step === 7 && (
+          <div className="max-w-2xl mx-auto text-center p-8 sm:p-12 rounded-3xl bg-slate-900 border border-amber-500/50 shadow-2xl space-y-6 animate-in zoom-in-95 duration-300">
+            <div className="w-20 h-20 rounded-full mx-auto bg-gradient-to-tr from-amber-500 to-amber-300 text-slate-950 flex items-center justify-center shadow-xl animate-bounce">
+              <CheckCircle2 className="w-10 h-10" />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-2xl sm:text-3xl font-black text-white">
+                مبروك! تم إطلاق متجرك الإلكتروني بنجاح 🎉
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
+                متجرك الآن جاهز لاستقبال الطلبات، بوابات الدفع والتحويل البنكي مفعلة، والواجهة مصممة بأعلى معايير الحداثة.
+              </p>
+            </div>
+
+            {/* Quick Actions Pad */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => setCurrentView('storefront')}
+                className="py-3.5 px-6 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-xl flex items-center justify-center gap-2 hover:scale-105 transition-all"
+              >
+                <Eye className="w-4 h-4" />
+                <span>زيارة واجهة المتجر الرئيسية (Storefront)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCurrentView('merchant_dashboard')}
+                className="py-3.5 px-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-black text-xs border border-slate-700 flex items-center justify-center gap-2 hover:scale-105 transition-all"
+              >
+                <Sliders className="w-4 h-4" />
+                <span>فتح لوحة تحكم التاجر (Dashboard)</span>
+              </button>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setCurrentView('live_customizer')}
+                className="text-xs text-amber-400 hover:underline font-bold"
+              >
+                أو تخصيص المزيد في استوديو التصميم الحي (Live Design Studio) ←
+              </button>
+            </div>
           </div>
         )}
 

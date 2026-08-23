@@ -6,6 +6,8 @@ import { MerchantDashboard } from './components/dashboard/MerchantDashboard';
 import { PlatformAdminDashboard } from './components/admin/PlatformAdminDashboard';
 import { StoreBuilderWizard } from './components/builder/StoreBuilderWizard';
 import { LiveDesignStudio } from './components/builder/LiveDesignStudio';
+import { VisualIDE } from './components/builder/VisualIDE';
+import { TamperAlertModal } from './components/common/TamperAlertModal';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 const AppContent: React.FC = () => {
@@ -23,8 +25,12 @@ const AppContent: React.FC = () => {
         {currentView === 'merchant_dashboard' && <MerchantDashboard />}
         {currentView === 'builder_wizard' && <StoreBuilderWizard />}
         {currentView === 'live_customizer' && <LiveDesignStudio />}
+        {currentView === 'visual_ide' && <VisualIDE />}
         {currentView === 'platform_admin' && <PlatformAdminDashboard />}
       </main>
+
+      {/* Anti-Tamper & Licensing Modal */}
+      <TamperAlertModal />
 
       {/* Toast Notification Stack */}
       {toasts.length > 0 && (

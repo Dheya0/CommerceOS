@@ -123,16 +123,383 @@ export function generateDesignTokens(primaryHex: string, style: ThemeStyle = 'mo
 }
 
 export const PRESET_COLOR_PALETTES = [
-  { id: 'gold_royal', name: 'الملكي الذهبي', nameEn: 'Royal Gold', hex: '#D4A017', secondary: '#1E293B', style: 'luxury' as ThemeStyle },
-  { id: 'amber_honey', name: 'عسل نقي', nameEn: 'Amber Honey', hex: '#E69500', secondary: '#78350F', style: 'organic' as ThemeStyle },
-  { id: 'espresso_coffee', name: 'قهوة داكنة', nameEn: 'Dark Espresso', hex: '#6F4E37', secondary: '#D97706', style: 'modern' as ThemeStyle },
-  { id: 'emerald_luxury', name: 'زمرد فاخر', nameEn: 'Emerald Luxe', hex: '#0F766E', secondary: '#D4A017', style: 'luxury' as ThemeStyle },
-  { id: 'sapphire_blue', name: 'أزرق تقني', nameEn: 'Sapphire Tech', hex: '#2563EB', secondary: '#0F172A', style: 'bold' as ThemeStyle },
-  { id: 'crimson_fashion', name: 'قرمزي جذاب', nameEn: 'Crimson Chic', hex: '#BE123C', secondary: '#1E293B', style: 'classic' as ThemeStyle },
-  { id: 'noir_minimal', name: 'أسود كلاسيكي', nameEn: 'Noir Minimal', hex: '#18181B', secondary: '#71717A', style: 'minimal' as ThemeStyle },
-  { id: 'violet_perfume', name: 'بنفسجي ملكي', nameEn: 'Royal Violet', hex: '#7C3AED', secondary: '#F59E0B', style: 'luxury' as ThemeStyle },
-  { id: 'sage_organic', name: 'أخضر عضوي', nameEn: 'Sage Organic', hex: '#15803D', secondary: '#A16207', style: 'organic' as ThemeStyle }
+  { id: 'gold_royal', name: 'الملكي الذهبي والعسلي', nameEn: 'Royal Gold & Amber', hex: '#D4A017', secondary: '#1E293B', style: 'luxury' as ThemeStyle },
+  { id: 'amber_honey', name: 'عسل نقي وطبيعي', nameEn: 'Amber Honey', hex: '#E69500', secondary: '#78350F', style: 'organic' as ThemeStyle },
+  { id: 'espresso_coffee', name: 'محامص البن المختص', nameEn: 'Dark Espresso', hex: '#6F4E37', secondary: '#D97706', style: 'modern' as ThemeStyle },
+  { id: 'emerald_luxury', name: 'زمرد إمبراطوري فاخر', nameEn: 'Imperial Emerald', hex: '#0F766E', secondary: '#D4A017', style: 'luxury' as ThemeStyle },
+  { id: 'sapphire_blue', name: 'أزرق ياقوتي تقني', nameEn: 'Sapphire Ocean Tech', hex: '#2563EB', secondary: '#0F172A', style: 'bold' as ThemeStyle },
+  { id: 'crimson_fashion', name: 'قرمزي مخملي للأزياء', nameEn: 'Crimson Velvet Chic', hex: '#BE123C', secondary: '#1E293B', style: 'classic' as ThemeStyle },
+  { id: 'noir_minimal', name: 'أسود كربوني مينيمال', nameEn: 'Noir Obsidian', hex: '#18181B', secondary: '#71717A', style: 'minimal' as ThemeStyle },
+  { id: 'violet_perfume', name: 'عود وبنفسجي ملكي', nameEn: 'Royal Violet & Oud', hex: '#7C3AED', secondary: '#F59E0B', style: 'luxury' as ThemeStyle },
+  { id: 'sage_organic', name: 'زيتي وأخضر عضوي', nameEn: 'Sage & Olive Organic', hex: '#15803D', secondary: '#A16207', style: 'organic' as ThemeStyle },
+  { id: 'terracotta_desert', name: 'طبيعي ترابي صحراوي', nameEn: 'Desert Terracotta', hex: '#C2410C', secondary: '#431407', style: 'organic' as ThemeStyle },
+  { id: 'damascus_rose', name: 'وردي دمشقي أنيق', nameEn: 'Damascus Rose Atelier', hex: '#DB2777', secondary: '#4A044E', style: 'editorial' as ThemeStyle },
+  { id: 'nordic_slate', name: 'رمادي شمالي ناصع', nameEn: 'Nordic Slate Clean', hex: '#334155', secondary: '#0284C7', style: 'modern' as ThemeStyle }
 ];
+
+export const ARAB_CURRENCIES: Record<string, {
+  code: string;
+  symbol: string;
+  nameAr: string;
+  nameEn: string;
+  flag: string;
+}> = {
+  SAR: { code: 'SAR', symbol: 'ر.س', nameAr: 'ريال سعودي', nameEn: 'Saudi Riyal', flag: '🇸🇦' },
+  AED: { code: 'AED', symbol: 'د.إ', nameAr: 'درهم إماراتي', nameEn: 'UAE Dirham', flag: '🇦🇪' },
+  KWD: { code: 'KWD', symbol: 'د.ك', nameAr: 'دينار كويتي', nameEn: 'Kuwaiti Dinar', flag: '🇰🇼' },
+  QAR: { code: 'QAR', symbol: 'ر.ق', nameAr: 'ريال قطري', nameEn: 'Qatari Riyal', flag: '🇶🇦' },
+  BHD: { code: 'BHD', symbol: 'د.ب', nameAr: 'دينار بحريني', nameEn: 'Bahraini Dinar', flag: '🇧🇭' },
+  OMR: { code: 'OMR', symbol: 'ر.ع', nameAr: 'ريال عماني', nameEn: 'Omani Rial', flag: '🇴🇲' },
+  JOD: { code: 'JOD', symbol: 'د.أ', nameAr: 'دينار أردني', nameEn: 'Jordanian Dinar', flag: '🇯🇴' },
+  EGP: { code: 'EGP', symbol: 'ج.م', nameAr: 'جنيه مصري', nameEn: 'Egyptian Pound', flag: '🇪🇬' },
+  IQD: { code: 'IQD', symbol: 'د.ع', nameAr: 'دينار عراقي', nameEn: 'Iraqi Dinar', flag: '🇮🇶' },
+  MAD: { code: 'MAD', symbol: 'د.م', nameAr: 'درهم مغربي', nameEn: 'Moroccan Dirham', flag: '🇲🇦' },
+  USD: { code: 'USD', symbol: '$', nameAr: 'دولار أمريكي', nameEn: 'US Dollar', flag: '🇺🇸' },
+  EUR: { code: 'EUR', symbol: '€', nameAr: 'يورو أوروبي', nameEn: 'Euro', flag: '🇪🇺' }
+};
+
+export const ARAB_COUNTRIES_AND_CITIES: Record<string, {
+  countryAr: string;
+  countryEn: string;
+  flag: string;
+  currency: string;
+  cities: string[];
+}> = {
+  SA: {
+    countryAr: 'المملكة العربية السعودية',
+    countryEn: 'Saudi Arabia',
+    flag: '🇸🇦',
+    currency: 'SAR',
+    cities: [
+      'الرياض', 'جدة', 'مكة المكرمة', 'المدينة المنورة', 'الدمام', 'الخبر', 
+      'الظهران', 'الأحساء', 'الطائف', 'تبوك', 'أبها', 'خميس مشيط', 
+      'حائل', 'جازان', 'نجران', 'بريدة (القصيم)', 'عنيزة', 'ينبع', 'الجبيل'
+    ]
+  },
+  AE: {
+    countryAr: 'الإمارات العربية المتحدة',
+    countryEn: 'United Arab Emirates',
+    flag: '🇦🇪',
+    currency: 'AED',
+    cities: ['دبي', 'أبوظبي', 'الشارقة', 'عجمان', 'رأس الخيمة', 'الفجيرة', 'العين', 'أم القيوين']
+  },
+  KW: {
+    countryAr: 'دولة الكويت',
+    countryEn: 'Kuwait',
+    flag: '🇰🇼',
+    currency: 'KWD',
+    cities: ['مدينة الكويت', 'حولي', 'السالمية', 'الفروانية', 'الأحمدي', 'مبارك الكبير', 'الجهراء']
+  },
+  QA: {
+    countryAr: 'دولة قطر',
+    countryEn: 'Qatar',
+    flag: '🇶🇦',
+    currency: 'QAR',
+    cities: ['الدوحة', 'الريان', 'الوكرة', 'الخور', 'لوسيل', 'أم صلال']
+  },
+  BH: {
+    countryAr: 'مملكة البحرين',
+    countryEn: 'Bahrain',
+    flag: '🇧🇭',
+    currency: 'BHD',
+    cities: ['المنامة', 'المحرق', 'الرفاع', 'سترة', 'مدينة عيسى', 'مدينة حمد']
+  },
+  OM: {
+    countryAr: 'سلطنة عمان',
+    countryEn: 'Oman',
+    flag: '🇴🇲',
+    currency: 'OMR',
+    cities: ['مسقط', 'صلالة', 'صحار', 'نزوى', 'صور', 'السيب', 'بوشر']
+  },
+  JO: {
+    countryAr: 'المملكة الأردنية الهاشمية',
+    countryEn: 'Jordan',
+    flag: '🇯🇴',
+    currency: 'JOD',
+    cities: ['عمان', 'إربد', 'الزرقاء', 'العقبة', 'السلط', 'مادبا', 'جرش']
+  },
+  EG: {
+    countryAr: 'جمهورية مصر العربية',
+    countryEn: 'Egypt',
+    flag: '🇪🇬',
+    currency: 'EGP',
+    cities: ['القاهرة', 'الجيزة', 'الإسكندرية', 'المنصورة', 'طنطا', 'بورسعيد', 'الشيخ زايد', 'التجمع الخامس']
+  },
+  MA: {
+    countryAr: 'المملكة المغربية',
+    countryEn: 'Morocco',
+    flag: '🇲🇦',
+    currency: 'MAD',
+    cities: ['الدار البيضاء', 'الرباط', 'مراكش', 'طنجة', 'فاس', 'أكادير']
+  },
+  IQ: {
+    countryAr: 'جمهورية العراق',
+    countryEn: 'Iraq',
+    flag: '🇮🇶',
+    currency: 'IQD',
+    cities: ['بغداد', 'أربيل', 'البصرة', 'السليمانية', 'النجف', 'كربلاء', 'الموصل']
+  }
+};
+
+export const ARAB_PAYMENT_GATEWAYS_CATALOG = [
+  {
+    id: 'mada',
+    key: 'mada',
+    nameAr: 'مدى (Mada)',
+    nameEn: 'Mada Debit Cards',
+    category: 'بطاقات بنكية',
+    type: 'card',
+    fee: '1.0% + 1 ر.س',
+    descAr: 'البوابة الوطنية للمملكة العربية السعودية لجميع بطاقات الصراف',
+    badge: 'الأكثر استخداماً في السعودية 🇸🇦',
+    supportedCountries: ['SA'],
+    defaultEnabled: true
+  },
+  {
+    id: 'apple_pay',
+    key: 'applePay',
+    nameAr: 'Apple Pay',
+    nameEn: 'Apple Pay One-Tap',
+    category: 'محافظ ذكية',
+    type: 'wallet',
+    fee: 'مباشر بدون وسيط',
+    descAr: 'دفع فوري بنقرة واحدة عبر بصمة الوجه على أجهزة Apple',
+    badge: 'أعلى نسبة إتمام للطلب ⚡',
+    supportedCountries: ['SA', 'AE', 'KW', 'QA', 'BH', 'OM', 'JO', 'EG'],
+    defaultEnabled: true
+  },
+  {
+    id: 'visa',
+    key: 'visa',
+    nameAr: 'فيزا وماستركارد (Visa & MasterCard)',
+    nameEn: 'Credit Cards (Visa/Mastercard)',
+    category: 'بطاقات ائتمانية',
+    type: 'card',
+    fee: '2.2% + 1 ر.س',
+    descAr: 'قبول جميع البطاقات الائتمانية والخصم المباشر محلياً ودولياً',
+    badge: 'دولي ومحلي معتمد 💳',
+    supportedCountries: ['SA', 'AE', 'KW', 'QA', 'BH', 'OM', 'JO', 'EG', 'MA', 'IQ'],
+    defaultEnabled: true
+  },
+  {
+    id: 'stc_pay',
+    key: 'stcPay',
+    nameAr: 'STC Pay / Urpay',
+    nameEn: 'STC Pay Digital Wallet',
+    category: 'محافظ ذكية',
+    type: 'wallet',
+    fee: '1.7% + 0.5 ر.س',
+    descAr: 'الدفع عبر المحافظ الرقمية الأكثر انتشاراً في الخليج',
+    badge: 'محفظة رقمية سريعة 📱',
+    supportedCountries: ['SA'],
+    defaultEnabled: true
+  },
+  {
+    id: 'tamara',
+    key: 'tamara',
+    nameAr: 'تمارا (Tamara BNPL)',
+    nameEn: 'Tamara Buy Now Pay Later',
+    category: 'تقسيط مشتريات',
+    type: 'bnpl',
+    fee: 'بدون فوائد للعميل',
+    descAr: 'قسّم فاتورتك على 4 دفعات بدون أي رسوم أو فوائد للعميل',
+    badge: 'زيادة متوسط قيمة السلة 📈',
+    supportedCountries: ['SA', 'AE', 'KW'],
+    defaultEnabled: true
+  },
+  {
+    id: 'tabby',
+    key: 'tabby',
+    nameAr: 'تابي (Tabby BNPL)',
+    nameEn: 'Tabby Pay in 4',
+    category: 'تقسيط مشتريات',
+    type: 'bnpl',
+    fee: 'بدون فوائد للعميل',
+    descAr: 'قسّم مشترياتك على دفعات شهرية مريحة ومتوافقة مع الشريعة',
+    badge: 'تقسيط فوري وموثوق 🛍️',
+    supportedCountries: ['SA', 'AE', 'KW', 'QA', 'BH', 'EG'],
+    defaultEnabled: true
+  },
+  {
+    id: 'knet',
+    key: 'knet',
+    nameAr: 'كي نت (KNET - الكويت)',
+    nameEn: 'KNET Payment Network',
+    category: 'بطاقات بنكية',
+    type: 'card',
+    fee: '0.150 د.ك',
+    descAr: 'شبكة الدفع الإلكتروني الوطنية لدولة الكويت',
+    badge: 'الخيار الأول في الكويت 🇰🇼',
+    supportedCountries: ['KW'],
+    defaultEnabled: false
+  },
+  {
+    id: 'benefit',
+    key: 'benefit',
+    nameAr: 'بنفت بي (BenefitPay - البحرين)',
+    nameEn: 'BenefitPay Bahrain',
+    category: 'محافظ ذكية',
+    type: 'wallet',
+    fee: '100 فلس',
+    descAr: 'تطبيق الدفع الوطني الفوري لمملكة البحرين',
+    badge: 'الخيار الأول في البحرين 🇧🇭',
+    supportedCountries: ['BH'],
+    defaultEnabled: false
+  },
+  {
+    id: 'fawry',
+    key: 'fawry',
+    nameAr: 'فوري وميزة (Fawry / Meeza - مصر)',
+    nameEn: 'Fawry & Meeza Pay',
+    category: 'شبكات دفع ومحافظ',
+    type: 'card',
+    fee: '2.5%',
+    descAr: 'أكبر شبكة مدفوعات إلكترونية وبطاقات ميزة في جمهورية مصر',
+    badge: 'الخيار الأول في مصر 🇪🇬',
+    supportedCountries: ['EG'],
+    defaultEnabled: false
+  },
+  {
+    id: 'cliq',
+    key: 'cliq',
+    nameAr: 'كليك (CliQ - الأردن)',
+    nameEn: 'CliQ Instant Payments',
+    category: 'تحويل فوري',
+    type: 'bank',
+    fee: 'فوري ومجاني',
+    descAr: 'نظام الدفع الفوري والمباشر في المملكة الأردنية الهاشمية',
+    badge: 'التحويل الفوري الأردني 🇯🇴',
+    supportedCountries: ['JO'],
+    defaultEnabled: false
+  },
+  {
+    id: 'bank_transfer',
+    key: 'bankTransfer',
+    nameAr: 'التحويل البنكي المباشر (Bank Transfer)',
+    nameEn: 'Direct Bank Wire Transfer',
+    category: 'حوالات مصرفية',
+    type: 'bank',
+    fee: '0% (مجاني بالكامل)',
+    descAr: 'إيداع بنكي مباشر مع رفع إيصال التحويل واعتماده من لوحة التاجر',
+    badge: 'بدون أي عمولات بنكية 🏦',
+    supportedCountries: ['ALL'],
+    defaultEnabled: true
+  },
+  {
+    id: 'cod',
+    key: 'cod',
+    nameAr: 'الدفع عند الاستلام (Cash on Delivery)',
+    nameEn: 'Cash on Delivery (COD)',
+    category: 'دفع نقدي',
+    type: 'cash',
+    fee: 'رسوم تحصيل اختيارية',
+    descAr: 'الدفع نقداً أو بجهاز مدى المحمول عند باب العميل',
+    badge: 'ثقة أعلى للعملاء الجدد 📦',
+    supportedCountries: ['ALL'],
+    defaultEnabled: true
+  }
+];
+
+export const FONTS_CONFIG: Record<FontFamily, {
+  id: FontFamily;
+  nameAr: string;
+  nameEn: string;
+  category: string;
+  description: string;
+  cssFamily: string;
+  previewText: string;
+}> = {
+  tajawal: {
+    id: 'tajawal',
+    nameAr: 'تجوال (Tajawal)',
+    nameEn: 'Tajawal Classic',
+    category: 'رسمي وفاخر',
+    description: 'خط متوازن ذو حضور ملكي، مثالي للأعسال، العطور، والمنتجات الفاخرة.',
+    cssFamily: 'Tajawal, sans-serif',
+    previewText: 'أجود أصناف العسل الطبيعي والمحاصيل المختصة'
+  },
+  alexandria: {
+    id: 'alexandria',
+    nameAr: 'الإسكندرية (Alexandria)',
+    nameEn: 'Alexandria Modern',
+    category: 'عصري وحديث',
+    description: 'خط ذو طابع رقمي جذاب، ممتاز للمتاجر العصرية والمقاهي والأزياء.',
+    cssFamily: 'Alexandria, sans-serif',
+    previewText: 'إطلالات عصرية ومذاق مختص يواكب طموحك'
+  },
+  cairo: {
+    id: 'cairo',
+    nameAr: 'القاهرة (Cairo)',
+    nameEn: 'Cairo Bold Geometric',
+    category: 'هندسي وبارز',
+    description: 'خط ذو سماكات واضحة وعناوين قوية، ممتاز للتخفيضات والأجهزة الإلكترونية.',
+    cssFamily: 'Cairo, sans-serif',
+    previewText: 'أقوى العروض الحصرية مع التوصيل الفوري'
+  },
+  readex: {
+    id: 'readex',
+    nameAr: 'ريدكس برو (Readex Pro)',
+    nameEn: 'Readex Pro Tech',
+    category: 'تقني ومريح',
+    description: 'خط هندسي ناعم صُمم لقراءة مريحة للشاشات وتطبيقات الجوال.',
+    cssFamily: '"Readex Pro", sans-serif',
+    previewText: 'أجهزة ذكية متطورة بضمان معتمد وتوصيل سريع'
+  },
+  almarai: {
+    id: 'almarai',
+    nameAr: 'المراعي (Almarai)',
+    nameEn: 'Almarai Commercial',
+    category: 'تجاري ومقروء',
+    description: 'الخط التجاري الأكثر نقاءً ووضوحاً لقوائم المنتجات والأسعار.',
+    cssFamily: 'Almarai, sans-serif',
+    previewText: 'مستلزمات يومية بأفضل الأسعار وأعلى مستويات الجودة'
+  },
+  ibm_plex: {
+    id: 'ibm_plex',
+    nameAr: 'آي بي إم بلكس (IBM Plex Arabic)',
+    nameEn: 'IBM Plex Sans Arabic',
+    category: 'مؤسسي واحترافي',
+    description: 'خط مؤسسي فائق الدقة، يمنح المتجر مصداقية ومظهر علامة تجارية عالمية.',
+    cssFamily: '"IBM Plex Sans Arabic", sans-serif',
+    previewText: 'منصة احترافية تلتزم بأعلى معايير الجودة والمصداقية'
+  },
+  el_messiri: {
+    id: 'el_messiri',
+    nameAr: 'المسيري (El Messiri)',
+    nameEn: 'El Messiri Aesthetic',
+    category: 'جمالي وناعم',
+    description: 'خط عربي ذو انحناءات فنية أنيقة، مخصص لعلامات الأزياء والمكياج والعطور.',
+    cssFamily: '"El Messiri", sans-serif',
+    previewText: 'نفحات ملكية ساحرة ولمسات من الأناقة الرفيعة'
+  },
+  amiri: {
+    id: 'amiri',
+    nameAr: 'أميري (Amiri Naskh)',
+    nameEn: 'Amiri Heritage',
+    category: 'تراثي ونسخ أصيل',
+    description: 'خط نسخ عربي تقليدي فخم، مثالي للأغذية الطبيعية والمخطوطات والمجوهرات.',
+    cssFamily: 'Amiri, serif',
+    previewText: 'خيرات أصيلة من خير الطبيعة وتراث الأجداد'
+  },
+  jakarta: {
+    id: 'jakarta',
+    nameAr: 'بلس جاكرتا (Plus Jakarta)',
+    nameEn: 'Plus Jakarta Sans',
+    category: 'لاتيني وتقني',
+    description: 'خط ناعم ودقيق للأرقام والأسماء الإنجليزية والعناصر التقنية.',
+    cssFamily: '"Plus Jakarta Sans", sans-serif',
+    previewText: 'Premium Collection with High Durability & Fast Delivery'
+  },
+  playfair: {
+    id: 'playfair',
+    nameAr: 'بلايفير ديسبلاي (Playfair)',
+    nameEn: 'Playfair Display Serif',
+    category: 'كلاسيكي ورومانسي',
+    description: 'خط سيريف فاخر لبيوت الموضة والأزياء والمجوهرات الراقية.',
+    cssFamily: '"Playfair Display", serif',
+    previewText: 'Haute Couture & Luxury Boutique Experience'
+  }
+};
 
 export const BUSINESS_TYPE_CONFIG: Record<BusinessType, {
   nameAr: string;

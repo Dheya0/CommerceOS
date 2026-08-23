@@ -134,7 +134,35 @@ export const INITIAL_TENANTS: TenantStore[] = [
       applePay: true,
       visa: true,
       cod: true,
-      tamara: true
+      tamara: true,
+      bankTransfer: true
+    },
+    bankAccounts: [
+      {
+        id: 'ba-1',
+        bankName: 'مصرف الراجحي (Al Rajhi Bank)',
+        accountHolder: 'مؤسسة عسل الملكي للتجارة',
+        accountNumber: '482000019283746',
+        iban: 'SA4480000482000019283746',
+        active: true
+      },
+      {
+        id: 'ba-2',
+        bankName: 'البنك الأهلي السعودي (SNB)',
+        accountHolder: 'مؤسسة عسل الملكي للتجارة',
+        accountNumber: '1029384756102',
+        iban: 'SA1210000001029384756102',
+        active: true
+      }
+    ],
+    appDownloadConfig: {
+      appName: 'متجر عسل الملكي',
+      packageName: 'sa.royalhoney.app',
+      bundleId: 'sa.royalhoney.ios',
+      pwaEnabled: true,
+      androidApkReady: true,
+      iosReady: true,
+      version: '2.4.0'
     },
     shippingMethods: [
       { id: 'ship-1', name: 'شحن سريع مبرد (أرامكس)', nameEn: 'Aramex Chilled Express', cost: 25, estimatedDays: '1-2 أيام عمل', active: true },
@@ -146,6 +174,31 @@ export const INITIAL_TENANTS: TenantStore[] = [
       rate: 15,
       taxNumber: '310998823100003',
       taxIncludedInPrice: true
+    },
+    licensing: {
+      tier: 'white_label_single',
+      licenseKey: 'COSLIC-WL-ROYAL-F9A1-9482EF',
+      isWhiteLabel: true,
+      issuedAt: '2026-01-15T08:00:00Z',
+      verified: true,
+      customBranding: {
+        removeCommerceOSFooter: true,
+        customFooterText: 'جميع الحقوق محفوظة لمتجر الملكي للعسل الفاخر 2026',
+        customPoweredBy: 'Royal Enterprise Engine',
+        hideWatermarkInExports: true
+      },
+      tamperAttemptsCount: 0
+    },
+    quotas: {
+      maxProducts: -1,
+      maxStaff: 15,
+      maxMonthlyBuilds: 100,
+      usedMonthlyBuilds: 14,
+      allowCustomDomain: true,
+      allowDockerSelfHost: true,
+      allowNativeIosAndroid: true,
+      storageQuotaMb: 5000,
+      usedStorageMb: 420
     }
   },
 
@@ -163,9 +216,31 @@ export const INITIAL_TENANTS: TenantStore[] = [
     currency: 'SAR',
     currencySymbol: 'ر.س',
     domain: 'coffeehouse.commerceos.app',
-    plan: 'business',
+    plan: 'starter',
     status: 'active',
     createdAt: '2026-02-01T12:00:00Z',
+    licensing: {
+      tier: 'free',
+      isWhiteLabel: false,
+      verified: false,
+      watermarkIntegrityHash: 'SHA256_INTEGRITY_COFFEE_2026',
+      customBranding: {
+        removeCommerceOSFooter: false,
+        hideWatermarkInExports: false
+      },
+      tamperAttemptsCount: 0
+    },
+    quotas: {
+      maxProducts: 100,
+      maxStaff: 2,
+      maxMonthlyBuilds: 10,
+      usedMonthlyBuilds: 3,
+      allowCustomDomain: false,
+      allowDockerSelfHost: false,
+      allowNativeIosAndroid: false,
+      storageQuotaMb: 500,
+      usedStorageMb: 85
+    },
     contact: {
       email: 'hello@coffeehouse.sa',
       phone: '+966 55 987 6543',
@@ -197,7 +272,26 @@ export const INITIAL_TENANTS: TenantStore[] = [
       backgroundColor: '#FFFFFF',
       enablePush: true
     },
-    paymentGateways: { mada: true, applePay: true, visa: true, cod: true, tamara: true },
+    paymentGateways: { mada: true, applePay: true, visa: true, cod: true, tamara: true, bankTransfer: true },
+    bankAccounts: [
+      {
+        id: 'ba-c1',
+        bankName: 'بنك الرياض (Riyad Bank)',
+        accountHolder: 'شركة بيت القهوة المختصة',
+        accountNumber: '298102938475',
+        iban: 'SA9820000002981029384750',
+        active: true
+      }
+    ],
+    appDownloadConfig: {
+      appName: 'بيت القهوة',
+      packageName: 'sa.coffeehouse.app',
+      bundleId: 'sa.coffeehouse.ios',
+      pwaEnabled: true,
+      androidApkReady: true,
+      iosReady: true,
+      version: '1.8.0'
+    },
     shippingMethods: [
       { id: 'sm-c1', name: 'شحن قياسي (سمسا)', nameEn: 'SMSA Express', cost: 20, estimatedDays: '2-3 أيام', active: true }
     ]
@@ -250,7 +344,7 @@ export const INITIAL_TENANTS: TenantStore[] = [
       backgroundColor: '#FFFFFF',
       enablePush: false
     },
-    paymentGateways: { mada: true, applePay: true, visa: true, cod: false, tamara: true },
+    paymentGateways: { mada: true, applePay: true, visa: true, cod: false, tamara: true, bankTransfer: true },
     shippingMethods: [
       { id: 'sm-f1', name: 'شحن DHL السريع', nameEn: 'DHL Express', cost: 30, estimatedDays: '1-2 أيام', active: true }
     ]

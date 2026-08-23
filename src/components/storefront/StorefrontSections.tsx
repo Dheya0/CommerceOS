@@ -380,7 +380,33 @@ export const StorefrontFooter: React.FC = () => {
 
         <div className="pt-6 border-t flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-3" style={{ borderColor: tokens.border }}>
           <div>
-            جميع الحقوق محفوظة © {activeTenant.name} 2026 • مدعوم بواسطة <span className="font-bold text-amber-500">CommerceOS</span>
+            {activeTenant.licensing?.isWhiteLabel && activeTenant.licensing?.verified ? (
+              <div className="flex items-center gap-2">
+                <span>{activeTenant.licensing.customBranding?.customFooterText || `جميع الحقوق محفوظة لمتجر ${activeTenant.name} © 2026`}</span>
+                {activeTenant.licensing.customBranding?.customPoweredBy && (
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
+                    {activeTenant.licensing.customBranding.customPoweredBy}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div id="cos-watermark-guard" data-cos-watermark="true" className="flex items-center gap-2">
+                <span>جميع الحقوق محفوظة © {activeTenant.name} 2026</span>
+                <span>•</span>
+                <span className="inline-flex items-center gap-1.5 bg-slate-900/60 px-2.5 py-1 rounded-lg border border-slate-800 text-slate-300">
+                  <span>صُنع وتطوير بواسطة</span>
+                  <a 
+                    href="https://commerceos.app" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                  >
+                    <span>CommerceOS™</span>
+                    <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1 py-0.2 rounded border border-amber-500/30">Free Edition</span>
+                  </a>
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span>بوابات دفع مشفرة وآمنة 🔒</span>

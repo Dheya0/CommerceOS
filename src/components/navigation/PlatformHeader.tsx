@@ -75,6 +75,7 @@ export const PlatformHeader: React.FC = () => {
   const navItems: { view: AppView; labelAr: string; labelEn: string; icon: React.FC<{ className?: string }> }[] = [
     { view: 'storefront', labelAr: 'متجر العميل (Live)', labelEn: 'Storefront', icon: Store },
     { view: 'merchant_dashboard', labelAr: 'لوحة إدارة المتجر', labelEn: 'Dashboard', icon: LayoutDashboard },
+    { view: 'visual_ide', labelAr: 'Visual IDE (المحرر المرئي)', labelEn: 'Visual IDE', icon: Layers },
     { view: 'live_customizer', labelAr: 'Design Studio', labelEn: 'Design Studio', icon: Palette },
     { view: 'builder_wizard', labelAr: 'بناء متجر جديد', labelEn: 'Store Builder', icon: Sparkles },
     { view: 'platform_admin', labelAr: 'CommerceOS HQ', labelEn: 'Platform HQ', icon: Building2 }

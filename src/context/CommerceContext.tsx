@@ -10,7 +10,10 @@ import {
   StaffMember,
   StaffRole,
   StoreTheme,
-  TenantStore
+  TenantStore,
+  PlatformLicensingConfig,
+  TenantQuotas,
+  TamperEventLog
 } from '../types';
 import {
   INITIAL_CATEGORIES,
@@ -22,8 +25,9 @@ import {
   INITIAL_TENANTS
 } from '../data/initialData';
 import { api } from '../api/client';
+import { DEFAULT_PLATFORM_CONFIG, validateLicenseKey, generateLicenseKey } from '../utils/licensingEngine';
 
-export type AppView = 'storefront' | 'merchant_dashboard' | 'builder_wizard' | 'platform_admin' | 'live_customizer';
+export type AppView = 'storefront' | 'merchant_dashboard' | 'builder_wizard' | 'platform_admin' | 'live_customizer' | 'visual_ide';
 export type PreviewDevice = 'desktop' | 'tablet' | 'mobile';
 
 interface ToastInfo {
@@ -89,6 +93,7 @@ interface CommerceContextType {
 
   addOrder: (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'timeline'>) => Promise<Order>;
   updateOrderStatus: (orderId: string, status: Order['status'], note?: string) => void;
+  updateOrderPaymentStatus: (orderId: string, paymentStatus: Order['paymentStatus'], note?: string) => void;
 
   addCustomer: (customer: Omit<Customer, 'id'>) => void;
   addCoupon: (coupon: Omit<Coupon, 'id'>) => void;
@@ -102,6 +107,21 @@ interface CommerceContextType {
   toasts: ToastInfo[];
   showToast: (message: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
   dismissToast: (id: string) => void;
+
+  // Licensing & Platform Super Admin Controls
+  platformConfig: PlatformLicensingConfig;
+  updatePlatformConfig: (updates: Partial<PlatformLicensingConfig>) => void;
+  applyLicenseToTenant: (tenantId: string, licenseKey: string) => boolean;
+  toggleWhiteLabel: (tenantId: string, enabled: boolean) => void;
+  updateTenantStatus: (tenantId: string, status: 'active' | 'suspended' | 'trial') => void;
+  updateTenantQuotas: (tenantId: string, quotas: Partial<TenantQuotas>) => void;
+  logTamperEvent: (event: Omit<TamperEventLog, 'id' | 'detectedAt'>) => void;
+
+  // Anti-Tamper Protection Modal
+  tamperAlertModalOpen: boolean;
+  setTamperAlertModalOpen: (open: boolean) => void;
+  tamperModalData: { tenantName: string; reason: string; tamperCode?: string } | null;
+  setTamperModalData: (data: { tenantName: string; reason: string; tamperCode?: string } | null) => void;
 }
 
 const CommerceContext = createContext<CommerceContextType | null>(null);
@@ -187,6 +207,19 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Toasts
   const [toasts, setToasts] = useState<ToastInfo[]>([]);
+
+  // Licensing & Platform Super Admin State
+  const [platformConfig, setPlatformConfig] = useState<PlatformLicensingConfig>(() => {
+    try {
+      const saved = localStorage.getItem('commerceos_platform_config');
+      return saved ? JSON.parse(saved) : DEFAULT_PLATFORM_CONFIG;
+    } catch {
+      return DEFAULT_PLATFORM_CONFIG;
+    }
+  });
+
+  const [tamperAlertModalOpen, setTamperAlertModalOpen] = useState<boolean>(false);
+  const [tamperModalData, setTamperModalData] = useState<{ tenantName: string; reason: string; tamperCode?: string } | null>(null);
 
   // Sync API Client with active tenant and role
   useEffect(() => {
@@ -473,6 +506,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         customer: orderData.customer,
         items: orderData.items.map(i => ({ productId: i.productId, quantity: i.quantity })),
         paymentMethod: orderData.paymentMethod,
+        bankTransferDetails: orderData.bankTransferDetails,
         couponCode: undefined
       });
       if (res.success && res.order) {
@@ -517,6 +551,30 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       await api.updateOrderStatus(orderId, status, note);
     } catch (err) {
       console.warn('Backend sync for updateOrderStatus:', err);
+    }
+  };
+
+  const updateOrderPaymentStatus = async (orderId: string, paymentStatus: Order['paymentStatus'], note?: string) => {
+    setOrders(prev => prev.map(ord => {
+      if (ord.id === orderId) {
+        const now = new Date().toISOString();
+        const paymentNote = note || `تم تحديث حالة الدفع إلى: ${paymentStatus}`;
+        const newOrderStatus = (paymentStatus === 'paid' && ord.status === 'new') ? 'processing' : ord.status;
+        return {
+          ...ord,
+          paymentStatus,
+          status: newOrderStatus,
+          timeline: [...ord.timeline, { status: newOrderStatus, timestamp: now, note: paymentNote }]
+        };
+      }
+      return ord;
+    }));
+    showToast(`تم تحديث حالة الدفع إلى ${paymentStatus === 'paid' ? 'مدفوع ومؤكد' : paymentStatus}`, 'success');
+
+    try {
+      await api.updateOrderPaymentStatus(orderId, paymentStatus, note);
+    } catch (err) {
+      console.warn('Backend sync for updateOrderPaymentStatus:', err);
     }
   };
 
@@ -583,6 +641,129 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  // Licensing and Super Admin Controls
+  const updatePlatformConfig = (updates: Partial<PlatformLicensingConfig>) => {
+    setPlatformConfig(prev => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem('commerceos_platform_config', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    showToast('تم حفظ إعدادات وتسعير التراخيص بنجاح', 'success');
+  };
+
+  const applyLicenseToTenant = (tenantId: string, licenseKey: string): boolean => {
+    const result = validateLicenseKey(licenseKey, tenantId);
+    if (!result.valid) {
+      showToast(result.error || 'مفتاح الترخيص غير صالح', 'error');
+      return false;
+    }
+
+    setTenants(prev => prev.map(t => {
+      if (t.id === tenantId) {
+        const nextLicensing = {
+          tier: result.tier,
+          licenseKey,
+          isWhiteLabel: true,
+          issuedAt: new Date().toISOString(),
+          verified: true,
+          customBranding: {
+            removeCommerceOSFooter: true,
+            customFooterText: `جميع الحقوق محفوظة لمتجر ${t.name} 2026`,
+            customPoweredBy: result.tier === 'agency_sovereign' ? 'Sovereign Core' : 'White-Label Engine',
+            hideWatermarkInExports: true
+          },
+          tamperAttemptsCount: 0
+        };
+        return {
+          ...t,
+          licensing: nextLicensing
+        };
+      }
+      return t;
+    }));
+
+    showToast('تم تفعيل ترخيص White-Label بنجاح! تم إلغاء الشارة وتمكين التصدير النظيف 100%', 'success');
+    return true;
+  };
+
+  const toggleWhiteLabel = (tenantId: string, enabled: boolean) => {
+    setTenants(prev => prev.map(t => {
+      if (t.id === tenantId) {
+        const key = enabled ? (t.licensing?.licenseKey || generateLicenseKey(tenantId, 'white_label_single').key) : undefined;
+        return {
+          ...t,
+          licensing: {
+            tier: enabled ? 'white_label_single' : 'free',
+            licenseKey: key,
+            isWhiteLabel: enabled,
+            verified: enabled,
+            issuedAt: enabled ? new Date().toISOString() : undefined,
+            customBranding: {
+              removeCommerceOSFooter: enabled,
+              customFooterText: enabled ? `جميع الحقوق محفوظة لمتجر ${t.name}` : undefined,
+              hideWatermarkInExports: enabled
+            }
+          }
+        };
+      }
+      return t;
+    }));
+    showToast(enabled ? 'تم تفعيل الـ White-Label للمتجر' : 'تم تفعيل وضع الشارة المجانية', 'info');
+  };
+
+  const updateTenantStatus = (tenantId: string, status: 'active' | 'suspended' | 'trial') => {
+    setTenants(prev => prev.map(t => (t.id === tenantId ? { ...t, status } : t)));
+    const msg = status === 'suspended' ? 'تم تجميد حساب المتجر بنجاح' : status === 'active' ? 'تم تنشيط حساب المتجر بنجاح' : 'تم تحويل المتجر إلى الفترة التجريبية';
+    showToast(msg, status === 'suspended' ? 'warning' : 'success');
+  };
+
+  const updateTenantQuotas = (tenantId: string, quotas: Partial<TenantQuotas>) => {
+    setTenants(prev => prev.map(t => {
+      if (t.id === tenantId) {
+        const defaultQuotas: TenantQuotas = {
+          maxProducts: 500,
+          maxStaff: 5,
+          maxMonthlyBuilds: 30,
+          usedMonthlyBuilds: t.quotas?.usedMonthlyBuilds || 0,
+          allowCustomDomain: true,
+          allowDockerSelfHost: true,
+          allowNativeIosAndroid: true,
+          storageQuotaMb: 1000,
+          usedStorageMb: t.quotas?.usedStorageMb || 50
+        };
+        return {
+          ...t,
+          quotas: {
+            ...(t.quotas || defaultQuotas),
+            ...quotas
+          }
+        };
+      }
+      return t;
+    }));
+    showToast('تم تحديث حدود وحصص المتجر (Quotas) بنجاح', 'success');
+  };
+
+  const logTamperEvent = (event: Omit<TamperEventLog, 'id' | 'detectedAt'>) => {
+    const newLog: TamperEventLog = {
+      ...event,
+      id: `tamper-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      detectedAt: new Date().toISOString()
+    };
+    setPlatformConfig(prev => {
+      const next = {
+        ...prev,
+        tamperLog: [newLog, ...(prev.tamperLog || [])].slice(0, 100)
+      };
+      try {
+        localStorage.setItem('commerceos_platform_config', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
   // Filtered lists for active tenant
   const tenantProducts = products.filter(p => p.tenantId === activeTenantId);
   const tenantCategories = categories.filter(c => c.tenantId === activeTenantId);
@@ -635,6 +816,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteProduct,
         addOrder,
         updateOrderStatus,
+        updateOrderPaymentStatus,
         addCustomer,
         addCoupon,
         deleteCoupon,
@@ -643,7 +825,18 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deleteStaff,
         toasts,
         showToast,
-        dismissToast
+        dismissToast,
+        platformConfig,
+        updatePlatformConfig,
+        applyLicenseToTenant,
+        toggleWhiteLabel,
+        updateTenantStatus,
+        updateTenantQuotas,
+        logTamperEvent,
+        tamperAlertModalOpen,
+        setTamperAlertModalOpen,
+        tamperModalData,
+        setTamperModalData
       }}
     >
       {children}

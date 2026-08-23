@@ -189,6 +189,7 @@ class CommerceApiClient {
     paymentMethod: Order['paymentMethod'];
     couponCode?: string;
     shippingMethodId?: string;
+    bankTransferDetails?: Order['bankTransferDetails'];
   }): Promise<{ success: boolean; order: Order; message: string }> {
     return this.request('/orders', {
       method: 'POST',
@@ -200,6 +201,13 @@ class CommerceApiClient {
     return this.request(`/orders/${id}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status, note })
+    });
+  }
+
+  async updateOrderPaymentStatus(id: string, paymentStatus: Order['paymentStatus'], note?: string): Promise<{ success: boolean; order: Order; message: string }> {
+    return this.request(`/orders/${id}/payment`, {
+      method: 'PUT',
+      body: JSON.stringify({ paymentStatus, note })
     });
   }
 

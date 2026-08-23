@@ -28,7 +28,13 @@ import {
   Sliders,
   ChevronDown,
   Globe,
-  CreditCard
+  CreditCard,
+  Smartphone,
+  Building2,
+  CheckCircle2,
+  XCircle,
+  FileText,
+  Image as ImageIcon
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -42,8 +48,16 @@ import {
   Bar 
 } from 'recharts';
 import { useCommerce } from '../../context/CommerceContext';
-import { Coupon, Order, Product, StaffMember, StaffRole, ThemeStyle } from '../../types';
+import { Coupon, Order, Product, StaffMember, StaffRole, ThemeStyle, BankAccount } from '../../types';
 import { generateDesignTokens, PRESET_COLOR_PALETTES } from '../../utils/themeEngine';
+import { MobileAppManager } from './MobileAppManager';
+import { PublishCenter } from './PublishCenter';
+import { AbandonedCartsManager } from './AbandonedCartsManager';
+import { NotificationsManager } from './NotificationsManager';
+import { SecurityCenter } from './SecurityCenter';
+import { LicensingManager } from './LicensingManager';
+import { Rocket, MessageSquare, ShieldAlert } from 'lucide-react';
+
 
 export const MerchantDashboard: React.FC = () => {
   const { 
@@ -56,6 +70,7 @@ export const MerchantDashboard: React.FC = () => {
     deleteProduct, 
     orders, 
     updateOrderStatus, 
+    updateOrderPaymentStatus,
     customers, 
     coupons, 
     addCoupon, 
@@ -79,6 +94,13 @@ export const MerchantDashboard: React.FC = () => {
   const [orderDetailModal, setOrderDetailModal] = useState<Order | null>(null);
   const [couponModalOpen, setCouponModalOpen] = useState(false);
   const [staffModalOpen, setStaffModalOpen] = useState(false);
+  const [bankModalOpen, setBankModalOpen] = useState(false);
+
+  // Bank Form State
+  const [bankName, setBankName] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
+  const [iban, setIban] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
 
   // Product Form State
   const [prodName, setProdName] = useState('');
@@ -127,14 +149,20 @@ export const MerchantDashboard: React.FC = () => {
   // Navigation Items according to RBAC
   const navTabs = [
     { id: 'overview', label: 'نظرة عامة والتحليلات', icon: LayoutDashboard, permitted: true },
-    { id: 'orders', label: 'إدارة الطلبات والشحن', icon: ShoppingBag, badge: orders.filter(o => o.status === 'new').length, permitted: activeStaffPermissions.orders },
+    { id: 'publish_center', label: 'مركز النشر والـ Build Engine', icon: Rocket, permitted: activeStaffPermissions.settings },
+    { id: 'licensing', label: 'التراخيص وإزالة الشارة', icon: Sparkles, badge: activeTenant.licensing?.isWhiteLabel ? undefined : 1, permitted: activeStaffPermissions.settings },
+    { id: 'abandoned_carts', label: 'السلات المتروكة واستعادتها', icon: ShoppingBag, permitted: activeStaffPermissions.orders },
+    { id: 'notifications', label: 'إشعارات الواتساب وSMS', icon: MessageSquare, permitted: activeStaffPermissions.marketing },
+    { id: 'security_center', label: 'الأمان والتواقيع الرقمية', icon: ShieldAlert, permitted: activeStaffPermissions.settings },
+    { id: 'orders', label: 'إدارة الطلبات والشحن', icon: ShoppingBag, badge: orders.filter(o => o.status === 'new' || o.paymentStatus === 'pending_verification').length, permitted: activeStaffPermissions.orders },
     { id: 'products', label: 'المنتجات والتصنيفات', icon: Package, permitted: activeStaffPermissions.products },
     { id: 'inventory', label: 'المخزون والمستودع', icon: Warehouse, badge: lowStockProducts.length > 0 ? lowStockProducts.length : undefined, permitted: activeStaffPermissions.inventory },
     { id: 'customers', label: 'قاعدة العملاء', icon: Users, permitted: activeStaffPermissions.customers },
     { id: 'coupons', label: 'الكوبونات والعروض', icon: Tag, permitted: activeStaffPermissions.coupons },
     { id: 'theme', label: 'محرك التصميم والهوية', icon: Palette, permitted: activeStaffPermissions.theme },
+    { id: 'mobile_app', label: 'تطبيق المتجر (Mobile & PWA)', icon: Smartphone, permitted: activeStaffPermissions.settings },
     { id: 'staff', label: 'فريق العمل والصلاحيات', icon: ShieldCheck, permitted: activeStaffPermissions.staff },
-    { id: 'settings', label: 'إعدادات المتجر والنطاق', icon: Settings, permitted: activeStaffPermissions.settings }
+    { id: 'settings', label: 'إعدادات المتجر والدفع', icon: Settings, permitted: activeStaffPermissions.settings }
   ].filter(t => t.permitted);
 
   const handleOpenAddProduct = () => {
@@ -662,9 +690,10 @@ export const MerchantDashboard: React.FC = () => {
                       <th className="pb-3">العميل والموقع</th>
                       <th className="pb-3">المنتجات</th>
                       <th className="pb-3">طريقة الدفع</th>
+                      <th className="pb-3">حالة الدفع</th>
                       <th className="pb-3">الإجمالي</th>
-                      <th className="pb-3">الحالة الحالية</th>
-                      <th className="pb-3 text-left">تحديث الحالة</th>
+                      <th className="pb-3">حالة الطلب</th>
+                      <th className="pb-3 text-left">الإجراء</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
@@ -682,7 +711,25 @@ export const MerchantDashboard: React.FC = () => {
                             <div className="text-[10px] text-slate-400">{order.customer.city} • {order.customer.phone}</div>
                           </td>
                           <td className="py-3 text-slate-300">{order.items.length} منتجات</td>
-                          <td className="py-3 uppercase font-mono text-[11px] text-slate-300">{order.paymentMethod}</td>
+                          <td className="py-3 uppercase font-mono text-[11px] text-slate-300">
+                            {order.paymentMethod === 'bank_transfer' ? 'تحويل بنكي' :
+                             order.paymentMethod === 'cod' ? 'دفع عند الاستلام' :
+                             order.paymentMethod === 'mada' ? 'مدى (Mada)' :
+                             order.paymentMethod === 'apple_pay' ? 'Apple Pay' :
+                             order.paymentMethod === 'tamara' ? 'تمارا' : order.paymentMethod}
+                          </td>
+                          <td className="py-3">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              order.paymentStatus === 'paid' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+                              order.paymentStatus === 'pending_verification' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse' :
+                              order.paymentStatus === 'failed' ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' :
+                              'bg-slate-800 text-slate-300 border border-slate-700'
+                            }`}>
+                              {order.paymentStatus === 'paid' ? 'مدفوع ✓' :
+                               order.paymentStatus === 'pending_verification' ? 'مراجعة الحوالة ⚠️' :
+                               order.paymentStatus === 'failed' ? 'فشل الدفع ✕' : 'بانتظار الدفع'}
+                            </span>
+                          </td>
                           <td className="py-3 font-mono font-bold text-amber-400">{order.total} {activeTenant.currencySymbol}</td>
                           <td className="py-3">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
@@ -697,17 +744,25 @@ export const MerchantDashboard: React.FC = () => {
                             </span>
                           </td>
                           <td className="py-3 text-left">
-                            <select
-                              value={order.status}
-                              onChange={e => updateOrderStatus(order.id, e.target.value as any)}
-                              className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none focus:border-amber-500"
-                            >
-                              <option value="new">جديد</option>
-                              <option value="processing">قيد التجهيز</option>
-                              <option value="shipped">تم الشحن</option>
-                              <option value="delivered">تم التوصيل</option>
-                              <option value="cancelled">ملغي</option>
-                            </select>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => setOrderDetailModal(order)}
+                                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-amber-400"
+                              >
+                                {order.paymentStatus === 'pending_verification' ? 'مراجعة الإيصال' : 'تفاصيل'}
+                              </button>
+                              <select
+                                value={order.status}
+                                onChange={e => updateOrderStatus(order.id, e.target.value as any)}
+                                className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none focus:border-amber-500"
+                              >
+                                <option value="new">جديد</option>
+                                <option value="processing">قيد التجهيز</option>
+                                <option value="shipped">تم الشحن</option>
+                                <option value="delivered">تم التوصيل</option>
+                                <option value="cancelled">ملغي</option>
+                              </select>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -926,13 +981,55 @@ export const MerchantDashboard: React.FC = () => {
           </div>
         )}
 
+        {/* 4.5 PUBLISH CENTER & BUILD ENGINE TAB */}
+        {activeTab === 'publish_center' && (
+          <div className="animate-in fade-in">
+            <PublishCenter />
+          </div>
+        )}
+
+        {/* LICENSING & WHITE LABEL MATRIX TAB */}
+        {activeTab === 'licensing' && (
+          <div className="animate-in fade-in">
+            <LicensingManager />
+          </div>
+        )}
+
+        {/* ABANDONED CARTS RECOVERY TAB */}
+        {activeTab === 'abandoned_carts' && (
+          <div className="animate-in fade-in">
+            <AbandonedCartsManager />
+          </div>
+        )}
+
+        {/* NOTIFICATIONS & WHATSAPP TAB */}
+        {activeTab === 'notifications' && (
+          <div className="animate-in fade-in">
+            <NotificationsManager />
+          </div>
+        )}
+
+        {/* SECURITY & CODE SIGNING CENTER TAB */}
+        {activeTab === 'security_center' && (
+          <div className="animate-in fade-in">
+            <SecurityCenter />
+          </div>
+        )}
+
+        {/* 5. MOBILE APP TAB */}
+        {activeTab === 'mobile_app' && (
+          <div className="animate-in fade-in">
+            <PublishCenter />
+          </div>
+        )}
+
         {/* 6. SETTINGS & DOMAIN TAB */}
         {activeTab === 'settings' && (
           <div className="space-y-6 animate-in fade-in">
             <div>
-              <h1 className="text-2xl font-black text-white">إعدادات المتجر والنطاق الخاص (Custom Domain)</h1>
+              <h1 className="text-2xl font-black text-white">إعدادات المتجر والنطاق والحسابات البنكية</h1>
               <p className="text-xs text-slate-400 mt-0.5">
-                ربط الدومين المخصص، بوابات الدفع، وإعدادات تطبيق PWA.
+                ربط الدومين المخصص، بوابات الدفع الإلكتروني، والحسابات البنكية للحوالات المباشرة.
               </p>
             </div>
 
@@ -974,21 +1071,70 @@ export const MerchantDashboard: React.FC = () => {
 
               {/* Payment Gateways Config Card */}
               <div className="lg:col-span-6 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
-                  <CreditCard className="w-4 h-4" />
-                  <span>بوابات الدفع الإلكتروني</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+                    <CreditCard className="w-4 h-4" />
+                    <span>بوابات الدفع الإلكتروني</span>
+                  </div>
                 </div>
 
                 <div className="space-y-2.5">
                   {[
-                    { name: 'مدى (Mada)', status: 'مفعلة وتعمل بنجاح ✓' },
-                    { name: 'Apple Pay', status: 'مفعلة وتعمل بنجاح ✓' },
-                    { name: 'Visa & MasterCard', status: 'مفعلة وتعمل بنجاح ✓' },
-                    { name: 'تمارا (Tamara BNPL)', status: 'مفعلة للتقسيط ✓' }
+                    { id: 'mada', name: 'مدى (Mada)', status: 'مفعلة وتعمل بنجاح ✓' },
+                    { id: 'apple_pay', name: 'Apple Pay', status: 'مفعلة وتعمل بنجاح ✓' },
+                    { id: 'visa', name: 'Visa & MasterCard', status: 'مفعلة وتعمل بنجاح ✓' },
+                    { id: 'tamara', name: 'تمارا (Tamara BNPL)', status: 'مفعلة للتقسيط ✓' },
+                    { id: 'cod', name: 'الدفع عند الاستلام (COD)', status: 'مفعلة ✓' },
+                    { id: 'bank_transfer', name: 'التحويل البنكي المباشر (Bank Transfer)', status: 'مفعلة وتتطلب اعتماد الإيصال ✓' }
                   ].map((gw, i) => (
                     <div key={i} className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
                       <span className="font-bold text-white">{gw.name}</span>
                       <span className="text-emerald-400 text-[11px] font-medium">{gw.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bank Accounts Management (Full 12 cols) */}
+              <div className="lg:col-span-12 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
+                    <Building2 className="w-4 h-4" />
+                    <span>الحسابات البنكية المعتمدة للتحويل (Bank Accounts)</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setBankName('مصرف الراجحي');
+                      setAccountHolder(activeTenant.name);
+                      setIban('SA');
+                      setAccountNumber('');
+                      setBankModalOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>إضافة حساب بنكي</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(activeTenant.bankAccounts || []).map((acc) => (
+                    <div key={acc.id} className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2 relative">
+                      <div className="flex items-center justify-between">
+                        <span className="font-black text-sm text-white">{acc.bankName}</span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${acc.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
+                          {acc.isActive ? 'مفعل للاستقبال' : 'معطل'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-300">
+                        <span className="text-slate-500">اسم المستفيد:</span> <span className="font-bold">{acc.accountHolder}</span>
+                      </div>
+                      <div className="text-xs text-slate-300 font-mono">
+                        <span className="text-slate-500">IBAN:</span> <span className="text-amber-400 font-bold">{acc.iban}</span>
+                      </div>
+                      <div className="text-xs text-slate-300 font-mono">
+                        <span className="text-slate-500">رقم الحساب:</span> {acc.accountNumber}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1102,14 +1248,24 @@ export const MerchantDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Order Detail Modal */}
+      {/* Order Detail Modal with Receipt Inspection and Payment Verification */}
       {orderDetailModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 text-right space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 text-right space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
-                <h3 className="text-base font-bold text-white">تفاصيل الطلب {orderDetailModal.orderNumber}</h3>
-                <span className="text-[10px] text-slate-400">{orderDetailModal.createdAt}</span>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black text-white">تفاصيل الطلب {orderDetailModal.orderNumber}</h3>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    orderDetailModal.paymentStatus === 'paid' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                    orderDetailModal.paymentStatus === 'pending_verification' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                    'bg-slate-800 text-slate-300'
+                  }`}>
+                    {orderDetailModal.paymentStatus === 'paid' ? 'تم الدفع بنجاح' :
+                     orderDetailModal.paymentStatus === 'pending_verification' ? 'بانتظار مراجعة الإيصال' : 'بانتظار الدفع'}
+                  </span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono">{orderDetailModal.createdAt}</span>
               </div>
               <button onClick={() => setOrderDetailModal(null)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
@@ -1117,6 +1273,76 @@ export const MerchantDashboard: React.FC = () => {
             </div>
 
             <div className="space-y-3 text-xs">
+              {/* Bank Transfer Receipt Verification Section */}
+              {orderDetailModal.paymentMethod === 'bank_transfer' && orderDetailModal.bankTransferDetails && (
+                <div className="p-4 bg-amber-500/10 rounded-xl border border-amber-500/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-amber-400 font-bold">
+                      <FileText className="w-4 h-4" />
+                      <span>بيانات إيصال التحويل البنكي</span>
+                    </div>
+                    <span className="text-[10px] text-slate-300">طريقة الدفع: تحويل بنكي</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div>
+                      <span className="text-slate-400">اسم المودع: </span>
+                      <span className="text-white font-bold">{orderDetailModal.bankTransferDetails.depositorName}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">البنك المحول إليه: </span>
+                      <span className="text-white font-bold">{orderDetailModal.bankTransferDetails.bankName}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-slate-400">رقم الحوالة / المرجع: </span>
+                      <span className="font-mono text-amber-300 font-bold">{orderDetailModal.bankTransferDetails.referenceNumber}</span>
+                    </div>
+                  </div>
+
+                  {orderDetailModal.bankTransferDetails.receiptUrl && (
+                    <div className="space-y-1">
+                      <div className="text-slate-400 text-[11px] font-bold">صورة إشعار التحويل المرفقة:</div>
+                      <div className="relative rounded-lg overflow-hidden border border-slate-700 bg-slate-950 max-h-48 flex items-center justify-center">
+                        <img 
+                          src={orderDetailModal.bankTransferDetails.receiptUrl} 
+                          alt="إشعار التحويل" 
+                          className="w-full object-contain max-h-48"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {orderDetailModal.paymentStatus === 'pending_verification' && (
+                    <div className="pt-2 flex gap-2 border-t border-amber-500/20">
+                      <button
+                        onClick={async () => {
+                          await updateOrderPaymentStatus(orderDetailModal.id, 'paid');
+                          await updateOrderStatus(orderDetailModal.id, 'processing');
+                          setOrderDetailModal(prev => prev ? { ...prev, paymentStatus: 'paid', status: 'processing' } : null);
+                          showToast('تم اعتماد الحوالة وتأكيد دفع الطلب بنجاح! ✓', 'success');
+                        }}
+                        className="flex-1 py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-md"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>اعتماد الحوالة وتأكيد الدفع</span>
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await updateOrderPaymentStatus(orderDetailModal.id, 'failed');
+                          setOrderDetailModal(prev => prev ? { ...prev, paymentStatus: 'failed' } : null);
+                          showToast('تم رفض الحوالة وإشعار العميل', 'error');
+                        }}
+                        className="py-2 px-3 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-xs flex items-center justify-center gap-1 transition-all"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span>رفض الحوالة</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Customer & Shipping info */}
               <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
                 <div className="text-slate-400 font-bold mb-1">بيانات العميل والشحن:</div>
                 <div>الاسم: <span className="text-white font-bold">{orderDetailModal.customer.name}</span></div>
@@ -1124,6 +1350,7 @@ export const MerchantDashboard: React.FC = () => {
                 <div>العنوان: <span className="text-white">{orderDetailModal.customer.city} - {orderDetailModal.customer.address}</span></div>
               </div>
 
+              {/* Order Items */}
               <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
                 <div className="text-slate-400 font-bold">المنتجات المطلوبة ({orderDetailModal.items.length}):</div>
                 {orderDetailModal.items.map((it, idx) => (
@@ -1145,6 +1372,90 @@ export const MerchantDashboard: React.FC = () => {
             >
               إغلاق
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bank Account Modal */}
+      {bankModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 text-right space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white">إضافة حساب بنكي جديد للمتجر</h3>
+              <button onClick={() => setBankModalOpen(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const newBank: BankAccount = {
+                id: `bank-${Date.now()}`,
+                bankName,
+                accountHolder,
+                iban: iban.toUpperCase().trim(),
+                accountNumber,
+                isActive: true
+              };
+              const updatedBanks = [...(activeTenant.bankAccounts || []), newBank];
+              updateTenant(activeTenant.id, { bankAccounts: updatedBanks });
+              showToast('تمت إضافة الحساب البنكي بنجاح!', 'success');
+              setBankModalOpen(false);
+            }} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">اسم البنك *</label>
+                <input
+                  required
+                  type="text"
+                  value={bankName}
+                  onChange={e => setBankName(e.target.value)}
+                  placeholder="مثال: مصرف الراجحي، بنك الأهلي SNB"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">اسم صاحب الحساب / المؤسسة *</label>
+                <input
+                  required
+                  type="text"
+                  value={accountHolder}
+                  onChange={e => setAccountHolder(e.target.value)}
+                  placeholder="اسم المؤسسة كما في السجل التجاري"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">رقم الآيبان (IBAN) *</label>
+                <input
+                  required
+                  type="text"
+                  value={iban}
+                  onChange={e => setIban(e.target.value)}
+                  placeholder="SA0000000000000000000000"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono text-left"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">رقم الحساب البنكي</label>
+                <input
+                  type="text"
+                  value={accountNumber}
+                  onChange={e => setAccountNumber(e.target.value)}
+                  placeholder="رقم الحساب الداخلي"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all shadow-md mt-2"
+              >
+                حفظ وتفعيل الحساب البنكي
+              </button>
+            </form>
           </div>
         </div>
       )}

@@ -2,6 +2,8 @@ import { Router, Request, Response } from 'express';
 import { db } from '../db';
 import { requirePermission } from '../middleware/auth';
 import { Order } from '../../src/types';
+import { inventoryMutex } from '../utils/mutex';
+import { validateBankReceipt } from '../utils/fileSecurity';
 
 export const ordersRouter = Router();
 
@@ -39,13 +41,14 @@ ordersRouter.get('/:id', requirePermission('orders'), (req: Request, res: Respon
  * POST /api/v1/orders - Public/Storefront Checkout Endpoint
  * Hardened Architecture:
  * 1. Derives tenant SOLELY from Host/TenantResolver (Ignores any client-injected tenantId in body)
- * 2. Zero-Trust Client Pricing: Server calculates product pricing, taxes, and shipping policy
- * 3. Client provides only items, customer info, payment method, coupon code, and optional shippingMethodId
+ * 2. Race-Condition Protection: Acquires in-memory mutex locks on all items being purchased
+ * 3. Zero-Trust Client Pricing: Server calculates product pricing, taxes, and shipping policy
+ * 4. Secure Bank Receipt Upload Validation: Sanitizes and checks MIME type & file size
  */
-ordersRouter.post('/', (req: Request, res: Response) => {
+ordersRouter.post('/', async (req: Request, res: Response) => {
   // Strictly enforce tenant context resolved by server middleware from host/header
   const targetTenantId = req.tenantId;
-  const { customer, items, paymentMethod, couponCode, shippingMethodId } = req.body;
+  const { customer, items, paymentMethod, couponCode, shippingMethodId, bankTransferDetails } = req.body;
 
   if (!customer || !customer.name || !customer.phone) {
     return res.status(400).json({ error: 'بيانات العميل (الاسم ورقم الجوال) مطلوبة لإتمام الطلب' });
@@ -55,30 +58,57 @@ ordersRouter.post('/', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'السلة فارغة، يجب اختيار منتج واحد على الأقل' });
   }
 
-  const result = db.createOrderAtomic({
-    tenantId: targetTenantId,
-    customer,
-    items: items.map((i: any) => ({
-      productId: i.productId || i.id,
-      quantity: Number(i.quantity) || 1
-    })),
-    paymentMethod: paymentMethod || 'mada',
-    couponCode,
-    shippingMethodId
-  });
-
-  if (!result.success) {
-    return res.status(400).json({
-      error: 'CheckoutFailed',
-      message: result.error
-    });
+  // File Security Check for Bank Transfer Receipts
+  if (paymentMethod === 'bank_transfer' && bankTransferDetails?.receiptImage) {
+    if (bankTransferDetails.receiptImage.startsWith('data:')) {
+      const fileValidation = validateBankReceipt({
+        base64Data: bankTransferDetails.receiptImage
+      });
+      if (!fileValidation.valid) {
+        return res.status(400).json({
+          error: 'InvalidReceiptFile',
+          message: fileValidation.error
+        });
+      }
+    }
   }
 
-  res.status(201).json({
-    success: true,
-    order: result.order,
-    message: 'تم اعتماد الطلب وتأكيد الدفع وحجز المخزون بنجاح'
-  });
+  // 1. Acquire Atomic Mutex Lock on all item product IDs
+  const productIds = items.map((i: any) => i.productId || i.id).filter(Boolean);
+  const releaseLocks = await inventoryMutex.acquire(productIds);
+
+  try {
+    const result = db.createOrderAtomic({
+      tenantId: targetTenantId,
+      customer,
+      items: items.map((i: any) => ({
+        productId: i.productId || i.id,
+        quantity: Number(i.quantity) || 1
+      })),
+      paymentMethod: paymentMethod || 'mada',
+      couponCode,
+      shippingMethodId,
+      bankTransferDetails
+    });
+
+    if (!result.success) {
+      return res.status(400).json({
+        error: 'CheckoutFailed',
+        message: result.error
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      order: result.order,
+      message: result.order?.paymentMethod === 'bank_transfer'
+        ? 'تم تسجيل طلبك بنجاح وبانتظار التحقق من الحوالة البنكية'
+        : 'تم إنشاء الطلب بنجاح وحجز المخزون وحماية تضارب الشراء'
+    });
+  } finally {
+    // 2. Always safely release locks
+    releaseLocks();
+  }
 });
 
 // PUT /api/v1/orders/:id/status - Update status (RBAC guarded: 'orders' with State-Machine verification)
@@ -110,5 +140,37 @@ ordersRouter.put('/:id/status', requirePermission('orders'), (req: Request, res:
     success: true,
     order: result.order,
     message: 'تم تحديث حالة الطلب بنجاح'
+  });
+});
+
+// PUT /api/v1/orders/:id/payment - Verify/Approve payment (RBAC guarded: 'orders')
+ordersRouter.put('/:id/payment', requirePermission('orders'), (req: Request, res: Response) => {
+  const { id } = req.params;
+  const tenantId = req.user!.tenantId;
+  const { paymentStatus, note } = req.body;
+
+  if (!paymentStatus || !['paid', 'pending', 'pending_verification', 'failed'].includes(paymentStatus)) {
+    return res.status(400).json({ error: 'حالة الدفع غير صالحة' });
+  }
+
+  const result = db.updateOrderPaymentStatus(
+    id,
+    paymentStatus,
+    note || `تم تحديث حالة الدفع واعتمادها من قبل ${req.user!.name}`,
+    tenantId,
+    req.user!.name
+  );
+
+  if (!result.success) {
+    return res.status(400).json({
+      error: 'PaymentUpdateFailed',
+      message: result.error
+    });
+  }
+
+  res.json({
+    success: true,
+    order: result.order,
+    message: 'تم تحديث حالة الدفع واعتماد الطلب بنجاح'
   });
 });

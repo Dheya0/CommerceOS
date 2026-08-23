@@ -10,10 +10,20 @@ export type BusinessType =
   | 'food' 
   | 'general';
 
-export type ThemeStyle = 'luxury' | 'modern' | 'minimal' | 'organic' | 'bold' | 'classic';
-export type ThemeLayout = 'classic' | 'modern' | 'editorial' | 'marketplace' | 'luxury';
+export type ThemeStyle = 'luxury' | 'modern' | 'minimal' | 'organic' | 'bold' | 'classic' | 'editorial';
+export type ThemeLayout = 'classic' | 'modern' | 'editorial' | 'marketplace' | 'luxury' | 'bento' | 'minimalist';
 export type RadiusPreset = 'none' | 'sm' | 'md' | 'lg' | 'full';
-export type FontFamily = 'alexandria' | 'tajawal' | 'playfair' | 'jakarta';
+export type FontFamily = 
+  | 'tajawal' 
+  | 'alexandria' 
+  | 'cairo' 
+  | 'readex' 
+  | 'almarai' 
+  | 'ibm_plex' 
+  | 'el_messiri' 
+  | 'amiri' 
+  | 'playfair' 
+  | 'jakarta';
 
 export interface DesignTokens {
   primary: string;
@@ -39,7 +49,8 @@ export interface StoreTheme {
   fontFamily: FontFamily;
   radius: RadiusPreset;
   shadow: 'none' | 'subtle' | 'soft' | 'dramatic';
-  headerStyle: 'floating' | 'solid' | 'transparent';
+  headerStyle: 'floating' | 'solid' | 'transparent' | 'centered_logo' | 'island_blur';
+  heroStyle?: 'split' | 'cinematic' | 'story' | 'spotlight' | 'minimal';
   cardStyle: 'elevated' | 'bordered' | 'minimal' | 'glass';
   tokens: DesignTokens;
   darkMode: boolean;
@@ -138,8 +149,30 @@ export interface Order {
   tax: number;
   total: number;
   status: 'new' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  paymentMethod: 'mada' | 'apple_pay' | 'visa' | 'cod' | 'tamara';
-  paymentStatus: 'paid' | 'pending' | 'failed';
+  paymentMethod: 
+    | 'mada' 
+    | 'apple_pay' 
+    | 'visa' 
+    | 'stc_pay' 
+    | 'urpay' 
+    | 'tamara' 
+    | 'tabby' 
+    | 'knet' 
+    | 'benefit' 
+    | 'fawry' 
+    | 'cliq' 
+    | 'cod' 
+    | 'bank_transfer';
+  paymentStatus: 'paid' | 'pending' | 'pending_verification' | 'failed';
+  bankTransferDetails?: {
+    bankName: string;
+    accountHolder: string;
+    accountNumber?: string;
+    iban?: string;
+    receiptImage?: string;
+    transferDate: string;
+    referenceNumber?: string;
+  };
   createdAt: string;
   notes?: string;
   timeline: OrderTimeline[];
@@ -271,8 +304,26 @@ export interface TenantStore {
     mada: boolean;
     applePay: boolean;
     visa: boolean;
-    cod: boolean;
+    stcPay?: boolean;
+    urpay?: boolean;
     tamara: boolean;
+    tabby?: boolean;
+    knet?: boolean;
+    benefit?: boolean;
+    fawry?: boolean;
+    cliq?: boolean;
+    cod: boolean;
+    bankTransfer: boolean;
+  };
+  bankAccounts?: BankAccount[];
+  appDownloadConfig?: {
+    appName: string;
+    packageName: string;
+    bundleId: string;
+    pwaEnabled: boolean;
+    androidApkReady: boolean;
+    iosReady: boolean;
+    version: string;
   };
   shippingMethods: {
     id: string;
@@ -288,6 +339,74 @@ export interface TenantStore {
     taxNumber?: string;
     taxIncludedInPrice: boolean;
   };
+  licensing?: TenantLicensing;
+  quotas?: TenantQuotas;
+}
+
+export type LicenseTier = 'free' | 'white_label_single' | 'agency_sovereign';
+
+export interface TenantLicensing {
+  tier: LicenseTier;
+  licenseKey?: string;
+  isWhiteLabel: boolean;
+  issuedAt?: string;
+  expiresAt?: string;
+  signature?: string;
+  verified: boolean;
+  watermarkIntegrityHash?: string;
+  customBranding?: {
+    removeCommerceOSFooter: boolean;
+    customFooterText?: string;
+    customPoweredBy?: string;
+    customPoweredByUrl?: string;
+    hideWatermarkInExports: boolean;
+  };
+  tamperAttemptsCount?: number;
+  lastTamperDetectedAt?: string;
+}
+
+export interface TenantQuotas {
+  maxProducts: number; // -1 for unlimited
+  maxStaff: number;
+  maxMonthlyBuilds: number;
+  usedMonthlyBuilds: number;
+  allowCustomDomain: boolean;
+  allowDockerSelfHost: boolean;
+  allowNativeIosAndroid: boolean;
+  storageQuotaMb: number;
+  usedStorageMb: number;
+}
+
+export interface PlatformLicensingConfig {
+  whiteLabelSingleStorePrice: number; // in SAR e.g. 189
+  agencySovereignMonthlyPrice: number; // in SAR e.g. 749
+  agencySovereignLifetimePrice: number; // in SAR e.g. 2490
+  watermarkEnforcement: 'strict_tamper_lock' | 'soft_warning' | 'disabled';
+  obfuscationLevel: 'high_ast_xor' | 'standard_base64' | 'none';
+  allowOneClickActivation: boolean;
+  superAdminEmail: string;
+  tamperLog: TamperEventLog[];
+}
+
+export interface TamperEventLog {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  detectedAt: string;
+  tamperType: 'dom_removal' | 'css_hiding' | 'script_injection' | 'integrity_hash_mismatch';
+  actionTaken: 'checkout_locked' | 'watermark_reinstated' | 'warning_logged';
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+export interface BankAccount {
+  id: string;
+  bankName: string;
+  accountHolder: string;
+  accountNumber: string;
+  iban: string;
+  isActive?: boolean;
+  active?: boolean;
 }
 
 export interface CartItem {
@@ -295,3 +414,230 @@ export interface CartItem {
   variant?: ProductVariant;
   quantity: number;
 }
+
+// ==========================================
+// CommerceOS Build & Publish Engine Types
+// ==========================================
+
+export type DeliveryTarget = 'web' | 'pwa' | 'android' | 'ios' | 'self_hosted' | 'desktop';
+
+export type BuildTargetStatus = 'published' | 'active' | 'generated' | 'building' | 'ready' | 'draft';
+
+export interface GeneratedAssetItem {
+  id: string;
+  name: string;
+  platform: 'web' | 'android' | 'ios' | 'pwa';
+  dimensions: string;
+  purpose: string;
+  dataUrl?: string;
+}
+
+export interface AppIdentityConfig {
+  appName: string;
+  shortName: string;
+  packageName: string; // e.g. com.elitehoney.app
+  bundleId: string;    // e.g. com.elitehoney.store
+  version: string;     // e.g. 1.4.0
+  buildNumber: number; // e.g. 18
+  primaryColor: string;
+  splashBackgroundColor: string;
+  serverUrl: string;   // e.g. https://elite-honey.commerceos.app
+  apiUrl: string;      // e.g. https://api.commerceos.app/v1
+  enablePush: boolean;
+  enableBiometrics: boolean;
+  enableOfflineCache: boolean;
+  enableCameraPermission: boolean;
+}
+
+export interface BuildArtifact {
+  id: string;
+  tenantId: string;
+  target: DeliveryTarget;
+  targetName: string;
+  version: string;
+  buildNumber: number;
+  status: 'building' | 'succeeded' | 'failed' | 'queued' | 'processing';
+  createdAt: string;
+  fileSize: string;
+  fileName: string;
+  downloadUrl: string;
+  commitHash: string;
+  buildDurationSec: number;
+  logs: string[];
+  configSnapshot?: Partial<AppIdentityConfig>;
+  workerNodeId?: string;
+  queuePosition?: number;
+  cpuUsagePercent?: number;
+  ramUsageMb?: number;
+  progressPercent?: number;
+}
+
+export interface BuildWorkerNode {
+  id: string;
+  name: string;
+  region: string;
+  status: 'idle' | 'busy' | 'scaling' | 'offline';
+  currentJobId?: string;
+  currentTenantName?: string;
+  currentStage?: string;
+  cpuLoad: number; // 0 to 100%
+  ramLoad: number; // 0 to 100%
+  completedJobsCount: number;
+  activeTarget?: DeliveryTarget;
+  uptimeHours: number;
+  ip: string;
+}
+
+export interface BuildJobQueueItem {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  target: DeliveryTarget;
+  targetName: string;
+  version: string;
+  buildNumber: number;
+  status: 'queued' | 'claimed' | 'compiling' | 'bundling' | 'signing' | 'ready' | 'failed';
+  priority: 'vip_enterprise' | 'growth' | 'standard';
+  progress: number; // 0 to 100
+  currentStep: string;
+  queuedAt: string;
+  startedAt?: string;
+  completedAt?: string;
+  workerId?: string;
+  workerName?: string;
+  estimatedRemainingSec: number;
+  logs: string[];
+  outputArtifact?: BuildArtifact;
+}
+
+export interface BuildFarmMetrics {
+  totalWorkers: number;
+  activeWorkers: number;
+  idleWorkers: number;
+  queuedJobsCount: number;
+  activeJobsCount: number;
+  completedTodayCount: number;
+  avgBuildTimeSec: number;
+  totalCpuCapacityCores: number;
+  usedCpuPercentage: number;
+  redisQueueHealth: 'optimal' | 'degraded' | 'overloaded';
+  redisMemoryUsageMb: number;
+  socketConnectionsCount: number;
+}
+
+export interface TargetDetails {
+  target: DeliveryTarget;
+  titleAr: string;
+  titleEn: string;
+  status: BuildTargetStatus;
+  statusLabelAr: string;
+  lastBuildDate?: string;
+  currentVersion: string;
+  currentBuildNumber: number;
+  primaryActionLabelAr: string;
+  secondaryActionLabelAr?: string;
+  exportFormat: string;
+}
+
+// ==========================================
+// Visual IDE & Zero-Domain Engine Types
+// ==========================================
+
+export type VisualBlockType = 
+  | 'hero_banner' 
+  | 'categories_slider' 
+  | 'product_grid' 
+  | 'flash_sale' 
+  | 'features_bar' 
+  | 'testimonials' 
+  | 'faq_accordion' 
+  | 'newsletter' 
+  | 'footer';
+
+export interface VisualBlock {
+  id: string;
+  type: VisualBlockType;
+  nameAr: string;
+  nameEn: string;
+  enabled: boolean;
+  order: number;
+  props: Record<string, any>;
+}
+
+export interface VisualIDETemplate {
+  id: string;
+  name: string;
+  industry: string;
+  previewUrl: string;
+  blocks: VisualBlock[];
+  themeTokens: Record<string, string>;
+}
+
+// ==========================================
+// Security, Webhooks & Resilience Types
+// ==========================================
+
+export interface WebhookLog {
+  id: string;
+  gateway: 'tamara' | 'tabby' | 'moyasar' | 'hyperpay' | 'custom';
+  eventId: string;
+  eventType: string;
+  signature: string;
+  verified: boolean;
+  timestamp: string;
+  payload: any;
+  orderId?: string;
+  status: 'processed' | 'rejected' | 'replay_detected';
+  processingTimeMs: number;
+}
+
+export interface AbandonedCart {
+  id: string;
+  tenantId: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  items: CartItem[];
+  subtotal: number;
+  currency: string;
+  abandonedAt: string;
+  recoveryStatus: 'abandoned' | 'notified' | 'recovered' | 'expired';
+  recoveryAttempts: number;
+  lastContactedAt?: string;
+  discountCodeOffered?: string;
+  recoveryUrl: string;
+}
+
+export interface NotificationLog {
+  id: string;
+  tenantId: string;
+  channel: 'whatsapp' | 'sms' | 'email';
+  recipient: string;
+  recipientName: string;
+  triggerEvent: 'order_created' | 'payment_confirmed' | 'order_shipped' | 'order_delivered' | 'cart_recovery';
+  templateName: string;
+  messageBody: string;
+  status: 'sent' | 'delivered' | 'failed' | 'queued';
+  sentAt: string;
+  provider: 'twilio' | 'unifonic' | 'whatsapp_cloud_api' | 'sendgrid';
+}
+
+export interface CodeSigningConfig {
+  android: {
+    keystoreAlias: string;
+    keystorePassword: string;
+    keyPassword: string;
+    validityYears: number;
+    commonName: string;
+    organization: string;
+    countryCode: string;
+  };
+  ios: {
+    teamId: string;
+    bundleId: string;
+    provisioningProfileType: 'development' | 'appstore' | 'ad_hoc' | 'enterprise';
+    signingCertificateName: string;
+    exportMethod: string;
+  };
+}
+

@@ -1,6 +1,6 @@
 {
   "name": "CommerceOS — منصة المتاجر الذكية",
-  "description": "منصة White-Label Multi-Tenant لإنشاء وتخصيص وإدارة المتاجر الإلكترونية مع نظام Design Engine، إدارة المنتجات، الطلبات، المخزون، الصلاحيات RBAC، وتجربة PWA متكاملة.",
+  "description": "منصة White-Label لبناء وإدارة المتاجر الإلكترونية مع محرك النشر والبناء الشامل (Build Once, Publish Everywhere) لتصدير متاجر الويب وتطبيقات Android و iOS و PWA وحزم الاستضافة الذاتية Docker.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
