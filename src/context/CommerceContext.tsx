@@ -13,7 +13,9 @@ import {
   TenantStore,
   PlatformLicensingConfig,
   TenantQuotas,
-  TamperEventLog
+  TamperEventLog,
+  AuthUser,
+  BusinessType
 } from '../types';
 import {
   INITIAL_CATEGORIES,
@@ -26,8 +28,9 @@ import {
 } from '../data/initialData';
 import { api } from '../api/client';
 import { DEFAULT_PLATFORM_CONFIG, validateLicenseKey, generateLicenseKey } from '../utils/licensingEngine';
+import { generateDesignTokens } from '../utils/themeEngine';
 
-export type AppView = 'storefront' | 'merchant_dashboard' | 'builder_wizard' | 'platform_admin' | 'live_customizer' | 'visual_ide';
+export type AppView = 'home' | 'storefront' | 'merchant_dashboard' | 'builder_wizard' | 'platform_admin' | 'live_customizer' | 'visual_ide';
 export type PreviewDevice = 'desktop' | 'tablet' | 'mobile';
 
 interface ToastInfo {
@@ -50,6 +53,28 @@ interface CommerceContextType {
   setActiveTenantId: (id: string) => void;
   activeTenant: TenantStore;
   tenants: TenantStore[];
+
+  // Authentication & Session
+  currentUser: AuthUser | null;
+  isAuthenticated: boolean;
+  login: (email: string, password?: string, targetTenantId?: string) => Promise<boolean>;
+  register: (data: { 
+    name: string; 
+    email: string; 
+    phone?: string;
+    password?: string; 
+    storeName: string; 
+    storeSlug: string; 
+    businessType: BusinessType; 
+    cleanStore?: boolean 
+  }) => Promise<boolean>;
+  logout: () => void;
+  authModalOpen: boolean;
+  setAuthModalOpen: (open: boolean) => void;
+  authModalMode: 'login' | 'register';
+  setAuthModalMode: (mode: 'login' | 'register') => void;
+  openAuthModal: (mode?: 'login' | 'register') => void;
+  resetToCleanStore: (tenantId: string) => void;
 
   // RBAC Role Simulator
   currentStaffRole: StaffRole;
@@ -128,7 +153,7 @@ const CommerceContext = createContext<CommerceContextType | null>(null);
 
 export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // View states
-  const [currentView, setCurrentView] = useState<AppView>('storefront');
+  const [currentView, setCurrentView] = useState<AppView>('home');
   const [previewDevice, setPreviewDevice] = useState<PreviewDevice>('desktop');
   const [language, setLanguage] = useState<'ar' | 'en'>('ar');
   const [activeTenantId, setActiveTenantId] = useState<string>('tenant-royal-honey');
@@ -220,6 +245,279 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const [tamperAlertModalOpen, setTamperAlertModalOpen] = useState<boolean>(false);
   const [tamperModalData, setTamperModalData] = useState<{ tenantName: string; reason: string; tamperCode?: string } | null>(null);
+
+  // Authentication & Session
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('commerceos_auth_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+
+  const openAuthModal = (mode: 'login' | 'register' = 'login') => {
+    setAuthModalMode(mode);
+    setAuthModalOpen(true);
+  };
+
+  const login = async (email: string, password?: string, targetTenantId?: string): Promise<boolean> => {
+    const cleanEmail = email.trim().toLowerCase();
+    const effectiveTenantId = targetTenantId || activeTenantId;
+    const targetTenant = tenants.find(t => t.id === effectiveTenantId) || tenants[0];
+    
+    // Find staff or create auth user
+    const tenantStaff = staff.filter(s => s.tenantId === targetTenant.id);
+    const matchedStaff = tenantStaff.find(s => s.email.toLowerCase() === cleanEmail) || 
+      staff.find(s => s.email.toLowerCase() === cleanEmail);
+
+    let user: AuthUser;
+    if (matchedStaff) {
+      user = {
+        id: matchedStaff.id,
+        name: matchedStaff.name,
+        email: matchedStaff.email,
+        role: matchedStaff.role,
+        tenantId: matchedStaff.tenantId,
+        permissions: matchedStaff.permissions
+      };
+      setCurrentStaffRole(matchedStaff.role);
+      setActiveTenantId(matchedStaff.tenantId);
+    } else {
+      user = {
+        id: `user-${Date.now()}`,
+        name: cleanEmail.split('@')[0],
+        email: cleanEmail,
+        role: 'store_owner',
+        tenantId: targetTenant.id
+      };
+      setCurrentStaffRole('store_owner');
+      setActiveTenantId(targetTenant.id);
+    }
+
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('commerceos_auth_user', JSON.stringify(user));
+    } catch {}
+
+    setAuthModalOpen(false);
+    showToast(`مرحباً بك ${user.name}! تم تسجيل الدخول بنجاح`, 'success');
+    return true;
+  };
+
+  const register = async (data: {
+    name: string;
+    email: string;
+    phone?: string;
+    password?: string;
+    storeName: string;
+    storeSlug: string;
+    businessType: BusinessType;
+    cleanStore?: boolean;
+  }): Promise<boolean> => {
+    const cleanSlug = data.storeSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-') || `store-${Date.now()}`;
+    const newTenantId = `tenant-${cleanSlug}`;
+
+    const colorMap: Record<BusinessType, string> = {
+      honey: '#D4A017',
+      coffee: '#8B4513',
+      fashion: '#1E293B',
+      perfume: '#9333EA',
+      tech: '#2563EB',
+      beauty: '#EC4899',
+      sweets: '#F59E0B',
+      accessories: '#0D9488',
+      food: '#E11D48',
+      general: '#3B82F6'
+    };
+
+    const primaryColor = colorMap[data.businessType] || '#3B82F6';
+
+    const newTenant: TenantStore = {
+      id: newTenantId,
+      name: data.storeName,
+      nameEn: data.storeName,
+      slug: cleanSlug,
+      description: `المتجر الرسمي لـ ${data.storeName} - تجربة تسوق استثنائية وسريعة.`,
+      descriptionEn: `Official store for ${data.storeName}.`,
+      businessType: data.businessType,
+      logo: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&auto=format&fit=crop&q=80',
+      logoIcon: 'Store',
+      slogan: 'الجودة والتميز دائماً',
+      currency: 'SAR',
+      currencySymbol: 'ر.س',
+      domain: `${cleanSlug}.commerceos.app`,
+      plan: 'pro',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      contact: {
+        email: data.email || 'support@' + cleanSlug + '.com',
+        phone: data.phone || '+966500000000',
+        whatsapp: data.phone || '+966500000000',
+        city: 'الرياض',
+        country: 'المملكة العربية السعودية'
+      },
+      social: {
+        instagram: 'https://instagram.com',
+        twitter: 'https://x.com',
+        tiktok: 'https://tiktok.com'
+      },
+      theme: {
+        style: 'modern',
+        layout: 'modern',
+        fontFamily: 'tajawal',
+        radius: 'md',
+        shadow: 'soft',
+        headerStyle: 'solid',
+        cardStyle: 'bordered',
+        darkMode: false,
+        tokens: generateDesignTokens(primaryColor, 'modern', false)
+      },
+      sections: [
+        { id: `sec-${Date.now()}-1`, type: 'hero', title: `أهلاً بكم في ${data.storeName}`, titleEn: `Welcome to ${data.storeName}`, subtitle: 'أفضل المنتجات بأعلى معايير الجودة والضمان', enabled: true, order: 1 },
+        { id: `sec-${Date.now()}-2`, type: 'featured_products', title: 'أحدث المنتجات المميزة', titleEn: 'Featured Products', enabled: true, order: 2 },
+        { id: `sec-${Date.now()}-3`, type: 'benefits', title: 'لماذا تختارنا؟', titleEn: 'Why Choose Us?', enabled: true, order: 3 },
+        { id: `sec-${Date.now()}-4`, type: 'faq', title: 'الأسئلة الشائعة', titleEn: 'FAQ', enabled: true, order: 4 }
+      ],
+      pwaConfig: {
+        appName: data.storeName,
+        shortName: data.storeName.substring(0, 12),
+        themeColor: primaryColor,
+        backgroundColor: '#FFFFFF',
+        enablePush: true
+      },
+      paymentGateways: {
+        mada: true,
+        applePay: true,
+        visa: true,
+        cod: true,
+        tamara: true,
+        bankTransfer: true
+      },
+      shippingMethods: [
+        { id: `ship-${Date.now()}-1`, name: 'توصيل قياسي سريع', nameEn: 'Standard Fast Delivery', cost: 25, estimatedDays: '2-3 أيام عمل', active: true },
+        { id: `ship-${Date.now()}-2`, name: 'شحن مجاني للطلبات فوق 200 ر.س', nameEn: 'Free Shipping (Over 200 SAR)', cost: 0, estimatedDays: '3-4 أيام عمل', active: true }
+      ],
+      taxConfig: {
+        enabled: true,
+        rate: 15,
+        taxIncludedInPrice: true
+      },
+      licensing: {
+        tier: 'white_label_single',
+        licenseKey: `COSLIC-WL-${cleanSlug.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
+        isWhiteLabel: true,
+        issuedAt: new Date().toISOString(),
+        verified: true,
+        customBranding: {
+          removeCommerceOSFooter: true,
+          customFooterText: `جميع الحقوق محفوظة لـ ${data.storeName} ${new Date().getFullYear()}`,
+          customPoweredBy: `${data.storeName} Enterprise Engine`,
+          hideWatermarkInExports: true
+        }
+      },
+      quotas: {
+        maxProducts: -1,
+        maxStaff: 15,
+        maxMonthlyBuilds: 100,
+        usedMonthlyBuilds: 0,
+        allowCustomDomain: true,
+        allowDockerSelfHost: true,
+        allowNativeIosAndroid: true,
+        storageQuotaMb: 5000,
+        usedStorageMb: 20
+      }
+    };
+
+    const initialStarterProducts: Product[] = data.cleanStore ? [] : [
+      {
+        id: `prod-${Date.now()}-1`,
+        tenantId: newTenantId,
+        name: `منتج البداية الفاخر 1`,
+        nameEn: 'Starter Premium Item 1',
+        description: 'هذا منتج توضيحي تأسيسي يمكنك تعديله أو حذفه بسهولة وإضافة منتجاتك وصورك الحقيقية.',
+        descriptionEn: 'Starter sample item. You can edit, replace, or delete this product.',
+        price: 149,
+        comparePrice: 199,
+        costPrice: 80,
+        sku: 'ST-001',
+        stock: 50,
+        lowStockAlert: 5,
+        categoryId: 'cat-general',
+        images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80'],
+        isFeatured: true,
+        isNew: true,
+        rating: 5,
+        reviewsCount: 1,
+        tags: ['جديد', 'مميز']
+      }
+    ];
+
+    await createTenant(newTenant, initialStarterProducts);
+
+    const ownerStaff: StaffMember = {
+      id: `staff-${Date.now()}`,
+      tenantId: newTenantId,
+      name: data.name,
+      email: data.email,
+      role: 'store_owner',
+      permissions: {
+        products: true,
+        orders: true,
+        customers: true,
+        inventory: true,
+        coupons: true,
+        theme: true,
+        staff: true,
+        settings: true,
+        reports: true
+      },
+      status: 'active',
+      createdAt: new Date().toISOString()
+    };
+
+    setStaff(prev => [ownerStaff, ...prev]);
+
+    const authUser: AuthUser = {
+      id: ownerStaff.id,
+      name: data.name,
+      email: data.email,
+      role: 'store_owner',
+      tenantId: newTenantId,
+      permissions: ownerStaff.permissions
+    };
+
+    setCurrentUser(authUser);
+    try {
+      localStorage.setItem('commerceos_auth_user', JSON.stringify(authUser));
+    } catch {}
+
+    setCurrentStaffRole('store_owner');
+    setActiveTenantId(newTenantId);
+    setAuthModalOpen(false);
+    setCurrentView('merchant_dashboard');
+    showToast(`تم إنشاء متجر "${data.storeName}" وحسابك بنجاح! مرحباً بك في لوحة التحكم.`, 'success');
+    return true;
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('commerceos_auth_user');
+    } catch {}
+    showToast('تم تسجيل الخروج بنجاح', 'info');
+    setCurrentView('home');
+  };
+
+  const resetToCleanStore = (tenantId: string) => {
+    setProducts(prev => prev.filter(p => p.tenantId !== tenantId));
+    setCategories(prev => prev.filter(c => c.tenantId !== tenantId));
+    setOrders(prev => prev.filter(o => o.tenantId !== tenantId));
+    setCoupons(prev => prev.filter(cp => cp.tenantId !== tenantId));
+    showToast('تم مسح كافة البيانات الافتراضية وتصفير المتجر لتبدأ بإدخال بياناتك الحقيقية من الصفر!', 'success');
+  };
 
   // Sync API Client with active tenant and role
   useEffect(() => {
@@ -785,6 +1083,17 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setActiveTenantId,
         activeTenant,
         tenants,
+        currentUser,
+        isAuthenticated: !!currentUser,
+        login,
+        register,
+        logout,
+        authModalOpen,
+        setAuthModalOpen,
+        authModalMode,
+        setAuthModalMode,
+        openAuthModal,
+        resetToCleanStore,
         currentStaffRole,
         setCurrentStaffRole,
         activeStaffPermissions,

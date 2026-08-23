@@ -18,7 +18,12 @@ import {
   ExternalLink,
   Crown,
   Server,
-  RefreshCw
+  RefreshCw,
+  Home,
+  Lock,
+  User,
+  LogOut,
+  Trash2
 } from 'lucide-react';
 import { useCommerce, AppView } from '../../context/CommerceContext';
 import { StaffRole } from '../../types';
@@ -39,7 +44,12 @@ export const PlatformHeader: React.FC = () => {
     cart,
     setCartOpen,
     isServerSyncing,
-    refreshFromBackend
+    refreshFromBackend,
+    currentUser,
+    isAuthenticated,
+    openAuthModal,
+    logout,
+    resetToCleanStore
   } = useCommerce();
 
   const [tenantDropdownOpen, setTenantDropdownOpen] = useState(false);
@@ -73,6 +83,7 @@ export const PlatformHeader: React.FC = () => {
   };
 
   const navItems: { view: AppView; labelAr: string; labelEn: string; icon: React.FC<{ className?: string }> }[] = [
+    { view: 'home', labelAr: 'الرئيسية (Home)', labelEn: 'Home', icon: Home },
     { view: 'storefront', labelAr: 'متجر العميل (Live)', labelEn: 'Storefront', icon: Store },
     { view: 'merchant_dashboard', labelAr: 'لوحة إدارة المتجر', labelEn: 'Dashboard', icon: LayoutDashboard },
     { view: 'visual_ide', labelAr: 'Visual IDE (المحرر المرئي)', labelEn: 'Visual IDE', icon: Layers },
@@ -80,6 +91,12 @@ export const PlatformHeader: React.FC = () => {
     { view: 'builder_wizard', labelAr: 'بناء متجر جديد', labelEn: 'Store Builder', icon: Sparkles },
     { view: 'platform_admin', labelAr: 'CommerceOS HQ', labelEn: 'Platform HQ', icon: Building2 }
   ];
+
+  const handleCleanData = () => {
+    if (window.confirm(`هل ترغب بتصفير وحذف البيانات الوهمية من متجر "${activeTenant.name}" للبدء ببيانات حقيقية نظيفة؟`)) {
+      resetToCleanStore(activeTenant.id);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-slate-100 shadow-xl">
@@ -90,7 +107,7 @@ export const PlatformHeader: React.FC = () => {
           <div className="flex items-center gap-3">
             {/* Logo */}
             <div 
-              onClick={() => setCurrentView('storefront')}
+              onClick={() => setCurrentView('home')}
               className="cursor-pointer flex items-center gap-2.5 py-1 px-2 rounded-lg hover:bg-slate-800/60 transition-colors"
             >
               <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center shadow-lg shadow-amber-500/20 text-slate-950 font-black">
@@ -103,7 +120,7 @@ export const PlatformHeader: React.FC = () => {
                     White-Label
                   </span>
                 </div>
-                <div className="text-[10px] text-slate-400 font-medium">منصة المتاجر الذكية</div>
+                <div className="text-[10px] text-slate-400 font-medium">المنصة التجارية السيادية</div>
               </div>
             </div>
 
@@ -155,16 +172,26 @@ export const PlatformHeader: React.FC = () => {
                     ))}
                   </div>
 
-                  <div className="mt-2 pt-2 border-t border-slate-800">
+                  <div className="mt-2 pt-2 border-t border-slate-800 space-y-1">
                     <button
                       onClick={() => {
-                        setCurrentView('builder_wizard');
+                        openAuthModal('register');
                         setTenantDropdownOpen(false);
                       }}
                       className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-md"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      <span>إنشاء متجر جديد الآن</span>
+                      <span>تدشين متجر جديد وحساب</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleCleanData();
+                        setTenantDropdownOpen(false);
+                      }}
+                      className="w-full flex items-center justify-center gap-1.5 py-1 px-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 text-[11px] font-medium border border-red-500/20"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>تصفير وحذف البيانات الوهمية</span>
                     </button>
                   </div>
                 </div>
@@ -194,7 +221,7 @@ export const PlatformHeader: React.FC = () => {
             })}
           </nav>
 
-          {/* Right Utilities: Device switcher, RBAC role simulator, Cart trigger */}
+          {/* Right Utilities: Device switcher, RBAC role simulator, Auth trigger, Cart trigger */}
           <div className="flex items-center gap-2">
             
             {/* Device Switcher (Visible on Storefront & Customizer) */}
@@ -266,21 +293,31 @@ export const PlatformHeader: React.FC = () => {
               </div>
             )}
 
-            {/* Server Sync / Status Indicator */}
-            <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs font-mono">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              <span className="text-[11px] font-sans font-medium text-emerald-400">Core API</span>
-              <button 
-                onClick={() => refreshFromBackend()}
-                title="تحديث فوري من الخادم"
-                className="hover:text-white transition-colors p-0.5 rounded"
+            {/* User Auth Status / Trigger */}
+            {isAuthenticated && currentUser ? (
+              <div className="flex items-center gap-1.5">
+                <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs text-slate-200">
+                  <User className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="max-w-[80px] truncate">{currentUser.name}</span>
+                </div>
+                <button
+                  onClick={logout}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  title="تسجيل الخروج"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => openAuthModal('login')}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs font-bold text-slate-200 transition-colors"
+                title="تسجيل الدخول / إنشاء حساب"
               >
-                <RefreshCw className={`w-3 h-3 ${isServerSyncing ? 'animate-spin text-amber-400' : 'text-emerald-400/80'}`} />
+                <Lock className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">دخول</span>
               </button>
-            </div>
+            )}
 
             {/* Language Switcher */}
             <button
@@ -335,3 +372,4 @@ export const PlatformHeader: React.FC = () => {
     </header>
   );
 };
+

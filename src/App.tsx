@@ -1,6 +1,7 @@
 import React from 'react';
 import { CommerceProvider, useCommerce } from './context/CommerceContext';
 import { PlatformHeader } from './components/navigation/PlatformHeader';
+import { LandingPage } from './components/home/LandingPage';
 import { StorefrontView } from './components/storefront/StorefrontView';
 import { MerchantDashboard } from './components/dashboard/MerchantDashboard';
 import { PlatformAdminDashboard } from './components/admin/PlatformAdminDashboard';
@@ -8,6 +9,7 @@ import { StoreBuilderWizard } from './components/builder/StoreBuilderWizard';
 import { LiveDesignStudio } from './components/builder/LiveDesignStudio';
 import { VisualIDE } from './components/builder/VisualIDE';
 import { TamperAlertModal } from './components/common/TamperAlertModal';
+import { AuthModal } from './components/auth/AuthModal';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 const AppContent: React.FC = () => {
@@ -21,6 +23,7 @@ const AppContent: React.FC = () => {
 
       {/* Main Dynamic Viewport */}
       <main className="relative">
+        {currentView === 'home' && <LandingPage />}
         {currentView === 'storefront' && <StorefrontView />}
         {currentView === 'merchant_dashboard' && <MerchantDashboard />}
         {currentView === 'builder_wizard' && <StoreBuilderWizard />}
@@ -28,6 +31,9 @@ const AppContent: React.FC = () => {
         {currentView === 'visual_ide' && <VisualIDE />}
         {currentView === 'platform_admin' && <PlatformAdminDashboard />}
       </main>
+
+      {/* Authentication & Onboarding Modal */}
+      <AuthModal />
 
       {/* Anti-Tamper & Licensing Modal */}
       <TamperAlertModal />

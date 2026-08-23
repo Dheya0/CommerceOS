@@ -82,7 +82,8 @@ export const MerchantDashboard: React.FC = () => {
     activeStaffPermissions, 
     currentStaffRole, 
     setCurrentView, 
-    showToast 
+    showToast,
+    resetToCleanStore
   } = useCommerce();
 
   // Active Tab
@@ -339,7 +340,19 @@ export const MerchantDashboard: React.FC = () => {
                   مرحباً بك مجدداً — إليك ملخص المبيعات، الطلبات، والنشاط التجاري المباشر.
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => {
+                    if (window.confirm(`هل أنت متأكد من رغبتك في حذف وتصفير جميع المنتجات والطلبات الوهمية للمتجر "${activeTenant.name}" للبدء ببيانات جديدة نظيفة؟`)) {
+                      resetToCleanStore(activeTenant.id);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 font-bold text-xs border border-red-500/20 transition-all"
+                  title="مسح وتصفير البيانات الوهمية والتجريبية"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>تصفير البيانات الوهمية</span>
+                </button>
                 <button
                   onClick={handleOpenAddProduct}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-all"

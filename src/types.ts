@@ -239,6 +239,15 @@ export interface StaffMember {
   passwordHash?: string;
 }
 
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: StaffRole;
+  tenantId: string;
+  permissions?: StaffPermissions;
+}
+
 export type SubscriptionPlanId = 'starter' | 'business' | 'pro' | 'enterprise';
 
 export interface SubscriptionPlan {
