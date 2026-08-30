@@ -23,6 +23,14 @@ import {
 } from '../src/data/initialData';
 import { hashPassword } from './utils/security';
 
+export interface PlatformAdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: 'platform_super_admin' | 'platform_auditor';
+  passwordHash: string;
+}
+
 export interface DatabaseSchema {
   tenants: TenantStore[];
   products: Product[];
@@ -32,6 +40,7 @@ export interface DatabaseSchema {
   coupons: Coupon[];
   staff: StaffMember[];
   plans: SubscriptionPlan[];
+  platformAdmins: PlatformAdminUser[];
   auditLogs: {
     id: string;
     tenantId: string;
@@ -92,6 +101,16 @@ class DatabaseEngine {
       passwordHash: defaultStaffPasswordHash
     }));
 
+    const initialPlatformAdmins: PlatformAdminUser[] = [
+      {
+        id: 'admin-super-01',
+        name: 'CommerceOS Platform Super Admin',
+        email: 'superadmin@commerceos.app',
+        role: 'platform_super_admin',
+        passwordHash: hashPassword('CommerceOS@HQ2026')
+      }
+    ];
+
     const initialDb: DatabaseSchema = {
       tenants: [...INITIAL_TENANTS],
       products: [...INITIAL_PRODUCTS],
@@ -101,6 +120,7 @@ class DatabaseEngine {
       coupons: [...INITIAL_COUPONS],
       staff: initialStaffWithPasswords,
       plans: [...SUBSCRIPTION_PLANS],
+      platformAdmins: initialPlatformAdmins,
       auditLogs: [
         {
           id: 'log-seed-1',
@@ -608,37 +628,79 @@ class DatabaseEngine {
     return this.data.coupons.filter(c => c.tenantId === tenantId);
   }
 
+  getCouponById(id: string, tenantId?: string): Coupon | undefined {
+    return this.data.coupons.find(
+      c => c.id === id && (!tenantId || c.tenantId === tenantId)
+    );
+  }
+
   createCoupon(coupon: Coupon): Coupon {
     this.data.coupons.push(coupon);
     this.queueSave();
     return coupon;
   }
 
-  // --- Staff & RBAC ---
+  deleteCoupon(id: string, tenantId?: string): boolean {
+    const initialLen = this.data.coupons.length;
+    this.data.coupons = this.data.coupons.filter(
+      c => !(c.id === id && (!tenantId || c.tenantId === tenantId))
+    );
+    this.queueSave();
+    return this.data.coupons.length < initialLen;
+  }
+
+  // --- Staff & RBAC (Strict Multi-Tenant Isolation) ---
   getStaff(tenantId?: string): StaffMember[] {
     if (!tenantId) return this.data.staff;
     return this.data.staff.filter(s => s.tenantId === tenantId);
   }
 
+  getStaffById(id: string, tenantId?: string): StaffMember | undefined {
+    return this.data.staff.find(
+      s => s.id === id && (!tenantId || s.tenantId === tenantId)
+    );
+  }
+
   createStaff(staff: StaffMember): StaffMember {
     this.data.staff.push(staff);
+    this.addAuditLog(staff.tenantId, 'STAFF_CREATED', 'Admin', { name: staff.name, email: staff.email, role: staff.role });
     this.queueSave();
     return staff;
   }
 
-  updateStaff(id: string, updates: Partial<StaffMember>): StaffMember | null {
-    const idx = this.data.staff.findIndex(s => s.id === id);
+  updateStaff(id: string, updates: Partial<StaffMember>, tenantId?: string): StaffMember | null {
+    const idx = this.data.staff.findIndex(
+      s => s.id === id && (!tenantId || s.tenantId === tenantId)
+    );
     if (idx === -1) return null;
+    
+    // Explicitly prevent cross-tenant movement
+    delete updates.tenantId;
+
     this.data.staff[idx] = { ...this.data.staff[idx], ...updates };
+    this.addAuditLog(this.data.staff[idx].tenantId, 'STAFF_UPDATED', 'Admin', { id, role: updates.role, status: updates.status });
     this.queueSave();
     return this.data.staff[idx];
   }
 
-  deleteStaff(id: string): boolean {
+  deleteStaff(id: string, tenantId?: string): boolean {
     const initialLen = this.data.staff.length;
-    this.data.staff = this.data.staff.filter(s => s.id !== id);
+    const targetStaff = this.getStaffById(id, tenantId);
+    if (!targetStaff) return false;
+
+    this.data.staff = this.data.staff.filter(
+      s => !(s.id === id && (!tenantId || s.tenantId === tenantId))
+    );
+    this.addAuditLog(targetStaff.tenantId, 'STAFF_DELETED', 'Admin', { id, name: targetStaff.name, email: targetStaff.email });
     this.queueSave();
     return this.data.staff.length < initialLen;
+  }
+
+  // --- Platform HQ Super Admins ---
+  getPlatformAdmin(email: string): PlatformAdminUser | undefined {
+    return (this.data.platformAdmins || []).find(
+      a => a.email.toLowerCase() === email.trim().toLowerCase()
+    );
   }
 
   // --- Audit Logs ---
@@ -661,6 +723,28 @@ class DatabaseEngine {
     if (!tenantId) return this.data.auditLogs;
     return this.data.auditLogs.filter(l => l.tenantId === tenantId);
   }
+
+  // --- Synchronization with PostgreSQL ---
+  syncOrderFromPostgres(order: Order) {
+    // Add to in-memory cache if not already present
+    const existingIndex = this.data.orders.findIndex(o => o.id === order.id);
+    if (existingIndex >= 0) {
+      this.data.orders[existingIndex] = order;
+    } else {
+      this.data.orders.unshift(order);
+    }
+
+    // Synchronize product stocks in-memory
+    for (const item of order.items) {
+      const prod = this.getProductById(item.productId, order.tenantId);
+      if (prod) {
+        prod.stock = Math.max(0, prod.stock - item.quantity);
+      }
+    }
+
+    this.queueSave();
+  }
 }
 
 export const db = new DatabaseEngine();
+

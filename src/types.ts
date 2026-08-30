@@ -205,6 +205,10 @@ export interface Coupon {
   isActive: boolean;
 }
 
+export type IdentityType = 'platform_admin' | 'tenant_staff' | 'customer';
+
+export type PlatformAdminRole = 'platform_super_admin' | 'platform_auditor';
+
 export type StaffRole = 
   | 'store_owner' 
   | 'store_admin' 
@@ -243,8 +247,9 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  role: StaffRole;
-  tenantId: string;
+  identityType?: IdentityType;
+  role: StaffRole | PlatformAdminRole | 'customer';
+  tenantId?: string;
   permissions?: StaffPermissions;
 }
 
@@ -265,6 +270,39 @@ export interface SubscriptionPlan {
     api: boolean;
     whiteLabel: boolean;
   };
+}
+
+export type PageBlockType = 'hero_banner' | 'categories_grid' | 'products_grid' | 'testimonials' | 'text_image' | 'features_grid' | 'newsletter' | 'faq_accordion';
+
+export interface PageBlock {
+  id: string;
+  type: PageBlockType;
+  title: string;
+  enabled: boolean;
+  order: number;
+  config: {
+    heading?: string;
+    subtitle?: string;
+    buttonText?: string;
+    buttonLink?: string;
+    showButton?: boolean;
+    backgroundImage?: string;
+    layoutStyle?: 'grid' | 'carousel' | 'masonry';
+    columns?: number;
+    content?: string;
+    alignment?: 'right' | 'center' | 'left';
+  };
+}
+
+export interface StorePageItem {
+  id: string;
+  slug: string;
+  titleAr: string;
+  titleEn: string;
+  type: 'home' | 'products' | 'about' | 'contact' | 'faq' | 'privacy' | 'refund' | 'blog' | 'custom';
+  enabled: boolean;
+  isDefault?: boolean;
+  blocks?: PageBlock[];
 }
 
 export interface TenantStore {
@@ -348,6 +386,7 @@ export interface TenantStore {
     taxNumber?: string;
     taxIncludedInPrice: boolean;
   };
+  pages?: StorePageItem[];
   licensing?: TenantLicensing;
   quotas?: TenantQuotas;
 }
@@ -583,12 +622,104 @@ export interface VisualIDETemplate {
 }
 
 // ==========================================
-// Security, Webhooks & Resilience Types
+// Financial Engine, Payment & Webhook Security Types
 // ==========================================
+
+export type PaymentIntentStatus = 
+  | 'PENDING' 
+  | 'AUTHORIZED' 
+  | 'PAID' 
+  | 'FAILED' 
+  | 'CANCELLED' 
+  | 'REFUNDED' 
+  | 'PARTIALLY_REFUNDED';
+
+export type PaymentAttemptStatus = 
+  | 'PENDING' 
+  | 'AUTHORIZED' 
+  | 'CAPTURED' 
+  | 'FAILED' 
+  | 'REFUNDED' 
+  | 'VOIDED';
+
+export type RefundStatus = 'PENDING' | 'SUCCEEDED' | 'FAILED';
+
+export interface PaymentIntent {
+  id: string;
+  tenantId: string;
+  orderId: string;
+  amount: number;
+  currency: string;
+  provider: 'moyasar' | 'tap' | 'tamara' | 'tabby' | 'hyperpay' | 'stripe' | 'bank_transfer' | 'cod' | string;
+  status: PaymentIntentStatus;
+  clientSecret: string;
+  capturedAmount: number;
+  refundedAmount: number;
+  paymentMethod?: string;
+  metadata?: Record<string, any>;
+  expiresAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentAttempt {
+  id: string;
+  paymentIntentId: string;
+  tenantId: string;
+  orderId: string;
+  transactionId?: string;
+  provider: string;
+  method: string;
+  amount: number;
+  currency: string;
+  status: PaymentAttemptStatus;
+  gatewayResponse?: any;
+  failureReason?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: string;
+}
+
+export interface Refund {
+  id: string;
+  paymentIntentId: string;
+  orderId: string;
+  tenantId: string;
+  transactionId?: string;
+  gatewayRefundId?: string;
+  amount: number;
+  currency: string;
+  reason: string;
+  type: 'full' | 'partial';
+  status: RefundStatus;
+  initiatedBy: string;
+  gatewayResponse?: any;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WebhookEventRecord {
+  id: string;
+  tenantId: string;
+  gateway: 'tamara' | 'tabby' | 'moyasar' | 'tap' | 'hyperpay' | 'stripe' | 'custom' | string;
+  eventId: string;
+  eventType: string;
+  signature?: string;
+  payload: any;
+  status: 'received' | 'processing' | 'verified' | 'processed' | 'rejected' | 'duplicate' | 'failed';
+  orderId?: string;
+  paymentIntentId?: string;
+  transactionId?: string;
+  amount?: number;
+  currency?: string;
+  processingTimeMs?: number;
+  errorMessage?: string;
+  createdAt: string;
+}
 
 export interface WebhookLog {
   id: string;
-  gateway: 'tamara' | 'tabby' | 'moyasar' | 'hyperpay' | 'custom';
+  gateway: 'tamara' | 'tabby' | 'moyasar' | 'tap' | 'hyperpay' | 'stripe' | 'custom' | string;
   eventId: string;
   eventType: string;
   signature: string;
@@ -596,8 +727,9 @@ export interface WebhookLog {
   timestamp: string;
   payload: any;
   orderId?: string;
-  status: 'processed' | 'rejected' | 'replay_detected';
+  status: 'processed' | 'rejected' | 'replay_detected' | 'failed';
   processingTimeMs: number;
+  errorMessage?: string;
 }
 
 export interface AbandonedCart {

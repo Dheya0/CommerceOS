@@ -30,11 +30,15 @@ import {
   Globe,
   CreditCard,
   Smartphone,
+  Monitor,
+  Cpu,
   Building2,
   CheckCircle2,
   XCircle,
   FileText,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Network,
+  Puzzle
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -56,10 +60,19 @@ import { AbandonedCartsManager } from './AbandonedCartsManager';
 import { NotificationsManager } from './NotificationsManager';
 import { SecurityCenter } from './SecurityCenter';
 import { LicensingManager } from './LicensingManager';
+import { DesktopPOSManager } from './DesktopPOSManager';
+import { DynamicRulesManager } from './DynamicRulesManager';
+import { EventDrivenCQRSManager } from './EventDrivenCQRSManager';
+import { WebhooksPluginsManager } from './WebhooksPluginsManager';
 import { Rocket, MessageSquare, ShieldAlert } from 'lucide-react';
 
 
-export const MerchantDashboard: React.FC = () => {
+
+interface MerchantDashboardProps {
+  onOpenCommandPalette?: () => void;
+}
+
+export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenCommandPalette }) => {
   const { 
     activeTenant, 
     updateTenant, 
@@ -162,6 +175,10 @@ export const MerchantDashboard: React.FC = () => {
     { id: 'coupons', label: 'الكوبونات والعروض', icon: Tag, permitted: activeStaffPermissions.coupons },
     { id: 'theme', label: 'محرك التصميم والهوية', icon: Palette, permitted: activeStaffPermissions.theme },
     { id: 'mobile_app', label: 'تطبيق المتجر (Mobile & PWA)', icon: Smartphone, permitted: activeStaffPermissions.settings },
+    { id: 'desktop_pos', label: 'نقطة البيع والعتاد (Desktop POS)', icon: Monitor, permitted: activeStaffPermissions.settings },
+    { id: 'dynamic_rules', label: 'قواعد الخصم الديناميكية (AST)', icon: Cpu, permitted: activeStaffPermissions.settings },
+    { id: 'event_cqrs', label: 'معمارية الأحداث (Event & CQRS)', icon: Network, permitted: activeStaffPermissions.settings },
+    { id: 'webhooks_plugins', label: 'الإضافات والخطافات (Webhooks & Plugins)', icon: Puzzle, permitted: activeStaffPermissions.settings },
     { id: 'staff', label: 'فريق العمل والصلاحيات', icon: ShieldCheck, permitted: activeStaffPermissions.staff },
     { id: 'settings', label: 'إعدادات المتجر والدفع', icon: Settings, permitted: activeStaffPermissions.settings }
   ].filter(t => t.permitted);
@@ -263,71 +280,98 @@ export const MerchantDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 flex flex-col md:flex-row">
+    <div className="min-h-[calc(100vh-4rem)] bg-[#09090b] text-zinc-100 flex flex-col md:flex-row relative">
       
-      {/* Sidebar Navigation */}
-      <aside className="w-full md:w-64 bg-slate-900 border-b md:border-b-0 md:border-l border-slate-800 p-4 shrink-0">
+      {/* Floating Glass Sidebar */}
+      <aside className="w-full md:w-72 m-3 sm:m-4 md:my-6 md:mr-6 md:ml-0 bg-zinc-900/50 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.6)] p-4 shrink-0 flex flex-col justify-between self-start sticky top-20 z-20">
         
-        {/* Store Profile Card */}
-        <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 mb-5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <img 
-              src={activeTenant.logo} 
-              alt="" 
-              className="w-9 h-9 rounded-lg object-cover border border-slate-700" 
-            />
-            <div className="min-w-0">
-              <div className="text-xs font-bold text-white truncate">{activeTenant.name}</div>
-              <div className="text-[10px] text-amber-400 font-mono flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>متجر نشط ({activeTenant.plan.toUpperCase()})</span>
+        <div className="space-y-4">
+          {/* Store Profile Card */}
+          <div className="relative group p-3.5 bg-zinc-950/80 rounded-2xl border border-white/10 hover:border-blue-500/40 transition-all duration-300 flex items-center justify-between overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+            <div className="flex items-center gap-3 min-w-0 relative z-10">
+              <img 
+                src={activeTenant.logo} 
+                alt="" 
+                className="w-10 h-10 rounded-xl object-cover border border-white/15 shadow-md shrink-0" 
+              />
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-white truncate font-heading">{activeTenant.name}</div>
+                <div className="text-[10px] text-zinc-400 font-mono mt-0.5 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span className="truncate">متصل وجاهز ({activeTenant.plan.toUpperCase()})</span>
+                </div>
               </div>
             </div>
+            
+            <button
+              onClick={() => setCurrentView('storefront')}
+              className="p-2 rounded-xl bg-zinc-800/80 hover:bg-blue-600 hover:text-white text-zinc-400 transition-all shadow-sm relative z-10"
+              title="زيارة المتجر الحي"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+            </button>
           </div>
-          
-          <button
-            onClick={() => setCurrentView('storefront')}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-            title="زيارة المتجر الحي"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-          </button>
+
+          {/* Quick Command Trigger in Sidebar */}
+          {onOpenCommandPalette && (
+            <button
+              onClick={onOpenCommandPalette}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-950/60 border border-white/5 hover:border-blue-500/30 text-xs text-zinc-400 hover:text-zinc-200 transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <Search className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-[11px]">لوحة الأوامر السريعة</span>
+              </div>
+              <kbd className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 text-zinc-400">
+                Ctrl+K
+              </kbd>
+            </button>
+          )}
+
+          {/* Navigation Tabs */}
+          <nav className="space-y-1 max-h-[calc(100vh-22rem)] overflow-y-auto pr-0.5">
+            {navTabs.map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all text-right group ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(59,130,246,0.5)] font-black'
+                      : 'text-zinc-300 hover:bg-zinc-800/70 hover:text-white hover:translate-x-[-2px]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Icon className={`w-4 h-4 transition-colors ${isActive ? 'text-white' : 'text-zinc-400 group-hover:text-blue-400'}`} />
+                    <span className="truncate">{tab.label}</span>
+                  </div>
+                  {tab.badge !== undefined && tab.badge > 0 && (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      isActive ? 'bg-zinc-950 text-blue-300' : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                    }`}>
+                      {tab.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Navigation Tabs */}
-        <nav className="space-y-1">
-          {navTabs.map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-right ${
-                  isActive
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-black'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-slate-950' : 'text-slate-400'}`} />
-                  <span>{tab.label}</span>
-                </div>
-                {tab.badge !== undefined && tab.badge > 0 && (
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
-                    isActive ? 'bg-slate-950 text-amber-400' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                  }`}>
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
+        {/* Bottom Quick Status */}
+        <div className="pt-3 mt-3 border-t border-white/10 text-center">
+          <div className="text-[10px] font-mono text-zinc-500 flex items-center justify-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
+            <span>CommerceOS Cloud Engine v4.2</span>
+          </div>
+        </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-4 sm:p-8 overflow-y-auto max-w-7xl">
+      <main className="flex-1 p-3 sm:p-6 md:p-8 overflow-y-auto max-w-7xl">
         
         {/* 1. OVERVIEW TAB */}
         {activeTab === 'overview' && (
@@ -335,19 +379,19 @@ export const MerchantDashboard: React.FC = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-black text-white">لوحة تحكم المتجر</h1>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  مرحباً بك مجدداً — إليك ملخص المبيعات، الطلبات، والنشاط التجاري المباشر.
+                <h1 className="text-2xl sm:text-3xl font-black text-white font-heading tracking-tight">لوحة تحكم المتجر</h1>
+                <p className="text-xs text-zinc-400 mt-1">
+                  مرحباً بك مجدداً — إليك ملخص المبيعات، الطلبات، والنشاط التجاري المباشر لمتجر <span className="text-blue-400 font-bold font-heading">{activeTenant.name}</span>
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => {
                     if (window.confirm(`هل أنت متأكد من رغبتك في حذف وتصفير جميع المنتجات والطلبات الوهمية للمتجر "${activeTenant.name}" للبدء ببيانات جديدة نظيفة؟`)) {
                       resetToCleanStore(activeTenant.id);
                     }
                   }}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 font-bold text-xs border border-red-500/20 transition-all"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 font-bold text-xs border border-red-500/20 transition-all hover:-translate-y-0.5"
                   title="مسح وتصفير البيانات الوهمية والتجريبية"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -355,132 +399,254 @@ export const MerchantDashboard: React.FC = () => {
                 </button>
                 <button
                   onClick={handleOpenAddProduct}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-all"
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs border border-white/10 transition-all hover:-translate-y-0.5 shadow-sm"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>إضافة منتج جديد</span>
+                  <Plus className="w-3.5 h-3.5 text-blue-400" />
+                  <span>إضافة منتج</span>
                 </button>
                 <button
-                  onClick={() => setCurrentView('storefront')}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition-all"
+                  onClick={() => setActiveTab('publish_center')}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-[0_0_20px_rgba(37,99,235,0.45)] hover:shadow-[0_0_30px_rgba(37,99,235,0.7)] hover:bg-blue-500 transition-all hover:-translate-y-0.5"
                 >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>عرض المتجر</span>
+                  <Rocket className="w-3.5 h-3.5" />
+                  <span>تصدير الكود البرمجي</span>
                 </button>
               </div>
             </div>
 
-            {/* Metric KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm">
-                <div className="flex items-center justify-between text-slate-400 text-xs mb-2 font-medium">
-                  <span>إجمالي الإيرادات</span>
-                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-                    <DollarSign className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-black text-white font-mono">{totalRevenue.toLocaleString()} {activeTenant.currencySymbol}</div>
-                <div className="text-[11px] text-emerald-400 font-bold mt-1 flex items-center gap-1">
-                  <TrendingUp className="w-3 h-3" /> +18.4% نمو هذا الشهر
-                </div>
-              </div>
-
-              <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm">
-                <div className="flex items-center justify-between text-slate-400 text-xs mb-2 font-medium">
-                  <span>الطلبات المكتملة</span>
-                  <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
-                    <ShoppingBag className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-black text-white font-mono">{totalOrdersCount}</div>
-                <div className="text-[11px] text-slate-400 mt-1">متوسط قيمة السلة: {averageOrderValue} {activeTenant.currencySymbol}</div>
-              </div>
-
-              <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm">
-                <div className="flex items-center justify-between text-slate-400 text-xs mb-2 font-medium">
-                  <span>المنتجات النشطة</span>
-                  <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400">
-                    <Package className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-black text-white font-mono">{products.length}</div>
-                <div className="text-[11px] text-slate-400 mt-1">{lowStockProducts.length} منتجات أوشكت على النفاد</div>
-              </div>
-
-              <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm">
-                <div className="flex items-center justify-between text-slate-400 text-xs mb-2 font-medium">
-                  <span>العملاء المسجلين</span>
-                  <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
-                    <Users className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="text-2xl font-black text-white font-mono">{customers.length}</div>
-                <div className="text-[11px] text-amber-400 mt-1">نسبة الشراء المتكرر: 68%</div>
-              </div>
-            </div>
-
-            {/* Sales Chart Section */}
-            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold text-white">تحليلات المبيعات الأسبوعية (Sales Growth)</h3>
-                <span className="text-xs text-slate-400 font-mono">آخر 7 أيام</span>
-              </div>
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={salesData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
-                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-                    <XAxis dataKey="day" stroke="#64748b" fontSize={11} />
-                    <YAxis stroke="#64748b" fontSize={11} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '12px', fontSize: '12px' }}
-                      formatter={(val: any) => [`${val} ر.س`, 'المبيعات']}
-                    />
-                    <Area type="monotone" dataKey="sales" stroke="#f59e0b" strokeWidth={2.5} fillOpacity={1} fill="url(#salesGrad)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Recent Orders & Low Stock Quick Action Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Asymmetric Bento Grid Overview Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
               
-              {/* Recent Orders Table (8 cols) */}
-              <div className="lg:col-span-8 bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold text-white">أحدث الطلبات الواردة</h3>
+              {/* Bento Box 1: Revenue Hero Card (Span 8) */}
+              <div className="md:col-span-8 relative group p-6 sm:p-8 rounded-3xl bg-zinc-900/50 backdrop-blur-xl border border-white/10 hover:border-blue-500/50 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)] flex flex-col justify-between overflow-hidden">
+                {/* Hidden light reflection on hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 relative z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 rounded-2xl bg-blue-500/15 text-blue-400 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                      <DollarSign className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-zinc-400">إجمالي الإيرادات النشطة</span>
+                      <div className="text-2xl sm:text-3xl font-black text-white font-mono mt-0.5 tracking-tight">
+                        {totalRevenue.toLocaleString()} {activeTenant.currencySymbol}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <div className="px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/20 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>+18.4% نمو شهري</span>
+                    </div>
+                    <div className="px-3 py-1.5 rounded-full bg-zinc-800/80 text-zinc-300 text-xs font-mono border border-white/5">
+                      متوسط الطلب: {averageOrderValue} {activeTenant.currencySymbol}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mini Luminous Area Chart inside Bento */}
+                <div className="h-48 w-full relative z-10 pt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={salesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="bentoCyberSalesGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                        </linearGradient>
+                      </defs>
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '16px', fontSize: '11px', boxShadow: '0 0 20px rgba(0,0,0,0.8)' }}
+                        formatter={(val: any) => [`${val} ${activeTenant.currencySymbol}`, 'المبيعات المكتملة']}
+                      />
+                      <Area type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#bentoCyberSalesGrad)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Bento Box 2: Side Vertical Rectangle - Latest Updates & Live Feed (Span 4) */}
+              <div className="md:col-span-4 relative group p-6 rounded-3xl bg-zinc-900/50 backdrop-blur-xl border border-white/10 hover:border-blue-500/50 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)] flex flex-col justify-between overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+                <div className="space-y-4 relative z-10">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                      <span className="text-xs font-black text-white font-heading">آخر التحديثات والنشاط الحي</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-zinc-400 bg-zinc-800/80 px-2 py-0.5 rounded-full border border-white/5">
+                      Live Telemetry
+                    </span>
+                  </div>
+
+                  {/* Real-time Activity Feed */}
+                  <div className="space-y-2.5">
+                    <div className="p-3 rounded-2xl bg-zinc-950/70 border border-white/5 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <div>
+                          <div className="text-xs font-bold text-zinc-200">الطلبات المكتملة</div>
+                          <div className="text-[10px] text-zinc-500 font-mono">آخر تحديث قبل دقيقة</div>
+                        </div>
+                      </div>
+                      <span className="text-sm font-black text-white font-mono">{totalOrdersCount}</span>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-zinc-950/70 border border-white/5 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-2 h-2 rounded-full bg-blue-400" />
+                        <div>
+                          <div className="text-xs font-bold text-zinc-200">المنتجات النشطة</div>
+                          <div className="text-[10px] text-zinc-500 font-mono">في الكتالوج الحي</div>
+                        </div>
+                      </div>
+                      <span className="text-sm font-black text-blue-400 font-mono">{products.length}</span>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-zinc-950/70 border border-white/5 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-2 h-2 rounded-full bg-purple-400" />
+                        <div>
+                          <div className="text-xs font-bold text-zinc-200">صحة المنظومة والـ AST</div>
+                          <div className="text-[10px] text-zinc-500 font-mono">زمن الاستجابة: 12ms</div>
+                        </div>
+                      </div>
+                      <span className="text-[11px] font-bold text-emerald-400 font-mono">100% OK</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 relative z-10">
+                  <button
+                    onClick={() => setActiveTab('publish_center')}
+                    className="w-full py-3 bg-blue-600 text-white text-xs font-black rounded-2xl shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)] hover:bg-blue-500 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Rocket className="w-4 h-4 text-white" />
+                    <span>تصدير الكود البرمجي الفوري</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Bento Quick Action Cards (Span 12 -> 4 Cards) */}
+              <div className="md:col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                {/* Action Card 1: Store Builder */}
+                <div 
+                  onClick={() => setCurrentView('builder_wizard')}
+                  className="relative group p-5 rounded-2xl bg-zinc-900/50 backdrop-blur-xl border border-white/10 hover:border-blue-500/50 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(59,130,246,0.15)] cursor-pointer overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 group-hover:scale-110 transition-transform">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white font-heading">معالج بناء المتجر</h4>
+                        <p className="text-[10px] text-zinc-400 mt-0.5 font-mono">Store Builder Wizard</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-blue-400 group-hover:translate-x-[-4px] transition-transform">←</span>
+                  </div>
+                </div>
+
+                {/* Action Card 2: AST Rules Engine */}
+                <div 
+                  onClick={() => setActiveTab('dynamic_rules')}
+                  className="relative group p-5 rounded-2xl bg-zinc-900/50 backdrop-blur-xl border border-white/10 hover:border-amber-500/50 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(245,158,11,0.15)] cursor-pointer overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 group-hover:scale-110 transition-transform">
+                        <Cpu className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white font-heading">قواعد الخصم (AST)</h4>
+                        <p className="text-[10px] text-zinc-400 mt-0.5 font-mono">Dynamic Rule AST</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-amber-400 group-hover:translate-x-[-4px] transition-transform">←</span>
+                  </div>
+                </div>
+
+                {/* Action Card 3: CQRS & Events */}
+                <div 
+                  onClick={() => setActiveTab('event_cqrs')}
+                  className="relative group p-5 rounded-2xl bg-zinc-900/50 backdrop-blur-xl border border-white/10 hover:border-cyan-500/50 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] cursor-pointer overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 group-hover:scale-110 transition-transform">
+                        <Network className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white font-heading">معمارية الأحداث (CQRS)</h4>
+                        <p className="text-[10px] text-zinc-400 mt-0.5 font-mono">Event Streams & Queue</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-cyan-400 group-hover:translate-x-[-4px] transition-transform">←</span>
+                  </div>
+                </div>
+
+                {/* Action Card 4: Webhooks & Plugins */}
+                <div 
+                  onClick={() => setActiveTab('webhooks_plugins')}
+                  className="relative group p-5 rounded-2xl bg-zinc-900/50 backdrop-blur-xl border border-white/10 hover:border-purple-500/50 transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(168,85,247,0.15)] cursor-pointer overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 group-hover:scale-110 transition-transform">
+                        <Puzzle className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white font-heading">الإضافات والخطافات</h4>
+                        <p className="text-[10px] text-zinc-400 mt-0.5 font-mono">Webhooks & HMAC</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-purple-400 group-hover:translate-x-[-4px] transition-transform">←</span>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Bento Box 3: Recent Orders Table (Span 7) */}
+              <div className="md:col-span-7 relative group p-6 rounded-3xl bg-zinc-900/50 backdrop-blur-xl border border-white/10 hover:border-blue-500/40 transition-all duration-500 space-y-4 overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-white font-heading flex items-center gap-2">
+                    <ShoppingBag className="w-4 h-4 text-blue-400" />
+                    <span>أحدث الطلبات الواردة للمتجر</span>
+                  </h3>
                   <button 
                     onClick={() => setActiveTab('orders')}
-                    className="text-xs text-amber-400 hover:underline"
+                    className="text-xs text-blue-400 font-bold hover:underline"
                   >
-                    عرض كافة الطلبات ({orders.length})
+                    عرض الكل ({orders.length})
                   </button>
                 </div>
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-right text-xs">
                     <thead>
-                      <tr className="border-b border-slate-800 text-slate-400">
-                        <th className="pb-2">رقم الطلب</th>
-                        <th className="pb-2">العميل</th>
-                        <th className="pb-2">المبلغ</th>
-                        <th className="pb-2">الحالة</th>
-                        <th className="pb-2">الإجراء</th>
+                      <tr className="border-b border-zinc-800 text-zinc-400">
+                        <th className="pb-3">رقم الطلب</th>
+                        <th className="pb-3">العميل</th>
+                        <th className="pb-3">المبلغ</th>
+                        <th className="pb-3">الحالة</th>
+                        <th className="pb-3">الإجراء</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
+                    <tbody className="divide-y divide-zinc-800/60">
                       {orders.slice(0, 4).map(order => (
-                        <tr key={order.id} className="hover:bg-slate-800/40">
-                          <td className="py-3 font-mono font-bold text-amber-400">{order.orderNumber}</td>
-                          <td className="py-3 text-slate-200">{order.customer.name}</td>
+                        <tr key={order.id} className="hover:bg-zinc-800/40 transition-colors">
+                          <td className="py-3 font-mono font-bold text-blue-400">{order.orderNumber}</td>
+                          <td className="py-3 text-zinc-200">{order.customer.name}</td>
                           <td className="py-3 font-mono font-bold">{order.total} {activeTenant.currencySymbol}</td>
                           <td className="py-3">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
                               order.status === 'delivered' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
                               order.status === 'shipped' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
                               order.status === 'processing' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' :
@@ -494,7 +660,7 @@ export const MerchantDashboard: React.FC = () => {
                           <td className="py-3">
                             <button
                               onClick={() => setOrderDetailModal(order)}
-                              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300"
+                              className="px-3 py-1 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-[11px] font-bold text-zinc-300 border border-white/5 transition-colors"
                             >
                               تفاصيل
                             </button>
@@ -506,37 +672,59 @@ export const MerchantDashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Low Stock Alerts (4 cols) */}
-              <div className="lg:col-span-4 bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-sm">
-                <div className="flex items-center gap-1.5 text-amber-400 text-sm font-bold mb-3">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>تنبيهات المخزون المنخفض</span>
+              {/* Bento Box 4: Customers & Low Stock Alarms (Span 5) */}
+              <div className="md:col-span-5 relative group p-6 rounded-3xl bg-zinc-900/50 backdrop-blur-xl border border-white/10 hover:border-blue-500/40 transition-all duration-500 space-y-4 overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-white font-heading flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-blue-400" />
+                    <span>العملاء وتنبيهات المخزون</span>
+                  </h3>
+                  <span className="text-[10px] text-zinc-400 font-mono">Bento Telemetry</span>
                 </div>
 
                 <div className="space-y-3">
-                  {lowStockProducts.length === 0 ? (
-                    <div className="text-center py-6 text-xs text-slate-500">
-                      جميع مستويات المخزون ممتازة وبحالة جيدة ✓
-                    </div>
-                  ) : (
-                    lowStockProducts.map(prod => (
-                      <div key={prod.id} className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between">
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold text-white truncate">{prod.name}</div>
-                          <div className="text-[10px] text-rose-400 font-mono">متبقي: {prod.stock} قطع فقط</div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            updateProduct(prod.id, { stock: prod.stock + 20 });
-                            showToast(`تمت زيادة مخزون ${prod.name} بمقدار 20 قطعة`, 'success');
-                          }}
-                          className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-[10px] font-bold shrink-0"
-                        >
-                          +20 تزويد
-                        </button>
+                  <div className="p-3.5 rounded-2xl bg-zinc-950/80 border border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-purple-500/15 text-purple-400 border border-purple-500/30 flex items-center justify-center font-bold text-xs font-mono">
+                        {customers.length}
                       </div>
-                    ))
-                  )}
+                      <div>
+                        <div className="text-xs font-bold text-white font-heading">قاعدة العملاء المسجلين</div>
+                        <div className="text-[10px] text-zinc-400 font-mono">نسبة الشراء المتكرر: 68%</div>
+                      </div>
+                    </div>
+                    <button onClick={() => setActiveTab('customers')} className="text-xs text-blue-400 font-bold hover:underline">عرض</button>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-zinc-950/80 border border-white/5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center justify-center font-bold text-xs font-mono">
+                        {lowStockProducts.length}
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white font-heading">تنبيهات انخفاض المخزون</div>
+                        <div className="text-[10px] text-amber-400 font-mono">تحتاج إعادة طلب أو توريد عاجل</div>
+                      </div>
+                    </div>
+                    <button onClick={() => setActiveTab('inventory')} className="text-xs text-blue-400 font-bold hover:underline">إدارة</button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <button
+                    onClick={handleOpenAddProduct}
+                    className="py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white flex items-center justify-center gap-2 border border-white/10 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-blue-400" />
+                    <span>منتج جديد</span>
+                  </button>
+                  <button
+                    onClick={() => setCouponModalOpen(true)}
+                    className="py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-white flex items-center justify-center gap-2 border border-white/10 transition-colors"
+                  >
+                    <Tag className="w-3.5 h-3.5 text-blue-400" />
+                    <span>كوبون خصم</span>
+                  </button>
                 </div>
               </div>
 
@@ -1026,6 +1214,34 @@ export const MerchantDashboard: React.FC = () => {
         {activeTab === 'security_center' && (
           <div className="animate-in fade-in">
             <SecurityCenter />
+          </div>
+        )}
+
+        {/* DESKTOP POS & HARDWARE INTEGRATION TAB */}
+        {activeTab === 'desktop_pos' && (
+          <div className="animate-in fade-in">
+            <DesktopPOSManager tenant={activeTenant} />
+          </div>
+        )}
+
+        {/* DYNAMIC RULES & AST ENGINE TAB */}
+        {activeTab === 'dynamic_rules' && (
+          <div className="animate-in fade-in">
+            <DynamicRulesManager tenant={activeTenant} />
+          </div>
+        )}
+
+        {/* EVENT-DRIVEN & CQRS ARCHITECTURE TAB */}
+        {activeTab === 'event_cqrs' && (
+          <div className="animate-in fade-in">
+            <EventDrivenCQRSManager tenant={activeTenant} />
+          </div>
+        )}
+
+        {/* WEBHOOKS & PLUGINS ARCHITECTURE TAB */}
+        {activeTab === 'webhooks_plugins' && (
+          <div className="animate-in fade-in">
+            <WebhooksPluginsManager tenant={activeTenant} />
           </div>
         )}
 

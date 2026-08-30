@@ -1,136 +1,25 @@
-import { Router, Request, Response } from 'express';
-import { db } from '../db';
-import { requirePermission } from '../middleware/auth';
-import { TenantStore } from '../../src/types';
+import { Router } from 'express';
+import { requirePermission } from '../middleware/auth.ts';
+import { tenantController } from '../controllers/tenant.controller.ts';
+import { validateBody } from '../validators/validator.ts';
+import { CreateTenantSchema } from '../validators/dtos.ts';
 
 export const tenantsRouter = Router();
 
-// GET /api/v1/tenants - List all tenants (Admin oversight)
-tenantsRouter.get('/', (req: Request, res: Response) => {
-  const tenants = db.getTenants();
-  res.json({
-    tenants,
-    count: tenants.length
-  });
-});
+// GET /api/v1/tenants - List all tenants
+tenantsRouter.get('/', tenantController.getTenants);
 
-// GET /api/v1/tenants/current - Get resolved active tenant
-tenantsRouter.get('/current', (req: Request, res: Response) => {
-  const targetId = req.user ? req.user.tenantId : req.tenantId;
-  const tenant = db.getTenantByIdOrSlug(targetId);
-  if (!tenant) {
-    return res.status(404).json({ error: 'Tenant not found' });
-  }
-  res.json({
-    tenant
-  });
-});
+// GET /api/v1/tenants/:idOrSlug - Get single tenant
+tenantsRouter.get('/:idOrSlug', tenantController.getTenantByIdOrSlug);
 
-// GET /api/v1/tenants/:idOrSlug
-tenantsRouter.get('/:idOrSlug', (req: Request, res: Response) => {
-  const { idOrSlug } = req.params;
-  const tenant = db.getTenantByIdOrSlug(idOrSlug);
-  if (!tenant) {
-    return res.status(404).json({ error: 'Tenant not found' });
-  }
-  res.json({ tenant });
-});
+// POST /api/v1/tenants - Create tenant (Store Owner / Admin)
+tenantsRouter.post('/', requirePermission('settings'), validateBody(CreateTenantSchema), tenantController.createTenant);
 
-// POST /api/v1/tenants - Create new tenant (StoreBuilderWizard)
-tenantsRouter.post('/', (req: Request, res: Response) => {
-  const tenantData: TenantStore = req.body;
-  if (!tenantData.name || !tenantData.slug) {
-    return res.status(400).json({ error: 'Missing name or slug' });
-  }
+// PUT /api/v1/tenants/:id - Update tenant (Store Owner / Admin)
+tenantsRouter.put('/:id', requirePermission('settings'), tenantController.updateTenant);
 
-  // Ensure unique ID & slug
-  const existing = db.getTenantByIdOrSlug(tenantData.slug);
-  if (existing) {
-    return res.status(409).json({ error: 'Slug already taken', message: 'اسم المعرف هذا مستخدم لمتجر آخر' });
-  }
+// PUT /api/v1/tenants/:id/theme - Update Store Theme & Branding
+tenantsRouter.put('/:id/theme', requirePermission('theme'), tenantController.updateTenantTheme);
 
-  const id = tenantData.id || `tenant-${Date.now()}`;
-  const newTenant: TenantStore = {
-    ...tenantData,
-    id,
-    createdAt: tenantData.createdAt || new Date().toISOString(),
-    status: tenantData.status || 'active'
-  };
-
-  const created = db.createTenant(newTenant);
-  res.status(201).json({
-    success: true,
-    tenant: created
-  });
-});
-
-// PUT /api/v1/tenants/:id - Update tenant settings (RBAC guarded: 'settings')
-tenantsRouter.put('/:id', requirePermission('settings'), (req: Request, res: Response) => {
-  const targetId = req.user!.tenantId; // Strictly restricted to authenticated user's store
-  const updates = req.body;
-
-  delete updates.id; // Immutable ID
-
-  const updated = db.updateTenant(targetId, updates);
-  if (!updated) {
-    return res.status(404).json({ error: 'Tenant not found' });
-  }
-
-  res.json({
-    success: true,
-    tenant: updated
-  });
-});
-
-// PUT /api/v1/tenants/:id/theme - Update theme and design tokens (RBAC guarded: 'theme')
-tenantsRouter.put('/:id/theme', requirePermission('theme'), (req: Request, res: Response) => {
-  const targetId = req.user!.tenantId; // Strictly restricted to user's store
-  const { theme } = req.body;
-
-  if (!theme) {
-    return res.status(400).json({ error: 'Theme configuration missing' });
-  }
-
-  const updated = db.updateTenantTheme(targetId, theme);
-  if (!updated) {
-    return res.status(404).json({ error: 'Tenant not found' });
-  }
-
-  res.json({
-    success: true,
-    theme: updated.theme,
-    tenant: updated
-  });
-});
-
-// DELETE /api/v1/tenants/:id (RBAC guarded: 'settings')
-tenantsRouter.delete('/:id', requirePermission('settings'), (req: Request, res: Response) => {
-  const targetId = req.user!.tenantId;
-  const deleted = db.deleteTenant(targetId);
-  if (!deleted) {
-    return res.status(404).json({ error: 'Tenant not found' });
-  }
-  res.json({
-    success: true,
-    message: 'تم حذف المتجر وبياناته بنجاح'
-  });
-});
-
-// POST /api/v1/tenants/:id/verify-domain (RBAC guarded: 'settings')
-tenantsRouter.post('/:id/verify-domain', requirePermission('settings'), (req: Request, res: Response) => {
-  const targetId = req.user!.tenantId;
-  const { domain } = req.body;
-
-  const tenant = db.updateTenant(targetId, {
-    customDomain: domain,
-    customDomainVerified: true
-  });
-
-  res.json({
-    success: true,
-    verified: true,
-    domain,
-    sslStatus: 'active',
-    tenant
-  });
-});
+// DELETE /api/v1/tenants/:id - Delete tenant (Store Owner / Admin)
+tenantsRouter.delete('/:id', requirePermission('settings'), tenantController.deleteTenant);

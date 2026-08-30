@@ -1,0 +1,159 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// CommerceOS Sovereign AI Vector DB & pgvector support
+// extension: vector (1536 dimensions for OpenAI / Gemini text-embedding-004)
+model ProductEmbedding {
+  id          String   @id @default(uuid())
+  productId   String   @unique
+  productName String
+  description String?
+  price       Float
+  category    String
+  vectorJson  String   // JSON stringified vector embedding for RAG similarity match
+  createdAt   DateTime @default(now())
+}
+
+
+model StoreSetting {
+  id            String   @id @default(uuid())
+  storeName     String   @default("{{STORE_NAME}}")
+  storeNameEn   String   @default("{{STORE_NAME_EN}}")
+  currency      String   @default("{{STORE_CURRENCY}}") // SAR, USD, AED, etc.
+  primaryColor  String   @default("{{PRIMARY_COLOR}}")
+  secondaryColor String  @default("{{SECONDARY_COLOR}}")
+  logoUrl       String?  @default("{{LOGO_URL}}")
+  bannerUrl     String?  @default("{{BANNER_URL}}")
+  isDarkMode    Boolean  @default(false)
+  supportEmail  String   @default("{{SUPPORT_EMAIL}}")
+  whatsappPhone String   @default("{{WHATSAPP_PHONE}}")
+  taxRate       Float    @default(15.0)
+  shippingRate  Float    @default(25.0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(ADMIN)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String
+  nameEn    String
+  slug      String    @unique
+  icon      String?
+  image     String?
+  products  Product[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id            String           @id @default(uuid())
+  name          String
+  nameEn        String
+  slug          String           @unique
+  description   String?
+  price         Float
+  comparePrice  Float?
+  costPrice     Float?
+  sku           String           @unique
+  barcode       String?
+  stock         Int              @default(0)
+  lowStockAlert Int              @default(5)
+  images        String[]
+  isFeatured    Boolean          @default(false)
+  isNew         Boolean          @default(false)
+  isBestseller  Boolean          @default(false)
+  categoryId    String
+  category      Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  variants      ProductVariant[]
+  orderItems    OrderItem[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model ProductVariant {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String   // e.g. "أحمر / لارج"
+  price     Float
+  stock     Int      @default(0)
+  sku       String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id            String      @id @default(uuid())
+  orderNumber   String      @unique
+  customerName  String
+  customerEmail String
+  customerPhone String
+  customerCity  String
+  customerAddress String
+  items         OrderItem[]
+  subtotal      Float
+  discount      Float       @default(0.0)
+  shipping      Float       @default(0.0)
+  tax           Float       @default(0.0)
+  total         Float
+  status        OrderStatus @default(NEW)
+  paymentMethod String      @default("mada")
+  paymentStatus String      @default("paid")
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+enum OrderStatus {
+  NEW
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productName String
+  variantName String?
+  price       Float
+  quantity    Int
+  image       String?
+}
+
+model DynamicPage {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  content     String   // HTML or Markdown
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

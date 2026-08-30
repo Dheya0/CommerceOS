@@ -1,128 +1,102 @@
 import { Router, Request, Response } from 'express';
-import { db } from '../db';
-import { verifyWebhookSignature, webhookReplayStore, webhookAuditLogs } from '../utils/webhookVerifier';
-import { WebhookLog } from '../../src/types';
+import crypto from 'crypto';
+import { WebhookService } from '../../src/db/services/webhookService.ts';
+import { db } from '../db.ts';
 
 export const webhooksRouter = Router();
 
-// GET /api/v1/webhooks/logs - Get webhook audit trail (Merchant/Admin inspection)
-webhooksRouter.get('/logs', (req: Request, res: Response) => {
+// GET /api/v1/webhooks/logs - Get persistent webhook audit trail from PostgreSQL
+webhooksRouter.get('/logs', async (req: Request, res: Response) => {
+  const tenantId = req.user?.tenantId || req.query.tenantId as string | undefined;
+  try {
+    const logs = await WebhookService.getWebhookLogs(tenantId);
+    res.json({
+      success: true,
+      logs
+    });
+  } catch (err: any) {
+    console.error('[Webhooks] Failed to fetch logs:', err);
+    res.status(500).json({ success: false, error: 'فشل استرجاع سجلات الإشعارات' });
+  }
+});
+
+// POST /api/v1/webhooks/simulate - HMAC Signature Calculator & Simulator tool for Merchant Admin
+webhooksRouter.post('/simulate', async (req: Request, res: Response) => {
+  const { gateway, secret, payload, eventType, orderId, amount } = req.body;
+
+  if (!secret) {
+    return res.status(400).json({ error: 'السر التشفيري (Secret) مطلوب لمحاكاة التوقيع' });
+  }
+
+  const payloadObj = payload || {
+    id: `evt_sim_${Date.now()}`,
+    event: eventType || 'payment.captured',
+    order_id: orderId || 'ord-101',
+    amount: amount || 540,
+    currency: 'SAR',
+    created_at: new Date().toISOString()
+  };
+
+  const rawString = JSON.stringify(payloadObj);
+  const calculatedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(rawString, 'utf8')
+    .digest('hex');
+
   res.json({
     success: true,
-    logs: webhookAuditLogs
+    gateway: gateway || 'moyasar',
+    calculatedSignature: `sha256=${calculatedSignature}`,
+    rawBody: rawString,
+    payload: payloadObj,
+    sampleCurl: `curl -X POST http://localhost:3000/api/v1/webhooks/${gateway || 'moyasar'} \\
+  -H "Content-Type: application/json" \\
+  -H "X-Signature: sha256=${calculatedSignature}" \\
+  -d '${rawString}'`
   });
 });
 
-// POST /api/v1/webhooks/:gateway - Unified webhook receiver with HMAC signature verification
+// POST /api/v1/webhooks/:gateway - Unified webhook receiver with HMAC signature verification & DB Replay Protection
 webhooksRouter.post('/:gateway', async (req: Request, res: Response) => {
-  const { gateway } = req.params as { gateway: 'tamara' | 'tabby' | 'moyasar' | 'hyperpay' };
-  const signatureHeader = (req.headers['x-signature'] || 
-                           req.headers['x-tamara-signature'] || 
-                           req.headers['x-tabby-signature'] || 
-                           req.headers['x-moyasar-signature']) as string | undefined;
+  const { gateway } = req.params;
+  const signatureHeader = (
+    req.headers['x-signature'] ||
+    req.headers['x-tamara-signature'] ||
+    req.headers['x-tabby-signature'] ||
+    req.headers['x-moyasar-signature'] ||
+    req.headers['x-tap-signature'] ||
+    req.headers['x-hyperpay-signature']
+  ) as string | undefined;
 
-  const eventId = (req.body?.id || req.body?.event_id || `evt_${Date.now()}`) as string;
-  const eventType = (req.body?.event || req.body?.type || 'payment.captured') as string;
-  const startTime = Date.now();
+  const rawBody = (req as any).rawBody || JSON.stringify(req.body);
 
-  // 1. Anti-Replay Check
-  if (webhookReplayStore.isDuplicate(eventId)) {
-    const replayLog: WebhookLog = {
-      id: `wh-${Date.now()}`,
+  try {
+    const result = await WebhookService.processIncomingWebhook({
       gateway,
-      eventId,
-      eventType,
-      signature: signatureHeader || 'none',
-      verified: true,
-      timestamp: new Date().toISOString(),
-      payload: req.body,
-      status: 'replay_detected',
-      processingTimeMs: Date.now() - startTime
-    };
-    webhookAuditLogs.unshift(replayLog);
+      signatureHeader,
+      rawBody,
+      parsedBody: req.body,
+      ipAddress: req.ip
+    });
 
-    return res.status(200).json({
-      received: true,
-      warning: 'Event already processed, idempotent ACK returned'
+    // Sync in-memory store if order was updated
+    if (result.response?.orderId && result.status === 200 && result.response.status === 'processed') {
+      db.updateOrderPaymentStatus(
+        result.response.orderId,
+        'paid',
+        `تم تأكيد الدفع التلقائي عبر Webhook بوابة ${gateway.toUpperCase()} برقم معاملة موثق`,
+        undefined,
+        `Webhook: ${gateway}`
+      );
+    }
+
+    return res.status(result.status).json(result.response);
+  } catch (err: any) {
+    console.error(`[Webhook:${gateway}] Internal Error:`, err);
+    return res.status(500).json({
+      received: false,
+      status: 'failed',
+      error: 'فشل معالجة إشعار بوابة الدفع داخلياً'
     });
   }
-
-  // 2. Cryptographic Signature Verification
-  const gatewaySecrets: Record<string, string> = {
-    tamara: process.env.TAMARA_WEBHOOK_SECRET || 'test_secret_demo',
-    tabby: process.env.TABBY_WEBHOOK_SECRET || 'test_secret_demo',
-    moyasar: process.env.MOYASAR_WEBHOOK_SECRET || 'test_secret_demo',
-    hyperpay: process.env.HYPERPAY_WEBHOOK_SECRET || 'test_secret_demo'
-  };
-
-  const secret = gatewaySecrets[gateway] || 'test_secret_demo';
-  const verification = verifyWebhookSignature({
-    rawBody: req.body,
-    signatureHeader: signatureHeader || 'sha256=test_sig_authorized_webhook',
-    secret,
-    gateway
-  });
-
-  if (!verification.verified) {
-    const rejectedLog: WebhookLog = {
-      id: `wh-${Date.now()}`,
-      gateway,
-      eventId,
-      eventType,
-      signature: signatureHeader || 'none',
-      verified: false,
-      timestamp: new Date().toISOString(),
-      payload: req.body,
-      status: 'rejected',
-      processingTimeMs: Date.now() - startTime
-    };
-    webhookAuditLogs.unshift(rejectedLog);
-
-    return res.status(401).json({
-      error: 'UnauthorizedWebhook',
-      message: verification.error
-    });
-  }
-
-  // 3. Mark event as recorded in Replay Cache
-  webhookReplayStore.record(eventId);
-
-  // 4. Update order payment status if orderId found in payload
-  const orderId = req.body?.order_id || req.body?.data?.order_id || req.body?.metadata?.order_id;
-  if (orderId) {
-    db.updateOrderPaymentStatus(
-      orderId,
-      'paid',
-      `تم تأكيد الدفع التلقائي عبر Webhook بوابة ${gateway.toUpperCase()} (Event: ${eventType})`,
-      undefined,
-      `Webhook: ${gateway}`
-    );
-  }
-
-  const processedLog: WebhookLog = {
-    id: `wh-${Date.now()}`,
-    gateway,
-    eventId,
-    eventType,
-    signature: signatureHeader || 'test_verified',
-    verified: true,
-    timestamp: new Date().toISOString(),
-    payload: req.body,
-    orderId,
-    status: 'processed',
-    processingTimeMs: Date.now() - startTime
-  };
-  webhookAuditLogs.unshift(processedLog);
-
-  // Trim logs to keep memory clean
-  if (webhookAuditLogs.length > 50) {
-    webhookAuditLogs.pop();
-  }
-
-  res.status(200).json({
-    received: true,
-    status: 'processed',
-    eventId,
-    orderId
-  });
 });

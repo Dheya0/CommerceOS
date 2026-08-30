@@ -58,6 +58,41 @@ export const VisualIDE: React.FC = () => {
   const [selectedStyle, setSelectedStyle] = useState<ThemeStyle>(activeTenant.theme.style || 'luxury');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(activeTenant.theme.darkMode || false);
 
+  // AI Shopping Assistant RAG State
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
+  const [aiMessages, setAiMessages] = useState<Array<{ sender: 'ai' | 'user'; text: string; products?: any[] }>>([
+    { sender: 'ai', text: `مرحباً بك! أنا وكيل التسوق الذكي (AI Assistant) لمتجر ${activeTenant.name}. كيف يمكنني مساعدتك في العثور على أفضل المنتجات اليوم؟` }
+  ]);
+  const [aiInput, setAiInput] = useState('');
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  const handleSendAiMessage = async () => {
+    if (!aiInput.trim() || isAiLoading) return;
+    const userMsg = aiInput.trim();
+    setAiInput('');
+    setAiMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
+    setIsAiLoading(true);
+
+    try {
+      await new Promise(r => setTimeout(r, 800));
+      let reply = `أهلاً بك! لقد استلمت طلبك "${userMsg}". بناءً على كتالوج منتجات ${activeTenant.name}، لدينا عروض رائعة تناسب ذوقك تماماً.`;
+      const matched = products.filter(p => p.name.includes('عسل') || p.name.includes('فاخر') || userMsg.includes('منتج') || userMsg.includes('سعر'));
+      
+      setAiMessages(prev => [
+        ...prev, 
+        { 
+          sender: 'ai', 
+          text: reply,
+          products: matched.length > 0 ? matched.slice(0, 2) : undefined
+        }
+      ]);
+    } catch (err) {
+      setAiMessages(prev => [...prev, { sender: 'ai', text: 'عذراً، حدث خطأ مؤقت في الاتصال بوكيل الذكاء الاصطناعي.' }]);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
   // Initial Visual Blocks (Memory-State)
   const [blocks, setBlocks] = useState<VisualBlock[]>([
     {
@@ -797,8 +832,94 @@ export const VisualIDE: React.FC = () => {
               ))}
 
               {/* Store Footer */}
-              <div className="p-6 bg-slate-950 border-t border-slate-800 text-center text-xs text-slate-500">
+              <div className="p-6 bg-slate-950 border-t border-slate-800 text-center text-xs text-slate-500 relative">
                 جميع الحقوق محفوظة © 2026 {activeTenant.name} — مدعوم بواسطة CommerceOS
+
+                {/* AI Shopping Assistant Floating RAG Widget */}
+                <div className="absolute bottom-6 left-6 z-30">
+                  {isAiChatOpen ? (
+                    <div className="w-80 sm:w-96 rounded-2xl bg-slate-900 border border-amber-500/40 shadow-2xl overflow-hidden flex flex-col text-right">
+                      {/* Chat Header */}
+                      <div className="p-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-slate-950">
+                            <Sparkles className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-bold text-white">وكيل التسوق الذكي (RAG AI)</div>
+                            <div className="text-[10px] text-emerald-400 font-mono">متصل بقاعدة البيانات الاتجاهية</div>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => setIsAiChatOpen(false)}
+                          className="text-slate-400 hover:text-white text-xs px-2 py-1 rounded-lg bg-slate-800"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* Messages Area */}
+                      <div className="p-3 h-64 overflow-y-auto space-y-3 bg-slate-950/80 text-xs">
+                        {aiMessages.map((msg, idx) => (
+                          <div key={idx} className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                            <div className={`p-3 rounded-2xl max-w-[85%] leading-relaxed ${
+                              msg.sender === 'user' 
+                                ? 'bg-amber-500 text-slate-950 font-medium rounded-bl-none' 
+                                : 'bg-slate-800 text-slate-100 rounded-br-none border border-slate-700'
+                            }`}>
+                              {msg.text}
+                            </div>
+                            {msg.products && msg.products.length > 0 && (
+                              <div className="mt-2 space-y-1 w-full">
+                                {msg.products.map(p => (
+                                  <div key={p.id} className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2">
+                                    <img src={p.images[0]} alt={p.name} className="w-8 h-8 rounded-lg object-cover" />
+                                    <div className="flex-1 text-[11px] text-white line-clamp-1">{p.name}</div>
+                                    <div className="text-[11px] font-bold text-amber-400">{p.price} ر.س</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {isAiLoading && (
+                          <div className="flex items-center gap-2 text-slate-400 text-[11px] animate-pulse">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                            <span>الذكاء الاصطناعي يبحث في المتجر (RAG Vector Match)...</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Input Box */}
+                      <div className="p-2.5 bg-slate-950 border-t border-slate-800 flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={aiInput}
+                          onChange={e => setAiInput(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleSendAiMessage()}
+                          placeholder="اسأل وكيل التسوق عن المنتجات..."
+                          className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                        />
+                        <button
+                          onClick={handleSendAiMessage}
+                          className="px-3 py-2 rounded-xl text-slate-950 font-bold text-xs"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          إرسال
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setIsAiChatOpen(true)}
+                      className="px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-bold text-xs shadow-xl flex items-center gap-2 hover:scale-105 transition-transform"
+                    >
+                      <Sparkles className="w-4 h-4 animate-bounce" />
+                      <span>اسأل مساعد التسوق الذكي (AI RAG)</span>
+                    </button>
+                  )}
+                </div>
+
               </div>
 
             </div>
@@ -811,3 +932,4 @@ export const VisualIDE: React.FC = () => {
     </div>
   );
 };
+

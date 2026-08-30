@@ -1,0 +1,20 @@
+{
+  "name": "store-base-template",
+  "version": "1.0.0",
+  "description": "CommerceOS Generated Store Base Template (Node.js Express + React SPA)",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "concurrently \"node server/index.js\" \"vite\""
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "@prisma/client": "^5.10.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.10.0",
+    "concurrently": "^8.2.2"
+  }
+}

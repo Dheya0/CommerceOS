@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sparkles, 
   ArrowRight, 
@@ -40,7 +41,8 @@ import {
   Sun,
   Moon,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  Download
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCommerce } from '../../context/CommerceContext';
@@ -55,7 +57,8 @@ import {
   TenantStore, 
   ThemeLayout, 
   ThemeStyle,
-  BankAccount 
+  BankAccount,
+  StorePageItem
 } from '../../types';
 import { 
   BUSINESS_TYPE_CONFIG, 
@@ -74,9 +77,126 @@ export const StoreBuilderWizard: React.FC = () => {
   // Primary Building Path Mode: 'wizard' | 'starter_kits' | 'express'
   const [buildMode, setBuildMode] = useState<'wizard' | 'starter_kits' | 'express'>('wizard');
 
-  // Wizard Step (1 to 6, 7 is Celebration)
+  // Wizard Step (1 to 7, 8 is Celebration)
   const [step, setStep] = useState<number>(1);
-  const totalSteps = 6;
+  const totalSteps = 8;
+
+  // Step 2 & 3: Page Architecture & Sitemap + Page Builder & Blocks
+  const [storePages, setStorePages] = useState<StorePageItem[]>([
+    { 
+      id: 'p-home', 
+      slug: '', 
+      titleAr: 'الرئيسية', 
+      titleEn: 'Home', 
+      type: 'home', 
+      enabled: true, 
+      isDefault: true,
+      blocks: [
+        { id: 'b-1', type: 'hero_banner', title: 'الهيرو بانر الرئيسي', enabled: true, order: 1, config: { heading: 'اكتشف روعة العسل الطبيعي الأصيل', subtitle: 'مفحوص مخبرياً ومضمون 100% من أعالي الجبال ومناحلنا الخاصة.', buttonText: 'تسوق المنتجات الآن', showButton: true, backgroundImage: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=1200&auto=format&fit=crop&q=80', alignment: 'right' } },
+        { id: 'b-2', type: 'categories_grid', title: 'شبكة التصنيفات', enabled: true, order: 2, config: { heading: 'تصنيفات المتجر', columns: 4 } },
+        { id: 'b-3', type: 'products_grid', title: 'أحدث المنتجات', enabled: true, order: 3, config: { heading: 'المنتجات الأكثر مبيعاً والأعلى تقييماً', columns: 3 } },
+        { id: 'b-4', type: 'testimonials', title: 'آراء العملاء', enabled: true, order: 4, config: { heading: 'ماذا يقول عملاؤنا عنا؟' } }
+      ]
+    },
+    { 
+      id: 'p-products', 
+      slug: 'products', 
+      titleAr: 'المنتجات والتصنيفات', 
+      titleEn: 'Products', 
+      type: 'products', 
+      enabled: true, 
+      isDefault: true,
+      blocks: [
+        { id: 'bp-1', type: 'products_grid', title: 'كتالوج المنتجات الشامل', enabled: true, order: 1, config: { heading: 'جميع منتجات المتجر', columns: 3 } }
+      ]
+    },
+    { 
+      id: 'p-about', 
+      slug: 'about', 
+      titleAr: 'من نحن', 
+      titleEn: 'About Us', 
+      type: 'about', 
+      enabled: true,
+      blocks: [
+        { id: 'ba-1', type: 'text_image', title: 'مقطع نصي مع صورة', enabled: true, order: 1, config: { heading: 'قصة نجاح مناحلنا الملكية', content: 'نحن نؤمن بأن العسل الطبيعي هو هبة الطبيعة الأنقياء للصحة والعافية. تأسست مناحلنا قبل أكثر من 15 عاماً لنقدم أجود وأعرق أنواع العسل الخام.', backgroundImage: 'https://images.unsplash.com/photo-1471943311424-646960669fbc?w=800&auto=format&fit=crop&q=80', alignment: 'right' } }
+      ]
+    },
+    { 
+      id: 'p-contact', 
+      slug: 'contact', 
+      titleAr: 'اتصل بنا', 
+      titleEn: 'Contact Us', 
+      type: 'contact', 
+      enabled: true,
+      blocks: [
+        { id: 'bc-1', type: 'text_image', title: 'نموذج التواصل وخدمة العملاء', enabled: true, order: 1, config: { heading: 'تواصل معنا في أي وقت', content: 'فريق دعم العملاء جاهز للإجابة على استفساراتكم على مدار الساعة عبر الواتساب أو البريد الإلكتروني.' } }
+      ]
+    },
+    { 
+      id: 'p-faq', 
+      slug: 'faq', 
+      titleAr: 'الأسئلة الشائعة', 
+      titleEn: 'FAQ', 
+      type: 'faq', 
+      enabled: true,
+      blocks: [
+        { id: 'bf-1', type: 'faq_accordion', title: 'الأسئلة الشائعة وإجاباتها', enabled: true, order: 1, config: { heading: 'الأسئلة المتكررة' } }
+      ]
+    }
+  ]);
+  const [isAddingPageModal, setIsAddingPageModal] = useState(false);
+  const [newPageTitleAr, setNewPageTitleAr] = useState('');
+  const [newPageSlug, setNewPageSlug] = useState('');
+  const [newPageType, setNewPageType] = useState<StorePageItem['type']>('custom');
+
+  // Currently selected page index for Step 3 (Page Builder)
+  const [selectedBuilderPageIndex, setSelectedBuilderPageIndex] = useState<number>(0);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>('b-1');
+
+  const handleAddPage = () => {
+    if (storePages.length >= 10) {
+      showToast('عذراً، الحد الأقصى للمتاجر هو 10 صفحات حالياً', 'warning');
+      return;
+    }
+    if (!newPageTitleAr.trim()) {
+      showToast('يرجى إدخال عنوان الصفحة', 'error');
+      return;
+    }
+    const slug = newPageSlug.trim() || newPageTitleAr.toLowerCase().replace(/\s+/g, '-');
+    const newPage: StorePageItem = {
+      id: `page-${Date.now()}`,
+      slug,
+      titleAr: newPageTitleAr.trim(),
+      titleEn: newPageTitleAr.trim(),
+      type: newPageType,
+      enabled: true
+    };
+    setStorePages(prev => [...prev, newPage]);
+    setNewPageTitleAr('');
+    setNewPageSlug('');
+    setIsAddingPageModal(false);
+    showToast('تمت إضافة الصفحة إلى خريطة الموقع وشريط التنقل بنجاح', 'success');
+  };
+
+  const handleRemovePage = (id: string) => {
+    const page = storePages.find(p => p.id === id);
+    if (page?.isDefault) {
+      showToast('لا يمكن حذف الصفحات الأساسية (الرئيسية والمنتجات)', 'warning');
+      return;
+    }
+    setStorePages(prev => prev.filter(p => p.id !== id));
+    showToast('تم حذف الصفحة من خريطة الموقع', 'info');
+  };
+
+  const handleMovePage = (index: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= storePages.length) return;
+    const updated = [...storePages];
+    const temp = updated[index];
+    updated[index] = updated[newIndex];
+    updated[newIndex] = temp;
+    setStorePages(updated);
+  };
 
   // Step 1: Business Type & Identity
   const [businessType, setBusinessType] = useState<BusinessType>('honey');
@@ -150,6 +270,8 @@ export const StoreBuilderWizard: React.FC = () => {
 
   // Preview Device State
   const [previewTab, setPreviewTab] = useState<'mobile' | 'desktop'>('desktop');
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(false);
+  const [isGeneratingStore, setIsGeneratingStore] = useState<boolean>(false);
 
   // Compute live tokens
   const liveTokens = generateDesignTokens(primaryColor, themeStyle, darkMode);
@@ -291,6 +413,7 @@ export const StoreBuilderWizard: React.FC = () => {
       plan: 'business',
       status: 'active',
       createdAt: new Date().toISOString(),
+      pages: storePages,
       contact: {
         email: contactEmail,
         phone: contactPhone,
@@ -406,17 +529,111 @@ export const StoreBuilderWizard: React.FC = () => {
       }
     ];
 
-    createTenant(newTenant, sampleProducts, sampleCategories);
-    setActiveTenantId(newTenantId);
+    setIsGeneratingStore(true);
+    setTimeout(() => {
+      createTenant(newTenant, sampleProducts, sampleCategories);
+      setActiveTenantId(newTenantId);
+      setIsGeneratingStore(false);
 
-    // Fire celebratory confetti!
-    confetti({
-      particleCount: 140,
-      spread: 80,
-      origin: { y: 0.6 }
-    });
+      // Fire celebratory confetti!
+      confetti({
+        particleCount: 140,
+        spread: 80,
+        origin: { y: 0.6 }
+      });
 
-    setStep(7); // Show celebration & launch pad
+      setStep(8); // Show celebration & launch pad
+    }, 1600);
+  };
+
+  // Export handlers for Step 5 / Final Export Center
+  const getStructuredStoreJson = () => ({
+    store_id: `str_${slug || '12345'}`,
+    owner_id: "usr_987",
+    branding: {
+      logo_url: logoUrl || "https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=500&auto=format&fit=crop&q=80",
+      primary_color: primaryColor || "#0F4C81",
+      font_family: fontFamily || "Tajawal"
+    },
+    pages: storePages.map((page, pIdx) => ({
+      id: page.id || `page_${pIdx + 1}`,
+      title: page.titleAr || page.titleEn,
+      slug: page.slug ? `/${page.slug}` : "/",
+      blocks: (page.blocks && page.blocks.length > 0) ? page.blocks.map(b => ({
+        type: b.type === 'hero_banner' ? 'HeroSection' : b.type === 'products_grid' ? 'ProductGrid' : b.type === 'text_image' ? 'TextWithImage' : b.type === 'categories_grid' ? 'CategoriesGrid' : b.type === 'testimonials' ? 'Testimonials' : 'FAQAccordion',
+        props: {
+          title: b.config.heading || b.title,
+          btn_text: b.config.buttonText,
+          content: b.config.subtitle || b.config.content,
+          image: b.config.backgroundImage,
+          limit: 8,
+          show_price: true,
+          ...b.config
+        }
+      })) : [
+        { type: "HeroSection", props: { title: page.titleAr, btn_text: "تسوق الآن" } }
+      ]
+    })),
+    commerce_settings: {
+      currency: currency || "SAR",
+      whatsapp_number: paymentGateways.whatsappNumber || "+966500000000",
+      shipping_cost: shippingCost,
+      free_shipping_threshold: freeShippingThreshold,
+      bank_accounts: bankAccounts,
+      payment_gateways: paymentGateways
+    },
+    meta: {
+      storeName,
+      slogan,
+      description,
+      themeStyle,
+      themeLayout,
+      createdAt: new Date().toISOString()
+    }
+  });
+
+  const handleExportWebZip = () => {
+    const jsonString = JSON.stringify(getStructuredStoreJson(), null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${slug || 'store'}-web-bundle.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('تم تصدير حزمة ويب المتجر بنجاح 📦', 'success');
+  };
+
+  const handleExportCapacitor = () => {
+    const capacitorConfig = {
+      appId: `com.commerceos.${slug || 'store'}`,
+      appName: storeName,
+      webDir: "dist",
+      bundledWebRuntime: false,
+      plugins: {
+        SplashScreen: {
+          launchShowDuration: 2000,
+          backgroundColor: primaryColor
+        }
+      },
+      server: {
+        androidScheme: "https"
+      }
+    };
+    const jsonString = JSON.stringify(capacitorConfig, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${slug || 'store'}-capacitor.config.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('تم تصدير كود Capacitor لتطبيق الجوال بنجاح 📱', 'success');
+  };
+
+  const handleCopyJson = () => {
+    navigator.clipboard.writeText(JSON.stringify(getStructuredStoreJson(), null, 2));
+    showToast('تم نسخ هيكل الـ JSON النهائي للحافظة بنجاح 📋', 'success');
   };
 
   // Turnkey Starter Kits
@@ -561,11 +778,13 @@ export const StoreBuilderWizard: React.FC = () => {
             <div className="flex items-center justify-center gap-2 pt-4">
               {[
                 { s: 1, label: 'القطاع والهوية' },
-                { s: 2, label: 'الشعار والأيقونة' },
-                { s: 3, label: 'الألوان والخطوط' },
-                { s: 4, label: 'العملات والمدن' },
-                { s: 5, label: 'بوابات الدفع' },
-                { s: 6, label: 'المعاينة والإطلاق' }
+                { s: 2, label: 'هندسة الصفحات' },
+                { s: 3, label: 'محرر المحتوى والمقاطع' },
+                { s: 4, label: 'الشعار والأيقونة' },
+                { s: 5, label: 'الألوان والخطوط' },
+                { s: 6, label: 'العملات والمدن' },
+                { s: 7, label: 'بوابات الدفع' },
+                { s: 8, label: 'المراجعة والإطلاق' }
               ].map(item => (
                 <div key={item.s} className="flex items-center gap-1.5">
                   <button
@@ -787,13 +1006,587 @@ export const StoreBuilderWizard: React.FC = () => {
                 </div>
               )}
 
-              {/* STEP 2: LOGO & VISUAL ASSETS (CROP + FAVICON .ICO) */}
+              {/* STEP 2: PAGE ARCHITECTURE & SITEMAP */}
               {step === 2 && (
+                <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 animate-in fade-in duration-200 text-right">
+                  <div className="border-b border-slate-800 pb-4 flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-black text-white flex items-center gap-2">
+                        <Layers className="w-5 h-5 text-amber-400" />
+                        <span>الخطوة 2: هندسة الصفحات وخريطة الموقع (Sitemap & Navbar)</span>
+                      </h2>
+                      <p className="text-xs text-slate-400 mt-1">
+                        بناء هيكل المتجر الديناميكي وتكوين صفحات التنقل (حتى 10 صفحات). رتب الصفحات لتظهر تلقائياً في شريط التنقل (Navbar).
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (storePages.length >= 10) {
+                          showToast('عذراً، الحد الأقصى للمتاجر هو 10 صفحات حالياً', 'warning');
+                          return;
+                        }
+                        setIsAddingPageModal(true);
+                      }}
+                      className="px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-lg flex items-center gap-2 transition-all shrink-0"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>إضافة صفحة جديدة +</span>
+                    </button>
+                  </div>
+
+                  {/* Pages List / Reorder / Sitemap */}
+                  <div className="space-y-3">
+                    <div className="text-xs font-bold text-slate-300 flex items-center justify-between">
+                      <span>ترتيب شريط التنقل (Navbar Sitemap Order)</span>
+                      <span className="text-[11px] text-amber-400 font-mono">{storePages.length} / 10 صفحات نشطة</span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {storePages.map((page, idx) => (
+                        <div
+                          key={page.id}
+                          className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-4 group hover:border-slate-700 transition-all"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-black text-amber-400 font-mono">
+                              {idx + 1}
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold text-white flex items-center gap-2">
+                                <span>{page.titleAr}</span>
+                                {page.isDefault && (
+                                  <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 text-[9px] border border-amber-500/20">
+                                    أساسية
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-slate-400 font-mono mt-0.5" dir="ltr">
+                                /{page.slug}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {/* Move Up/Down */}
+                            <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => handleMovePage(idx, 'up')}
+                                className="p-1 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
+                                title="تحريك لأعلى"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === storePages.length - 1}
+                                onClick={() => handleMovePage(idx, 'down')}
+                                className="p-1 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
+                                title="تحريك لأسفل"
+                              >
+                                ▼
+                              </button>
+                            </div>
+
+                            {/* Toggle Enable/Disable */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStorePages(prev => prev.map(p => p.id === page.id ? { ...p, enabled: !p.enabled } : p));
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-colors ${
+                                page.enabled 
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                                  : 'bg-slate-900 text-slate-500 border-slate-800'
+                              }`}
+                            >
+                              {page.enabled ? 'نشط في القائمة' : 'مخفي'}
+                            </button>
+
+                            {/* Delete (if not default) */}
+                            {!page.isDefault && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemovePage(page.id)}
+                                className="p-2 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"
+                                title="حذف الصفحة"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Modal / Inline Add Page Drawer */}
+                  {isAddingPageModal && (
+                    <div className="p-5 rounded-2xl bg-slate-950 border border-amber-500/40 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                        <h3 className="text-sm font-black text-white flex items-center gap-2">
+                          <Plus className="w-4 h-4 text-amber-400" />
+                          <span>إضافة صفحة جديدة لخريطة الموقع</span>
+                        </h3>
+                        <button onClick={() => setIsAddingPageModal(false)} className="text-xs text-slate-400 hover:text-white">إلغاء</button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-300">عنوان الصفحة</label>
+                          <input
+                            type="text"
+                            value={newPageTitleAr}
+                            onChange={(e) => {
+                              setNewPageTitleAr(e.target.value);
+                              setNewPageSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'));
+                            }}
+                            placeholder="مثال: من نحن / اتصل بنا / سياسة الاسترجاع"
+                            className="w-full py-2.5 px-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-slate-300">رابط الصفحة (Slug)</label>
+                          <input
+                            type="text"
+                            value={newPageSlug}
+                            onChange={(e) => setNewPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                            placeholder="about-us"
+                            className="w-full py-2.5 px-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500 font-mono"
+                            dir="ltr"
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-xs font-bold text-slate-300">نوع الصفحة المحتوى</label>
+                          <select
+                            value={newPageType}
+                            onChange={(e) => setNewPageType(e.target.value as any)}
+                            className="w-full py-2.5 px-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                          >
+                            <option value="about">صفحة من نحن (About Us)</option>
+                            <option value="contact">صفحة اتصل بنا (Contact Us)</option>
+                            <option value="faq">صفحة الأسئلة الشائعة (FAQ)</option>
+                            <option value="refund">سياسة الاسترجاع والاستبدال (Refund Policy)</option>
+                            <option value="privacy">سياسة الخصوصية (Privacy Policy)</option>
+                            <option value="blog">المدونة والمقالات (Blog)</option>
+                            <option value="custom">صفحة مخصصة حرة (Custom Page)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingPageModal(false)}
+                          className="px-4 py-2 rounded-xl bg-slate-900 text-xs font-bold text-slate-300 hover:bg-slate-800"
+                        >
+                          إلغاء
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleAddPage}
+                          className="px-5 py-2 rounded-xl bg-amber-500 text-slate-950 font-black text-xs hover:bg-amber-400"
+                        >
+                          حفظ وإضافة الصفحة
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* STEP 3: PAGE BUILDER & BLOCKS (المرحلة 3: محرر محتوى الصفحات والمقاطع) */}
+              {step === 3 && (
+                <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 animate-in fade-in duration-200 text-right">
+                  <div className="border-b border-slate-800 pb-4">
+                    <h2 className="text-xl font-black text-white flex items-center gap-2">
+                      <Layout className="w-5 h-5 text-amber-400" />
+                      <span>الخطوة 3: محرر محتوى الصفحات والمقاطع (Page Builder & Blocks)</span>
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1">
+                      مر على صفحات متجرك صفحة صفحة لتخصيص ترتيب المقاطع (هيرو بانر، شبكة تصنيفات، أحدث المنتجات، آراء العملاء، مقطع نصي مع صورة) وإعداداتها الجانبية بدقة.
+                    </p>
+                  </div>
+
+                  {/* Page Selector Tabs */}
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-slate-300">اختر الصفحة المراد تحرير مقاطعها:</label>
+                    <div className="flex flex-wrap gap-2">
+                      {storePages.map((page, pIdx) => (
+                        <button
+                          key={page.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedBuilderPageIndex(pIdx);
+                            if (page.blocks && page.blocks.length > 0) {
+                              setSelectedBlockId(page.blocks[0].id);
+                            } else {
+                              setSelectedBlockId(null);
+                            }
+                          }}
+                          className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all border flex items-center gap-2 ${
+                            selectedBuilderPageIndex === pIdx 
+                              ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg scale-105' 
+                              : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
+                          }`}
+                        >
+                          <span>{page.titleAr}</span>
+                          <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-black/20 font-mono">
+                            {page.blocks?.length || 0} مقاطع
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Current Page Blocks & Inspector */}
+                  {storePages[selectedBuilderPageIndex] && (
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+                      
+                      {/* Left/Right Column: Blocks List & Reorder */}
+                      <div className="lg:col-span-7 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-black text-white flex items-center gap-2">
+                            <Layers className="w-4 h-4 text-amber-400" />
+                            <span>مقاّع صفحة: "{storePages[selectedBuilderPageIndex].titleAr}"</span>
+                          </h3>
+
+                          {/* Add New Block Dropdown / Button */}
+                          <div className="flex items-center gap-2">
+                            <select
+                              onChange={(e) => {
+                                const type = e.target.value as any;
+                                if (!type) return;
+                                const newBlock = {
+                                  id: `block-${Date.now()}`,
+                                  type,
+                                  title: type === 'hero_banner' ? 'بانر رئيسي جديد' : type === 'text_image' ? 'مقطع نص وصورة' : 'شبكة عرض',
+                                  enabled: true,
+                                  order: (storePages[selectedBuilderPageIndex].blocks?.length || 0) + 1,
+                                  config: { heading: 'عنوان المقطع الجديد', subtitle: 'وصف أو تفاصيل إضافية للمقطع', showButton: true, buttonText: 'استكشف المزيد', alignment: 'right' }
+                                };
+                                const updatedPages = [...storePages];
+                                const currentBlocks = updatedPages[selectedBuilderPageIndex].blocks || [];
+                                updatedPages[selectedBuilderPageIndex].blocks = [...currentBlocks, newBlock];
+                                setStorePages(updatedPages);
+                                setSelectedBlockId(newBlock.id);
+                                showToast('تمت إضافة المقطع بنجاح', 'success');
+                                e.target.value = '';
+                              }}
+                              defaultValue=""
+                              className="py-1.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-amber-400 font-bold focus:outline-none focus:border-amber-500"
+                            >
+                              <option value="" disabled>+ إضافة مقطع جديد...</option>
+                              <option value="hero_banner">بانر رئيسي (Hero Banner)</option>
+                              <option value="text_image">مقطع نصي مع صورة (Text & Image)</option>
+                              <option value="categories_grid">شبكة التصنيفات (Categories Grid)</option>
+                              <option value="products_grid">شبكة المنتجات (Products Grid)</option>
+                              <option value="testimonials">آراء العملاء (Testimonials)</option>
+                              <option value="faq_accordion">الأسئلة الشائعة (FAQ Accordion)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Blocks list */}
+                        <div className="space-y-2.5">
+                          {(!storePages[selectedBuilderPageIndex].blocks || storePages[selectedBuilderPageIndex].blocks?.length === 0) ? (
+                            <div className="p-8 text-center rounded-2xl bg-slate-950 border border-slate-800 text-slate-400 text-xs">
+                              لا توجد مقاطع في هذه الصفحة حتى الآن. أضف مقطعاً جديداً من القائمة أعلاه.
+                            </div>
+                          ) : (
+                            storePages[selectedBuilderPageIndex].blocks?.map((block, bIdx) => (
+                              <div
+                                key={block.id}
+                                onClick={() => setSelectedBlockId(block.id)}
+                                className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                                  selectedBlockId === block.id 
+                                    ? 'bg-slate-950 border-amber-500 shadow-lg' 
+                                    : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-7 h-7 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-black text-amber-400 font-mono">
+                                    {bIdx + 1}
+                                  </div>
+                                  <div>
+                                    <div className="text-xs font-bold text-white flex items-center gap-2">
+                                      <span>{block.title || block.type}</span>
+                                      <span className="px-2 py-0.5 rounded bg-slate-900 text-slate-400 text-[9px] border border-slate-800 font-mono">
+                                        {block.type}
+                                      </span>
+                                    </div>
+                                    <div className="text-[11px] text-slate-400 truncate max-w-xs mt-0.5">
+                                      {block.config.heading || 'بدون عنوان فرعي'}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                  {/* Up / Down */}
+                                  <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                                    <button
+                                      type="button"
+                                      disabled={bIdx === 0}
+                                      onClick={() => {
+                                        const blocks = [...(storePages[selectedBuilderPageIndex].blocks || [])];
+                                        const temp = blocks[bIdx];
+                                        blocks[bIdx] = blocks[bIdx - 1];
+                                        blocks[bIdx - 1] = temp;
+                                        const updatedPages = [...storePages];
+                                        updatedPages[selectedBuilderPageIndex].blocks = blocks;
+                                        setStorePages(updatedPages);
+                                      }}
+                                      className="p-1 rounded text-slate-400 hover:text-white disabled:opacity-30"
+                                    >
+                                      ▲
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={bIdx === (storePages[selectedBuilderPageIndex].blocks?.length || 0) - 1}
+                                      onClick={() => {
+                                        const blocks = [...(storePages[selectedBuilderPageIndex].blocks || [])];
+                                        const temp = blocks[bIdx];
+                                        blocks[bIdx] = blocks[bIdx + 1];
+                                        blocks[bIdx + 1] = temp;
+                                        const updatedPages = [...storePages];
+                                        updatedPages[selectedBuilderPageIndex].blocks = blocks;
+                                        setStorePages(updatedPages);
+                                      }}
+                                      className="p-1 rounded text-slate-400 hover:text-white disabled:opacity-30"
+                                    >
+                                      ▼
+                                    </button>
+                                  </div>
+
+                                  {/* Toggle Active */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updatedPages = [...storePages];
+                                      const blocks = updatedPages[selectedBuilderPageIndex].blocks || [];
+                                      updatedPages[selectedBuilderPageIndex].blocks = blocks.map(b => b.id === block.id ? { ...b, enabled: !b.enabled } : b);
+                                      setStorePages(updatedPages);
+                                    }}
+                                    className={`px-2.5 py-1 rounded-xl text-[10px] font-bold border ${
+                                      block.enabled ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-900 text-slate-500 border-slate-800'
+                                    }`}
+                                  >
+                                    {block.enabled ? 'نشط' : 'مخفي'}
+                                  </button>
+
+                                  {/* Delete Block */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updatedPages = [...storePages];
+                                      updatedPages[selectedBuilderPageIndex].blocks = (updatedPages[selectedBuilderPageIndex].blocks || []).filter(b => b.id !== block.id);
+                                      setStorePages(updatedPages);
+                                      showToast('تم حذف المقطع', 'info');
+                                    }}
+                                    className="p-1.5 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right/Left Column: Selected Block Settings Inspector (Floating Glassmorphism Panel) */}
+                      <div className="lg:col-span-5 p-6 rounded-3xl backdrop-blur-xl bg-slate-900/90 border border-slate-700/60 shadow-2xl space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                          <h3 className="text-sm font-black text-amber-400 flex items-center gap-2">
+                            <Sliders className="w-4 h-4" />
+                            <span>إعدادات المقطع المحدد (Block Inspector)</span>
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={() => setShowAdvancedOptions(prev => !prev)}
+                            className="px-2.5 py-1 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-[10px] font-bold border border-slate-700 transition-colors flex items-center gap-1"
+                          >
+                            <span>{showAdvancedOptions ? 'إخفاء الإعدادات المتقدمة' : 'إعدادات متقدمة ⚙️'}</span>
+                          </button>
+                        </div>
+
+                        {(() => {
+                          const currentBlock = storePages[selectedBuilderPageIndex].blocks?.find(b => b.id === selectedBlockId);
+                          if (!currentBlock) {
+                            return (
+                              <div className="text-center py-8 text-slate-500 text-xs">
+                                اختر مقطعاً من القائمة الجانبية لتعديل خصائصه وتخصيصه.
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="space-y-4">
+                              <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-300">عنوان المقطع (في لوحة التحكم)</label>
+                                <input
+                                  type="text"
+                                  value={currentBlock.title}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const updatedPages = [...storePages];
+                                    updatedPages[selectedBuilderPageIndex].blocks = updatedPages[selectedBuilderPageIndex].blocks?.map(b => b.id === currentBlock.id ? { ...b, title: val } : b);
+                                    setStorePages(updatedPages);
+                                  }}
+                                  className="w-full py-2 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-xs font-bold text-slate-300">العنوان الرئيسي (Heading)</label>
+                                <input
+                                  type="text"
+                                  value={currentBlock.config.heading || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const updatedPages = [...storePages];
+                                    updatedPages[selectedBuilderPageIndex].blocks = updatedPages[selectedBuilderPageIndex].blocks?.map(b => b.id === currentBlock.id ? { ...b, config: { ...b.config, heading: val } } : b);
+                                    setStorePages(updatedPages);
+                                  }}
+                                  className="w-full py-2 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                                />
+                              </div>
+
+                              {(currentBlock.type === 'hero_banner' || currentBlock.type === 'text_image') && (
+                                <>
+                                  <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-300">النص التعريفي / المحتوى</label>
+                                    <textarea
+                                      rows={3}
+                                      value={currentBlock.config.subtitle || currentBlock.config.content || ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedPages = [...storePages];
+                                        updatedPages[selectedBuilderPageIndex].blocks = updatedPages[selectedBuilderPageIndex].blocks?.map(b => b.id === currentBlock.id ? { ...b, config: { ...b.config, subtitle: val, content: val } } : b);
+                                        setStorePages(updatedPages);
+                                      }}
+                                      className="w-full py-2 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500 leading-relaxed"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <label className="text-xs font-bold text-slate-300">رابط صورة الخلفية (Background Image)</label>
+                                    <input
+                                      type="text"
+                                      value={currentBlock.config.backgroundImage || ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedPages = [...storePages];
+                                        updatedPages[selectedBuilderPageIndex].blocks = updatedPages[selectedBuilderPageIndex].blocks?.map(b => b.id === currentBlock.id ? { ...b, config: { ...b.config, backgroundImage: val } } : b);
+                                        setStorePages(updatedPages);
+                                      }}
+                                      className="w-full py-2 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                                      dir="ltr"
+                                    />
+                                  </div>
+                                </>
+                              )}
+
+                              {currentBlock.type === 'hero_banner' && (
+                                <div className="space-y-3 pt-2 border-t border-slate-800">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-slate-300">إظهار زر الإجراء (CTA Button)</span>
+                                    <input
+                                      type="checkbox"
+                                      checked={currentBlock.config.showButton ?? true}
+                                      onChange={(e) => {
+                                        const val = e.target.checked;
+                                        const updatedPages = [...storePages];
+                                        updatedPages[selectedBuilderPageIndex].blocks = updatedPages[selectedBuilderPageIndex].blocks?.map(b => b.id === currentBlock.id ? { ...b, config: { ...b.config, showButton: val } } : b);
+                                        setStorePages(updatedPages);
+                                      }}
+                                      className="w-4 h-4 rounded bg-slate-950 border-slate-800 text-amber-500 focus:ring-0"
+                                    />
+                                  </div>
+
+                                  {currentBlock.config.showButton !== false && (
+                                    <div className="space-y-1">
+                                      <label className="text-xs font-bold text-slate-300">نص الزر</label>
+                                      <input
+                                        type="text"
+                                        value={currentBlock.config.buttonText || ''}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          const updatedPages = [...storePages];
+                                          updatedPages[selectedBuilderPageIndex].blocks = updatedPages[selectedBuilderPageIndex].blocks?.map(b => b.id === currentBlock.id ? { ...b, config: { ...b.config, buttonText: val } } : b);
+                                          setStorePages(updatedPages);
+                                        }}
+                                        className="w-full py-2 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Progressive Disclosure: Advanced Options */}
+                              {showAdvancedOptions && (
+                                <div className="p-4 rounded-2xl bg-slate-950/80 border border-amber-500/30 space-y-3 animate-in fade-in duration-200 mt-3">
+                                  <div className="text-[11px] font-black text-amber-400 flex items-center gap-1.5">
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    <span>خيارات متقدمة للمقطع (Advanced Properties)</span>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <label className="text-[11px] font-bold text-slate-300">محاذاة المحتوى (Alignment)</label>
+                                    <select
+                                      value={currentBlock.config.alignment || 'right'}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedPages = [...storePages];
+                                        updatedPages[selectedBuilderPageIndex].blocks = updatedPages[selectedBuilderPageIndex].blocks?.map(b => b.id === currentBlock.id ? { ...b, config: { ...b.config, alignment: val } } : b);
+                                        setStorePages(updatedPages);
+                                      }}
+                                      className="w-full py-1.5 px-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500"
+                                    >
+                                      <option value="right">يمين (Right)</option>
+                                      <option value="center">وسط (Center)</option>
+                                      <option value="left">يسار (Left)</option>
+                                    </select>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <label className="text-[11px] font-bold text-slate-300">فئات مخصصة (Custom CSS Classes)</label>
+                                    <input
+                                      type="text"
+                                      value={currentBlock.config.customCssClass || ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updatedPages = [...storePages];
+                                        updatedPages[selectedBuilderPageIndex].blocks = updatedPages[selectedBuilderPageIndex].blocks?.map(b => b.id === currentBlock.id ? { ...b, config: { ...b.config, customCssClass: val } } : b);
+                                        setStorePages(updatedPages);
+                                      }}
+                                      placeholder="e.g. shadow-2xl py-12"
+                                      className="w-full py-1.5 px-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white font-mono focus:outline-none focus:border-amber-500"
+                                      dir="ltr"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* STEP 4: LOGO & VISUAL ASSETS (CROP + FAVICON .ICO) */}
+              {step === 4 && (
                 <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 animate-in fade-in duration-200">
                   <div className="text-right border-b border-slate-800 pb-4">
                     <h2 className="text-xl font-black text-white flex items-center gap-2">
                       <Crown className="w-5 h-5 text-amber-400" />
-                      <span>الخطوة 2: الشعار، أيقونة المتصفح (.ico)، والصور البصرية</span>
+                      <span>الخطوة 4: الشعار، أيقونة المتصفح (.ico)، والصور البصرية</span>
                     </h2>
                     <p className="text-xs text-slate-400 mt-1">
                       ارفع الشعار إما بملف من جهازك أو عبر رابط، مع إمكانية القص والتكبير والتدوير والمعاينة الحية لـ Favicon وأيقونة PWA.
@@ -835,13 +1628,13 @@ export const StoreBuilderWizard: React.FC = () => {
                 </div>
               )}
 
-              {/* STEP 3: DESIGN TOKENS, EXPANDED FONTS & PALETTES */}
-              {step === 3 && (
+              {/* STEP 4: DESIGN TOKENS, EXPANDED FONTS & PALETTES */}
+              {step === 4 && (
                 <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 animate-in fade-in duration-200">
                   <div className="text-right border-b border-slate-800 pb-4">
                     <h2 className="text-xl font-black text-white flex items-center gap-2">
                       <Palette className="w-5 h-5 text-amber-400" />
-                      <span>الخطوة 3: لوحة الألوان الموسعة، الخطوط العربية، والأنماط المعمارية</span>
+                      <span>الخطوة 4: لوحة الألوان الموسعة، الخطوط العربية، والأنماط المعمارية</span>
                     </h2>
                     <p className="text-xs text-slate-400 mt-1">
                       اختر من بين 12 لوحة لونية احترافية و10 خطوط معتمدة تمنح متجرك هوية فريدة بعيداً عن القوالب المكررة.
@@ -978,13 +1771,13 @@ export const StoreBuilderWizard: React.FC = () => {
                 </div>
               )}
 
-              {/* STEP 4: CURRENCIES, ARAB COUNTRIES, CITIES & SHIPPING */}
-              {step === 4 && (
+              {/* STEP 5: CURRENCIES, ARAB COUNTRIES, CITIES & SHIPPING */}
+              {step === 5 && (
                 <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 animate-in fade-in duration-200">
                   <div className="text-right border-b border-slate-800 pb-4">
                     <h2 className="text-xl font-black text-white flex items-center gap-2">
                       <Coins className="w-5 h-5 text-amber-400" />
-                      <span>الخطوة 4: العملات العربية، الدول، المدن، وسياسات التوصيل</span>
+                      <span>الخطوة 5: العملات العربية، الدول، المدن، وسياسات التوصيل</span>
                     </h2>
                     <p className="text-xs text-slate-400 mt-1">
                       حدد الدولة المستهدفة والعملة الرسمية وقائمة المدن المغطاة مع ضبط أسعار الشحن والشحن المجاني.
@@ -1089,13 +1882,13 @@ export const StoreBuilderWizard: React.FC = () => {
                 </div>
               )}
 
-              {/* STEP 5: PAYMENT GATEWAYS & DIRECT BANK TRANSFER */}
-              {step === 5 && (
+              {/* STEP 6: PAYMENT GATEWAYS & DIRECT BANK TRANSFER */}
+              {step === 6 && (
                 <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 animate-in fade-in duration-200">
                   <div className="text-right border-b border-slate-800 pb-4">
                     <h2 className="text-xl font-black text-white flex items-center gap-2">
                       <CreditCard className="w-5 h-5 text-amber-400" />
-                      <span>الخطوة 5: بوابات الدفع الإلكتروني، التقسيط، والتحويل البنكي</span>
+                      <span>الخطوة 6: بوابات الدفع الإلكتروني، التقسيط، والتحويل البنكي</span>
                     </h2>
                     <p className="text-xs text-slate-400 mt-1">
                       فعّل أو عطل وسائل الدفع المتوافقة مع بلد عملائك (مدى، أبل باي، فيزا، تمارا، تابي، كي نت، بنفت، فوري، والتحويل البنكي مع الحسابات).
@@ -1252,13 +2045,13 @@ export const StoreBuilderWizard: React.FC = () => {
                 </div>
               )}
 
-              {/* STEP 6: PRE-LAUNCH SUMMARY & REVIEW */}
-              {step === 6 && (
+              {/* STEP 7: PRE-LAUNCH SUMMARY & REVIEW */}
+              {step === 7 && (
                 <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/90 border border-slate-800 space-y-6 animate-in fade-in duration-200 text-right">
                   <div className="border-b border-slate-800 pb-4">
                     <h2 className="text-xl font-black text-white flex items-center gap-2">
                       <Rocket className="w-5 h-5 text-amber-400" />
-                      <span>الخطوة 6: مراجعة الإعدادات وجاهزية الإطلاق الفوري</span>
+                      <span>الخطوة 7: مراجعة الإعدادات وجاهزية الإطلاق الفوري</span>
                     </h2>
                     <p className="text-xs text-slate-400 mt-1">
                       تم تجهيز كامل إعدادات المتجر، التصاميم، بوابات الدفع، والمنتجات النموذجية. اضغط زر الإطلاق لبدء التجربة الحية.
@@ -1473,11 +2266,11 @@ export const StoreBuilderWizard: React.FC = () => {
         )}
 
         {/* ======================================================== */}
-        {/* STEP 7: CELEBRATION & LAUNCH SUCCESS PAD                 */}
+        {/* STEP 8: CELEBRATION & LAUNCH SUCCESS PAD                 */}
         {/* ======================================================== */}
-        {step === 7 && (
-          <div className="max-w-2xl mx-auto text-center p-8 sm:p-12 rounded-3xl bg-slate-900 border border-amber-500/50 shadow-2xl space-y-6 animate-in zoom-in-95 duration-300">
-            <div className="w-20 h-20 rounded-full mx-auto bg-gradient-to-tr from-amber-500 to-amber-300 text-slate-950 flex items-center justify-center shadow-xl animate-bounce">
+        {step === 8 && (
+          <div className="max-w-3xl mx-auto text-center p-8 sm:p-12 rounded-3xl bg-slate-900 border border-blue-500/40 shadow-[0_0_30px_rgba(59,130,246,0.15)] space-y-6 animate-in zoom-in-95 duration-300">
+            <div className="w-20 h-20 rounded-full mx-auto bg-gradient-to-tr from-blue-600 to-blue-400 text-white flex items-center justify-center shadow-[0_0_25px_rgba(59,130,246,0.4)] animate-bounce">
               <CheckCircle2 className="w-10 h-10" />
             </div>
 
@@ -1485,30 +2278,79 @@ export const StoreBuilderWizard: React.FC = () => {
               <h2 className="text-2xl sm:text-3xl font-black text-white">
                 مبروك! تم إطلاق متجرك الإلكتروني بنجاح 🎉
               </h2>
-              <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
-                متجرك الآن جاهز لاستقبال الطلبات، بوابات الدفع والتحويل البنكي مفعلة، والواجهة مصممة بأعلى معايير الحداثة.
+              <p className="text-xs sm:text-sm text-slate-300 max-w-lg mx-auto leading-relaxed">
+                متجرك الآن جاهز تماماً، مع تفصيل كامل لبوابات الدفع، الشحن، الصفحات، وهيكل الـ JSON النهائي. يمكنك زيارة متجرك أو تصدير الحزم الجبارة أدناه.
               </p>
             </div>
 
             {/* Quick Actions Pad */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setCurrentView('storefront')}
-                className="py-3.5 px-6 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-xl flex items-center justify-center gap-2 hover:scale-105 transition-all"
+                className="py-3.5 px-6 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs shadow-[0_0_20px_rgba(59,130,246,0.3)] ring-1 ring-blue-500/50 flex items-center justify-center gap-2 transition-all"
               >
-                <Eye className="w-4 h-4" />
+                <Eye className="w-4 h-4 text-blue-200" />
                 <span>زيارة واجهة المتجر الرئيسية (Storefront)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setCurrentView('merchant_dashboard')}
-                className="py-3.5 px-6 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-black text-xs border border-slate-700 flex items-center justify-center gap-2 hover:scale-105 transition-all"
+                className="py-3.5 px-6 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs border border-slate-700 flex items-center justify-center gap-2 transition-all"
               >
-                <Sliders className="w-4 h-4" />
+                <Sliders className="w-4 h-4 text-blue-400" />
                 <span>فتح لوحة تحكم التاجر (Dashboard)</span>
               </button>
+            </div>
+
+            {/* Powerful Export Section */}
+            <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-4 text-right mt-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <Download className="w-4 h-4 text-blue-400" />
+                  <span className="text-xs font-black text-white">أزرار التصدير والحزم الجبارة (Export Center)</span>
+                </div>
+                <span className="text-[10px] text-blue-400 font-mono">JSON Config & Native Bundles</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={handleExportWebZip}
+                  className="p-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-right space-y-1 transition-all group"
+                >
+                  <div className="text-xs font-black text-amber-300 flex items-center justify-between">
+                    <span>حزمة ويب ZIP / JSON</span>
+                    <Download className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110" />
+                  </div>
+                  <div className="text-[10px] text-slate-400">تصدير كامل إعدادات المتجر في ملف حزمة ويب جاهز للاستضافة.</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportCapacitor}
+                  className="p-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-right space-y-1 transition-all group"
+                >
+                  <div className="text-xs font-black text-amber-300 flex items-center justify-between">
+                    <span>كود Capacitor للموبايل</span>
+                    <Smartphone className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110" />
+                  </div>
+                  <div className="text-[10px] text-slate-400">تصدير إعدادات Capacitor لتغليف المتجر وتصديره كأبوكليشن أندرويد و iOS.</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCopyJson}
+                  className="p-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-right space-y-1 transition-all group"
+                >
+                  <div className="text-xs font-black text-amber-300 flex items-center justify-between">
+                    <span>نسخ الـ JSON النهائي</span>
+                    <Copy className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110" />
+                  </div>
+                  <div className="text-[10px] text-slate-400">نسخ هيكل بيانات المتجر بصيغة JSON المعيارية للحافظة.</div>
+                </button>
+              </div>
             </div>
 
             <div className="pt-2">
@@ -1522,6 +2364,41 @@ export const StoreBuilderWizard: React.FC = () => {
             </div>
           </div>
         )}
+
+      {/* Skeleton Generator Modal */}
+      {isGeneratingStore && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xl flex items-center justify-center p-4">
+          <div className="w-full max-w-md p-6 rounded-3xl bg-slate-900 border border-blue-500/40 shadow-[0_0_50px_rgba(59,130,246,0.2)] space-y-6 text-right animate-in zoom-in-95 duration-300">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-600/20 text-blue-400 flex items-center justify-center animate-spin">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-sm font-black text-white">جاري إطلاق المتجر وتوليد البنية السحابية...</div>
+                <div className="text-[11px] text-blue-400 font-mono">Building DB, Gateways & Storefront...</div>
+              </div>
+            </div>
+
+            {/* Skeleton Simulation Blocks */}
+            <div className="space-y-3">
+              <div className="h-4 bg-slate-800 rounded-lg animate-pulse w-3/4" />
+              <div className="h-20 bg-slate-800/60 rounded-2xl animate-pulse space-y-2 p-3">
+                <div className="h-3 bg-slate-700 rounded w-1/2" />
+                <div className="h-3 bg-slate-700/80 rounded w-5/6" />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="h-10 bg-slate-800 rounded-xl animate-pulse" />
+                <div className="h-10 bg-slate-800 rounded-xl animate-pulse" />
+                <div className="h-10 bg-slate-800 rounded-xl animate-pulse" />
+              </div>
+            </div>
+
+            <div className="text-[11px] text-slate-400 text-center font-medium">
+              يرجى الانتظار بينما نقوم بربط نطاق <span className="text-blue-400 font-mono">{slug}.commerceos.app</span> بنجاح ⚡
+            </div>
+          </div>
+        </div>
+      )}
 
       </div>
     </div>

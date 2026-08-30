@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { CommerceProvider, useCommerce } from './context/CommerceContext';
 import { PlatformHeader } from './components/navigation/PlatformHeader';
 import { LandingPage } from './components/home/LandingPage';
@@ -8,29 +8,54 @@ import { PlatformAdminDashboard } from './components/admin/PlatformAdminDashboar
 import { StoreBuilderWizard } from './components/builder/StoreBuilderWizard';
 import { LiveDesignStudio } from './components/builder/LiveDesignStudio';
 import { VisualIDE } from './components/builder/VisualIDE';
+import { AuthPageView } from './components/auth/AuthPageView';
 import { TamperAlertModal } from './components/common/TamperAlertModal';
 import { AuthModal } from './components/auth/AuthModal';
+import { CommandPalette } from './components/common/CommandPalette';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { currentView, toasts, dismissToast } = useCommerce();
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[#09090b] text-zinc-100 font-sans antialiased selection:bg-blue-600 selection:text-white relative overflow-x-hidden">
       
+      {/* The Abyss Background Ambient Mesh Gradients & Glows */}
+      <div className="fixed top-[-10%] right-[-5%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[140px] pointer-events-none z-0" />
+      <div className="fixed bottom-[-10%] left-[-5%] w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[140px] pointer-events-none z-0" />
+      <div className="fixed top-[40%] left-[25%] w-[400px] h-[400px] bg-cyan-600/5 rounded-full blur-[120px] pointer-events-none z-0" />
+
       {/* Global Platform Navigation Bar */}
-      <PlatformHeader />
+      {currentView !== 'auth_page' && (
+        <PlatformHeader onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
+      )}
 
       {/* Main Dynamic Viewport */}
-      <main className="relative">
+      <main className="relative z-10">
         {currentView === 'home' && <LandingPage />}
         {currentView === 'storefront' && <StorefrontView />}
-        {currentView === 'merchant_dashboard' && <MerchantDashboard />}
+        {currentView === 'merchant_dashboard' && <MerchantDashboard onOpenCommandPalette={() => setCommandPaletteOpen(true)} />}
         {currentView === 'builder_wizard' && <StoreBuilderWizard />}
         {currentView === 'live_customizer' && <LiveDesignStudio />}
         {currentView === 'visual_ide' && <VisualIDE />}
         {currentView === 'platform_admin' && <PlatformAdminDashboard />}
+        {currentView === 'auth_page' && <AuthPageView />}
       </main>
+
+      {/* Command Palette (Cmd/Ctrl + K) */}
+      <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
 
       {/* Authentication & Onboarding Modal */}
       <AuthModal />

@@ -1,12 +1,25 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
-import { requirePermission } from '../middleware/auth';
+import { requirePermission, requirePlatformAdmin } from '../middleware/auth';
 
 export const analyticsRouter = Router();
 
-// GET /api/v1/analytics - Real calculated revenue and dashboard metrics
+/**
+ * GET /api/v1/analytics
+ * Store-Level Analytics & Financial Metrics
+ * RBAC guarded: 'reports'
+ * Strict Tenant Isolation: tenant is SOLELY derived from req.user.tenantId (Anti-IDOR / Anti-Cross-Tenant)
+ */
 analyticsRouter.get('/', requirePermission('reports'), (req: Request, res: Response) => {
-  const tenantId = (req.query.tenantId as string) || req.tenantId;
+  // CRITICAL SECURITY: Ignore any client-supplied req.query.tenantId or body
+  const tenantId = req.user!.tenantId;
+
+  if (!tenantId) {
+    return res.status(400).json({
+      error: 'MissingTenantBinding',
+      message: 'لم يتم العثور على متجر مرتبط بحسابك'
+    });
+  }
 
   const orders = db.getOrders(tenantId);
   const products = db.getProducts(tenantId);
@@ -51,12 +64,16 @@ analyticsRouter.get('/', requirePermission('reports'), (req: Request, res: Respo
       ordersByStatus
     },
     dailyChart,
-    auditLogs: db.getAuditLogs(tenantId).slice(0, 10)
+    auditLogs: db.getAuditLogs(tenantId).slice(0, 15)
   });
 });
 
-// GET /api/v1/analytics/platform - Super Admin aggregate metrics
-analyticsRouter.get('/platform', (req: Request, res: Response) => {
+/**
+ * GET /api/v1/analytics/platform
+ * Platform HQ Global Analytics & Multi-Tenant Overseer
+ * STRICTLY RESTRICTED to Platform Super Admins only (CommerceOS HQ)
+ */
+analyticsRouter.get('/platform', requirePlatformAdmin, (req: Request, res: Response) => {
   const tenants = db.getTenants();
   const allOrders = db.getOrders();
   const allProducts = db.getProducts();

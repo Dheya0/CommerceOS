@@ -134,7 +134,7 @@ export const LandingPage: React.FC = () => {
             ) : (
               <>
                 <button
-                  onClick={() => openAuthModal('login')}
+                  onClick={() => setCurrentView('auth_page')}
                   className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-750 text-xs font-bold text-slate-200 transition-all flex items-center gap-1.5"
                 >
                   <Lock className="w-3.5 h-3.5 text-amber-400" />
@@ -142,7 +142,7 @@ export const LandingPage: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => openAuthModal('register')}
+                  onClick={() => setCurrentView('auth_page')}
                   className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 text-xs font-black hover:opacity-95 shadow-lg shadow-amber-500/20 transition-all flex items-center gap-1.5"
                 >
                   <Sparkles className="w-3.5 h-3.5" />

@@ -71,15 +71,26 @@ class CommerceApiClient {
   }
 
   // --- Auth ---
-  async login(role: StaffRole = 'store_owner', email?: string) {
-    const res = await this.request<{ success: boolean; user: any; token: string }>('/auth/login', {
+  async login(role: StaffRole = 'store_owner', email?: string, password?: string) {
+    const res = await this.request<{ success: boolean; user: any; token: string; identityType?: string }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ role, email, tenantId: this.activeTenantId })
+      body: JSON.stringify({ role, email, password, tenantId: this.activeTenantId })
     });
     if (res.token) {
-      this.setRole(role, res.token);
+      this.setRole(res.user?.role || role, res.token);
     }
     return res;
+  }
+
+  async logout() {
+    try {
+      await this.request('/auth/logout', { method: 'POST' });
+    } finally {
+      this.authToken = '';
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('cos_auth_token');
+      }
+    }
   }
 
   async switchRole(role: StaffRole) {
@@ -216,10 +227,16 @@ class CommerceApiClient {
     return this.request('/coupons');
   }
 
-  async createCoupon(coupon: Partial<Coupon>): Promise<{ success: boolean; coupon: Coupon }> {
+  async createCoupon(coupon: Partial<Coupon>): Promise<{ success: boolean; coupon: Coupon; message: string }> {
     return this.request('/coupons', {
       method: 'POST',
       body: JSON.stringify(coupon)
+    });
+  }
+
+  async deleteCoupon(id: string): Promise<{ success: boolean; message: string }> {
+    return this.request(`/coupons/${id}`, {
+      method: 'DELETE'
     });
   }
 

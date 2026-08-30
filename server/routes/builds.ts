@@ -1,6 +1,10 @@
 import { Router, Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { db } from '../db';
 import { requirePermission } from '../middleware/auth';
+import { generateStoreZipPackage } from '../services/codeFactoryEngine.ts';
+import { buildFarmManager } from '../services/buildFarmQueue.ts';
 
 export const buildsRouter = Router();
 
@@ -170,6 +174,61 @@ buildsRouter.get('/targets', (req: Request, res: Response) => {
   });
 });
 
+// POST /api/v1/builds/export-zip - The Code Factory Engine ZIP generator & streamer
+buildsRouter.post('/export-zip', requirePermission('settings'), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.user!.tenantId;
+    const tenant = db.getTenantByIdOrSlug(tenantId);
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant not found' });
+    }
+
+    const payload = {
+      storeId: tenant.id,
+      storeName: tenant.name,
+      storeNameEn: tenant.slug,
+      slug: tenant.slug,
+      currency: tenant.currency,
+      primaryColor: tenant.theme.tokens.primary,
+      secondaryColor: tenant.theme.tokens.secondary,
+      supportEmail: req.user!.email,
+      whatsappPhone: (tenant as any).whatsapp || '+966500000000',
+      businessType: tenant.businessType || 'general',
+      adminEmail: req.user!.email,
+      adminName: req.user!.name,
+      hasLicense: (tenant as any).hasLicense || false,
+      products: req.body.products || [],
+      categories: req.body.categories || []
+    };
+
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const zipFileName = `${tenant.slug}-export-${Date.now()}.zip`;
+    const zipFilePath = path.join(uploadsDir, zipFileName);
+    const outputStream = fs.createWriteStream(zipFilePath);
+
+    const result = await generateStoreZipPackage(payload, outputStream);
+
+    res.download(result.filePath, result.fileName, (err) => {
+      if (err) {
+        console.error('[Code Factory] Download stream error:', err);
+      }
+      // cleanup zip file after sending
+      try {
+        if (fs.existsSync(result.filePath)) {
+          fs.unlinkSync(result.filePath);
+        }
+      } catch (e) {}
+    });
+  } catch (error: any) {
+    console.error('[Code Factory Engine] Error generating ZIP:', error);
+    res.status(500).json({ error: 'Failed to generate store package', details: error.message });
+  }
+});
+
 // GET /api/v1/builds/download/:buildId - Download generated bundle
 buildsRouter.get('/download/:buildId', (req: Request, res: Response) => {
   const { buildId } = req.params;
@@ -182,4 +241,60 @@ buildsRouter.get('/download/:buildId', (req: Request, res: Response) => {
   const buffer = Buffer.from(`CommerceOS Build Package ${buildId} for target ${target}`);
   res.send(buffer);
 });
+
+// POST /api/v1/builds/start-async - Start background Build Farm worker job
+buildsRouter.post('/start-async', requirePermission('settings'), (req: Request, res: Response) => {
+  const tenantId = req.user!.tenantId;
+  const tenant = db.getTenantByIdOrSlug(tenantId);
+  if (!tenant) {
+    return res.status(404).json({ error: 'Tenant not found' });
+  }
+
+  const payload = {
+    storeId: tenant.id,
+    storeName: tenant.name,
+    storeNameEn: tenant.slug,
+    slug: tenant.slug,
+    currency: tenant.currency,
+    primaryColor: tenant.theme.tokens.primary,
+    secondaryColor: tenant.theme.tokens.secondary,
+    supportEmail: req.user!.email,
+    whatsappPhone: (tenant as any).whatsapp || '+966500000000',
+    businessType: tenant.businessType || 'general',
+    adminEmail: req.user!.email,
+    adminName: req.user!.name,
+    hasLicense: (tenant as any).hasLicense || false,
+    products: req.body.products || [],
+    categories: req.body.categories || []
+  };
+
+  const job = buildFarmManager.createJob(tenantId, payload);
+  res.json({ success: true, jobId: job.jobId, job });
+});
+
+// GET /api/v1/builds/job/:jobId - Poll background build worker status & steps
+buildsRouter.get('/job/:jobId', (req: Request, res: Response) => {
+  const { jobId } = req.params;
+  const job = buildFarmManager.getJob(jobId);
+  if (!job) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+  res.json({ success: true, job });
+});
+
+// GET /api/v1/builds/download-job/:jobId - Download completed ZIP from build farm worker
+buildsRouter.get('/download-job/:jobId', (req: Request, res: Response) => {
+  const { jobId } = req.params;
+  const job = buildFarmManager.getJob(jobId);
+  if (!job || job.status !== 'completed' || !job.filePath) {
+    return res.status(400).json({ error: 'Build job not completed or file not ready' });
+  }
+
+  res.download(job.filePath, job.fileName || 'store-export.zip', (err) => {
+    if (err) {
+      console.error('[Build Farm] Download error:', err);
+    }
+  });
+});
+
 

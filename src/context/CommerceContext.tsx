@@ -30,7 +30,7 @@ import { api } from '../api/client';
 import { DEFAULT_PLATFORM_CONFIG, validateLicenseKey, generateLicenseKey } from '../utils/licensingEngine';
 import { generateDesignTokens } from '../utils/themeEngine';
 
-export type AppView = 'home' | 'storefront' | 'merchant_dashboard' | 'builder_wizard' | 'platform_admin' | 'live_customizer' | 'visual_ide';
+export type AppView = 'home' | 'storefront' | 'merchant_dashboard' | 'builder_wizard' | 'platform_admin' | 'live_customizer' | 'visual_ide' | 'auth_page';
 export type PreviewDevice = 'desktop' | 'tablet' | 'mobile';
 
 interface ToastInfo {
@@ -511,6 +511,16 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setCurrentView('home');
   };
 
+  const handleSetCurrentView = (view: AppView) => {
+    const protectedViews: AppView[] = ['merchant_dashboard', 'builder_wizard', 'live_customizer', 'visual_ide', 'platform_admin'];
+    if (protectedViews.includes(view) && !currentUser) {
+      showToast('يرجى تسجيل الدخول أولاً للوصول إلى لوحة التحكم والمحرر الإداري', 'warning');
+      setCurrentView('auth_page');
+      return;
+    }
+    setCurrentView(view);
+  };
+
   const resetToCleanStore = (tenantId: string) => {
     setProducts(prev => prev.filter(p => p.tenantId !== tenantId));
     setCategories(prev => prev.filter(c => c.tenantId !== tenantId));
@@ -895,9 +905,15 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const deleteCoupon = (couponId: string) => {
+  const deleteCoupon = async (couponId: string) => {
     setCoupons(prev => prev.filter(c => c.id !== couponId));
     showToast('تم حذف الكوبون', 'info');
+
+    try {
+      await api.deleteCoupon(couponId);
+    } catch (err) {
+      console.warn('Backend sync for deleteCoupon:', err);
+    }
   };
 
   const addStaff = async (staffData: Omit<StaffMember, 'id' | 'createdAt'>) => {
@@ -1074,7 +1090,7 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     <CommerceContext.Provider
       value={{
         currentView,
-        setCurrentView,
+        setCurrentView: handleSetCurrentView,
         previewDevice,
         setPreviewDevice,
         language,
