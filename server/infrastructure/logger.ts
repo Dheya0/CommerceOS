@@ -5,19 +5,33 @@ export interface LogContext {
   correlationId?: string;
   tenantId?: string;
   userId?: string;
+  route?: string;
   path?: string;
   method?: string;
-  ip?: string;
+  status?: number;
   statusCode?: number;
+  durationMs?: number;
   latencyMs?: number;
+  errorCode?: string;
+  ip?: string;
   [key: string]: any;
 }
 
 export interface StructuredLogEntry {
   timestamp: string;
   level: LogLevel;
+  service: string;
   message: string;
-  context?: LogContext;
+  requestId?: string;
+  correlationId?: string;
+  tenantId?: string;
+  userId?: string;
+  route?: string;
+  method?: string;
+  status?: number;
+  durationMs?: number;
+  errorCode?: string;
+  context?: Record<string, any>;
   error?: {
     name: string;
     message: string;
@@ -26,20 +40,58 @@ export interface StructuredLogEntry {
   };
 }
 
+const SENSITIVE_KEYS = new Set([
+  'password',
+  'passwordhash',
+  'password_hash',
+  'token',
+  'secret',
+  'clientsecret',
+  'client_secret',
+  'authorization',
+  'cookie',
+  'jwt',
+  'session',
+  'cardnumber',
+  'card_number',
+  'cvv',
+  'cvc',
+  'apikey',
+  'api_key',
+  'privatekey',
+  'private_key',
+  'signature',
+  'bankaccount',
+  'bank_account',
+  'iban'
+]);
+
+export function redactSensitiveData(obj: any): any {
+  if (!obj || typeof obj !== 'object') {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => redactSensitiveData(item));
+  }
+
+  const cleaned: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const lowerKey = key.toLowerCase();
+    if (SENSITIVE_KEYS.has(lowerKey)) {
+      cleaned[key] = '[REDACTED]';
+    } else if (typeof value === 'object' && value !== null) {
+      cleaned[key] = redactSensitiveData(value);
+    } else {
+      cleaned[key] = value;
+    }
+  }
+  return cleaned;
+}
+
 class Logger {
   private static instance: Logger;
-  private readonly SENSITIVE_KEYS = new Set([
-    'password',
-    'token',
-    'secret',
-    'clientSecret',
-    'authorization',
-    'cardNumber',
-    'cvv',
-    'apiKey',
-    'privateKey',
-    'signature'
-  ]);
+  private readonly serviceName = 'commerce-api';
 
   private constructor() {}
 
@@ -50,41 +102,31 @@ class Logger {
     return Logger.instance;
   }
 
-  private redact(obj: any): any {
-    if (!obj || typeof obj !== 'object') {
-      return obj;
-    }
-
-    if (Array.isArray(obj)) {
-      return obj.map(item => this.redact(item));
-    }
-
-    const cleaned: Record<string, any> = {};
-    for (const [key, value] of Object.entries(obj)) {
-      if (this.SENSITIVE_KEYS.has(key.toLowerCase())) {
-        cleaned[key] = '[REDACTED]';
-      } else if (typeof value === 'object' && value !== null) {
-        cleaned[key] = this.redact(value);
-      } else {
-        cleaned[key] = value;
-      }
-    }
-    return cleaned;
-  }
-
   private log(level: LogLevel, message: string, context?: LogContext, error?: Error | any): void {
+    const sanitizedContext = context ? redactSensitiveData(context) : {};
+
     const entry: StructuredLogEntry = {
       timestamp: new Date().toISOString(),
       level,
+      service: this.serviceName,
       message,
-      context: context ? this.redact(context) : undefined
+      requestId: sanitizedContext.requestId,
+      correlationId: sanitizedContext.correlationId,
+      tenantId: sanitizedContext.tenantId,
+      userId: sanitizedContext.userId,
+      route: sanitizedContext.route || sanitizedContext.path,
+      method: sanitizedContext.method,
+      status: sanitizedContext.status || sanitizedContext.statusCode,
+      durationMs: sanitizedContext.durationMs || sanitizedContext.latencyMs,
+      errorCode: sanitizedContext.errorCode,
+      context: Object.keys(sanitizedContext).length > 0 ? sanitizedContext : undefined
     };
 
     if (error) {
       entry.error = {
         name: error.name || 'Error',
         message: error.message || String(error),
-        code: error.code || error.statusCode,
+        code: error.errorCode || error.code || error.statusCode,
         stack: process.env.NODE_ENV !== 'production' ? error.stack : undefined
       };
     }

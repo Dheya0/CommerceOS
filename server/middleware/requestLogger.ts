@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { logger } from '../infrastructure/logger.ts';
+import { metricsCollector } from '../infrastructure/metrics.ts';
 
 export function requestLoggerMiddleware(req: Request, res: Response, next: NextFunction): void {
   // Skip verbose logs for static assets
@@ -11,15 +12,19 @@ export function requestLoggerMiddleware(req: Request, res: Response, next: NextF
 
   res.on('finish', () => {
     const latencyMs = Date.now() - start;
+
+    // Record in global metrics engine
+    metricsCollector.recordHttpRequest(req.method, req.route?.path || req.path, res.statusCode, latencyMs);
+
     const context = {
       requestId: req.id,
       correlationId: req.correlationId,
       tenantId: req.tenantId || req.user?.tenantId,
       userId: req.user?.id,
       method: req.method,
-      path: req.path,
+      route: req.path,
       statusCode: res.statusCode,
-      latencyMs,
+      durationMs: latencyMs,
       ip: req.ip || req.socket.remoteAddress
     };
 

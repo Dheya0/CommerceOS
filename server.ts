@@ -1,12 +1,15 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 
 import { configService } from './server/infrastructure/config.ts';
 import { logger } from './server/infrastructure/logger.ts';
+import { LifecycleManager } from './server/infrastructure/lifecycle.ts';
 import { requestIdMiddleware } from './server/middleware/requestId.ts';
 import { requestLoggerMiddleware } from './server/middleware/requestLogger.ts';
+import { securityHeadersMiddleware } from './server/middleware/securityHeaders.ts';
+import { tenantOperationalModeMiddleware } from './server/middleware/tenantOperationalMode.ts';
 import { tenantResolver } from './server/middleware/tenantResolver.ts';
 import { authMiddleware } from './server/middleware/auth.ts';
 import { idempotencyMiddleware } from './server/middleware/idempotency.ts';
@@ -28,10 +31,14 @@ import { abandonedCartsRouter } from './server/routes/abandonedCarts.ts';
 import { notificationsRouter } from './server/routes/notifications.ts';
 import { codeSigningRouter } from './server/routes/codeSigning.ts';
 import { databaseRouter } from './server/routes/database.ts';
+import { adminRouter } from './server/routes/admin.ts';
+import { saasRouter } from './server/routes/saas.ts';
+import { securityAuditRouter } from './server/routes/securityAudit.ts';
 import { seedDatabaseIfEmpty } from './src/db/seed.ts';
+import { JobService } from './server/services/job.service.ts';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Initialize directory paths
+const cwd = process.cwd();
 
 async function startServer() {
   const app = express();
@@ -40,6 +47,21 @@ async function startServer() {
   // Initialize PostgreSQL seed asynchronously
   seedDatabaseIfEmpty().catch(err => {
     logger.warn('[PostgreSQL] Seed check warning', undefined, err);
+  });
+
+  // Start background job worker
+  JobService.startWorker(5000);
+
+  // Security Headers Middleware
+  app.use(securityHeadersMiddleware);
+
+  // In-flight request tracking for graceful draining
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    LifecycleManager.trackRequestStart();
+    res.on('finish', () => {
+      LifecycleManager.trackRequestEnd();
+    });
+    next();
   });
 
   // Request Tracking & Logging
@@ -55,8 +77,9 @@ async function startServer() {
   }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-  // Global Middlewares: Tenant Isolation, Authentication, Idempotency
+  // Global Middlewares: Tenant Isolation, Operational Mode, Authentication, Idempotency
   app.use(tenantResolver);
+  app.use(tenantOperationalModeMiddleware);
   app.use(authMiddleware);
   app.use(idempotencyMiddleware);
 
@@ -67,19 +90,21 @@ async function startServer() {
     message: 'تم تجاوز معدل محاولات الشراء المسموح به للدقيقة الواحدة. يرجى الانتظار قليلاً.'
   });
 
-  // System Health, Liveness & Readiness Probes
+  // System Health, Liveness, Readiness & Metrics Probes
   app.get('/healthz', HealthController.getLiveness);
   app.get('/readyz', HealthController.getReadiness);
+  app.get('/metrics', HealthController.getMetrics);
   app.get('/api/health', HealthController.getHealth);
   app.get('/api/ready', HealthController.getReadiness);
   app.get('/api/v1/health', HealthController.getHealth);
   app.get('/api/v1/ready', HealthController.getReadiness);
+  app.get('/api/v1/metrics', HealthController.getMetrics);
 
   // API Meta Information
   app.get('/api/v1/meta', (req: Request, res: Response) => {
     res.json({
       name: configService.get('platformName'),
-      version: 'v1 (Clean Architecture Hardened)',
+      version: 'v2 (Production Hardened & Reliable)',
       database: 'Cloud SQL PostgreSQL (Drizzle ORM)',
       tenant: req.tenant?.name || 'Default',
       user: req.user?.name || 'Guest',
@@ -99,8 +124,11 @@ async function startServer() {
         '/api/v1/notifications',
         '/api/v1/code-signing',
         '/api/v1/db',
+        '/api/v1/admin',
+        '/api/v1/saas',
         '/api/v1/health',
-        '/api/v1/ready'
+        '/api/v1/ready',
+        '/api/v1/metrics'
       ]
     });
   });
@@ -120,6 +148,9 @@ async function startServer() {
   app.use('/api/v1/notifications', notificationsRouter);
   app.use('/api/v1/code-signing', codeSigningRouter);
   app.use('/api/v1/db', databaseRouter);
+  app.use('/api/v1/admin', adminRouter);
+  app.use('/api/v1/saas', saasRouter);
+  app.use('/api/v1/security', securityAuditRouter);
 
   // Central Error Handler for all API routes
   app.use('/api', errorHandler);
@@ -142,9 +173,12 @@ async function startServer() {
   // Global fallback error handler
   app.use(errorHandler);
 
-  app.listen(PORT, configService.get('host'), () => {
+  const server = app.listen(PORT, configService.get('host'), () => {
     logger.info(`🚀 CommerceOS Clean Server running on http://${configService.get('host')}:${PORT}`);
   });
+
+  // Setup graceful shutdown handlers
+  LifecycleManager.setupGracefulShutdown(server);
 }
 
 startServer().catch(err => {

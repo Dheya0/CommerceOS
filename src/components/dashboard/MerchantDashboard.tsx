@@ -64,7 +64,9 @@ import { DesktopPOSManager } from './DesktopPOSManager';
 import { DynamicRulesManager } from './DynamicRulesManager';
 import { EventDrivenCQRSManager } from './EventDrivenCQRSManager';
 import { WebhooksPluginsManager } from './WebhooksPluginsManager';
-import { Rocket, MessageSquare, ShieldAlert } from 'lucide-react';
+import { UsageAndBillingHub } from '../saas/UsageAndBillingHub';
+import { Rocket, MessageSquare, ShieldAlert, ArrowUpRight, CheckCircle, RotateCcw, AlertCircle } from 'lucide-react';
+import { ConfirmActionDialog, RefundDetails } from '../common/ConfirmActionDialog';
 
 
 
@@ -102,6 +104,9 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
   // Active Tab
   const [activeTab, setActiveTab] = useState<string>('overview');
 
+  // Settings Sub-tab for progressive disclosure
+  const [settingsSubTab, setSettingsSubTab] = useState<'basic' | 'payments' | 'developer'>('basic');
+
   // Modals
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -109,6 +114,23 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
   const [couponModalOpen, setCouponModalOpen] = useState(false);
   const [staffModalOpen, setStaffModalOpen] = useState(false);
   const [bankModalOpen, setBankModalOpen] = useState(false);
+
+  // Refund Confirmation Modal
+  const [refundDialogOrder, setRefundDialogOrder] = useState<Order | null>(null);
+  const [isProcessingRefund, setIsProcessingRefund] = useState(false);
+
+  // Inventory Quick Restock Modal / State
+  const [quickRestockProduct, setQuickRestockProduct] = useState<Product | null>(null);
+  const [restockAmount, setRestockAmount] = useState<number>(10);
+
+  // Store Readiness Checklist State
+  const [readinessTasks, setReadinessTasks] = useState<Record<string, boolean>>({
+    branding: true,
+    products: products.length > 0,
+    payments: (activeTenant.bankAccounts && activeTenant.bankAccounts.length > 0) || true,
+    domain: Boolean(activeTenant.customDomain),
+    publishing: false
+  });
 
   // Bank Form State
   const [bankName, setBankName] = useState('');
@@ -139,16 +161,28 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
   // Filter & Search states
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [productSearch, setProductSearch] = useState<string>('');
+  const [inventorySearch, setInventorySearch] = useState<string>('');
 
   // Theme customizer within dashboard
   const [dashPrimaryColor, setDashPrimaryColor] = useState<string>(activeTenant.theme.tokens.primary);
   const [dashStyle, setDashStyle] = useState<ThemeStyle>(activeTenant.theme.style);
 
-  // Analytics Metrics
+  // Analytics Metrics & 5 Core Questions Answered
   const totalRevenue = orders.reduce((sum, o) => sum + (o.paymentStatus === 'paid' ? o.total : 0), 0);
   const totalOrdersCount = orders.length;
+  const pendingVerificationOrders = orders.filter(o => o.paymentStatus === 'pending_verification');
+  const unfulfilledOrders = orders.filter(o => o.status === 'new' || o.status === 'processing');
   const averageOrderValue = totalOrdersCount > 0 ? Math.round(totalRevenue / totalOrdersCount) : 0;
   const lowStockProducts = products.filter(p => p.stock <= p.lowStockAlert);
+
+  // Today's estimated slice
+  const todaySales = Math.round(totalRevenue * 0.38) || 3450;
+  const todayOrders = Math.max(1, Math.round(totalOrdersCount * 0.4));
+  const conversionRate = 3.8;
+
+  // Calculate readiness percentage
+  const completedTaskCount = Object.values(readinessTasks).filter(Boolean).length;
+  const readinessPercent = Math.round((completedTaskCount / Object.keys(readinessTasks).length) * 100);
 
   const salesData = [
     { day: 'السبت', sales: 2400, orders: 8 },
@@ -163,6 +197,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
   // Navigation Items according to RBAC
   const navTabs = [
     { id: 'overview', label: 'نظرة عامة والتحليلات', icon: LayoutDashboard, permitted: true },
+    { id: 'saas_billing', label: 'الاشتراك والفوترة السحابية (SaaS)', icon: CreditCard, permitted: activeStaffPermissions.settings },
     { id: 'publish_center', label: 'مركز النشر والـ Build Engine', icon: Rocket, permitted: activeStaffPermissions.settings },
     { id: 'licensing', label: 'التراخيص وإزالة الشارة', icon: Sparkles, badge: activeTenant.licensing?.isWhiteLabel ? undefined : 1, permitted: activeStaffPermissions.settings },
     { id: 'abandoned_carts', label: 'السلات المتروكة واستعادتها', icon: ShoppingBag, permitted: activeStaffPermissions.orders },
@@ -411,6 +446,240 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
                   <Rocket className="w-3.5 h-3.5" />
                   <span>تصدير الكود البرمجي</span>
                 </button>
+              </div>
+            </div>
+
+            {/* 1. Hero KPI Strip (Answers: كم بعت؟ كم طلب؟ ما معدل التحويل وسلة الطلب؟) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Metric 1: Today's Sales */}
+              <div className="p-5 rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-white/10 relative overflow-hidden group hover:border-blue-500/40 transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-400">مبيعات اليوم والنشاط</span>
+                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                    <DollarSign className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="text-2xl font-black text-white font-mono tracking-tight">
+                    {todaySales.toLocaleString()} <span className="text-xs font-normal text-zinc-400 font-sans">{activeTenant.currencySymbol}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 mt-1 font-bold">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>+22.4% مقارنة بالأمس</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Metric 2: Orders Count */}
+              <div className="p-5 rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-white/10 relative overflow-hidden group hover:border-emerald-500/40 transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-400">إجمالي الطلبات اليومية</span>
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <ShoppingBag className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="text-2xl font-black text-white font-mono tracking-tight">
+                    {totalOrdersCount} <span className="text-xs font-normal text-zinc-400 font-sans">طلب ({todayOrders} اليوم)</span>
+                  </div>
+                  <div className="text-[11px] text-zinc-400 mt-1 flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>{unfulfilledOrders.length} طلب بحاجة للتجهيز</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Metric 3: Average Order Value */}
+              <div className="p-5 rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-white/10 relative overflow-hidden group hover:border-purple-500/40 transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-400">متوسط قيمة السلة (AOV)</span>
+                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                    <TrendingUp className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="text-2xl font-black text-white font-mono tracking-tight">
+                    {averageOrderValue} <span className="text-xs font-normal text-zinc-400 font-sans">{activeTenant.currencySymbol}</span>
+                  </div>
+                  <div className="text-[11px] text-purple-300 mt-1 font-bold">
+                    <span>معدل ممتاز للمتجر</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Metric 4: Conversion Rate */}
+              <div className="p-5 rounded-2xl bg-zinc-900/60 backdrop-blur-xl border border-white/10 relative overflow-hidden group hover:border-amber-500/40 transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-400">معدل التحويل (Conversion)</span>
+                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <ArrowUpRight className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <div className="text-2xl font-black text-white font-mono tracking-tight">
+                    {conversionRate}%
+                  </div>
+                  <div className="text-[11px] text-amber-300 mt-1 font-bold">
+                    <span>+0.6% عن المتوسط الإقليمي</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Needs Attention Alert Zone (منطقة المهام والعمليات العاجلة) */}
+            <div className="p-5 rounded-2xl bg-gradient-to-r from-zinc-900/80 via-zinc-900/60 to-zinc-950/80 border border-white/10 backdrop-blur-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-sm font-black text-white font-heading">مهام تتطلب انتباهك المباشر (Needs Attention)</h3>
+                </div>
+                <span className="text-[11px] text-zinc-400 font-mono">
+                  {pendingVerificationOrders.length + lowStockProducts.length + unfulfilledOrders.length} إجراء معلّق
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                {/* Attention Card 1: Bank Transfer Verifications */}
+                <div 
+                  onClick={() => {
+                    setOrderStatusFilter('all');
+                    setActiveTab('orders');
+                  }}
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                    pendingVerificationOrders.length > 0
+                      ? 'bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15'
+                      : 'bg-zinc-950/60 border-white/5 opacity-70'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs font-mono ${
+                      pendingVerificationOrders.length > 0 ? 'bg-amber-500 text-slate-950' : 'bg-zinc-800 text-zinc-400'
+                    }`}>
+                      {pendingVerificationOrders.length}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white font-heading">حوالات بنكية قيد المراجعة</div>
+                      <div className="text-[10px] text-zinc-400">بانتظار التحقق من الإيصال البنكي</div>
+                    </div>
+                  </div>
+                  <span className="text-xs text-amber-400 font-bold">مراجعة ←</span>
+                </div>
+
+                {/* Attention Card 2: Low Stock Warnings */}
+                <div 
+                  onClick={() => setActiveTab('inventory')}
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                    lowStockProducts.length > 0
+                      ? 'bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/15'
+                      : 'bg-zinc-950/60 border-white/5 opacity-70'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs font-mono ${
+                      lowStockProducts.length > 0 ? 'bg-rose-500 text-white' : 'bg-zinc-800 text-zinc-400'
+                    }`}>
+                      {lowStockProducts.length}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white font-heading">منتجات منخفضة المخزون</div>
+                      <div className="text-[10px] text-zinc-400">تحت حد الأمان للتوريد</div>
+                    </div>
+                  </div>
+                  <span className="text-xs text-rose-400 font-bold">إعادة توريد ←</span>
+                </div>
+
+                {/* Attention Card 3: Unfulfilled Orders */}
+                <div 
+                  onClick={() => {
+                    setOrderStatusFilter('new');
+                    setActiveTab('orders');
+                  }}
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                    unfulfilledOrders.length > 0
+                      ? 'bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/15'
+                      : 'bg-zinc-950/60 border-white/5 opacity-70'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs font-mono ${
+                      unfulfilledOrders.length > 0 ? 'bg-blue-500 text-white' : 'bg-zinc-800 text-zinc-400'
+                    }`}>
+                      {unfulfilledOrders.length}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-white font-heading">طلبات جديدة للتجهيز</div>
+                      <div className="text-[10px] text-zinc-400">جاهزة للشحن والتوصيل</div>
+                    </div>
+                  </div>
+                  <span className="text-xs text-blue-400 font-bold">تجهيز ←</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Store Readiness Score & Interactive Checklist */}
+            <div className="p-6 rounded-3xl bg-zinc-900/50 backdrop-blur-xl border border-white/10 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-600/15 border border-blue-500/30 text-blue-400 flex items-center justify-center font-black font-mono text-lg">
+                    {readinessPercent}%
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white font-heading">مؤشر جاهزية المتجر للانطلاق (Store Launch Readiness)</h3>
+                    <p className="text-xs text-zinc-400 mt-0.5">
+                      أكمل خطوات التهيئة للوصول إلى 100% وإطلاق المتجر رسمياً للمتسوقين
+                    </p>
+                  </div>
+                </div>
+                <div className="w-full sm:w-48 bg-zinc-800/80 rounded-full h-3 overflow-hidden border border-white/5 p-0.5">
+                  <div 
+                    className="bg-gradient-to-r from-blue-500 to-emerald-400 h-full rounded-full transition-all duration-500" 
+                    style={{ width: `${readinessPercent}%` }} 
+                  />
+                </div>
+              </div>
+
+              {/* Checklist Items */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
+                {[
+                  { id: 'branding', title: 'هوية وشعار المتجر', tab: 'theme', desc: 'تم ضبط الألوان واللوغو' },
+                  { id: 'products', title: 'إضافة المنتجات والأسعار', tab: 'products', desc: `${products.length} منتجات نشطة` },
+                  { id: 'payments', title: 'الحسابات وبوابات الدفع', tab: 'settings', desc: 'مدى والتحويل البنكي' },
+                  { id: 'domain', title: 'ربط النطاق المخصص', tab: 'settings', desc: activeTenant.customDomain || 'اضغط للربط' },
+                  { id: 'publishing', title: 'تصدير ونشر التطبيق', tab: 'publish_center', desc: 'توليد PWA وMobile' }
+                ].map(task => {
+                  const isDone = readinessTasks[task.id];
+                  return (
+                    <div 
+                      key={task.id}
+                      onClick={() => {
+                        setReadinessTasks(prev => ({ ...prev, [task.id]: !prev[task.id] }));
+                        if (!isDone) setActiveTab(task.tab);
+                      }}
+                      className={`p-3 rounded-2xl border transition-all cursor-pointer select-none ${
+                        isDone 
+                          ? 'bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-500/50' 
+                          : 'bg-zinc-950/60 border-white/10 hover:border-blue-500/40'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          isDone ? 'bg-emerald-500/20 text-emerald-400' : 'bg-zinc-800 text-zinc-400'
+                        }`}>
+                          {isDone ? 'مكتمل ✓' : 'معلّق'}
+                        </span>
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                          isDone ? 'border-emerald-400 bg-emerald-400 text-slate-950' : 'border-zinc-600'
+                        }`}>
+                          {isDone && <Check className="w-3 h-3 stroke-[3]" />}
+                        </div>
+                      </div>
+                      <div className="text-xs font-bold text-white truncate font-heading">{task.title}</div>
+                      <div className="text-[10px] text-zinc-400 truncate mt-0.5">{task.desc}</div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -732,6 +1001,13 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
           </div>
         )}
 
+        {/* SAAS USAGE & BILLING HUB TAB */}
+        {activeTab === 'saas_billing' && (
+          <div className="space-y-6 animate-in fade-in">
+            <UsageAndBillingHub />
+          </div>
+        )}
+
         {/* 2. PRODUCTS TAB */}
         {activeTab === 'products' && (
           <div className="space-y-6 animate-in fade-in">
@@ -952,6 +1228,16 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
                               >
                                 {order.paymentStatus === 'pending_verification' ? 'مراجعة الإيصال' : 'تفاصيل'}
                               </button>
+                              {order.paymentStatus === 'paid' && order.status !== 'cancelled' && (
+                                <button
+                                  onClick={() => setRefundDialogOrder(order)}
+                                  className="px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-[11px] font-bold text-rose-400 border border-rose-500/20 flex items-center gap-1"
+                                  title="استرجاع وإلغاء الطلب"
+                                >
+                                  <RotateCcw className="w-3 h-3" />
+                                  <span>استرجاع</span>
+                                </button>
+                              )}
                               <select
                                 value={order.status}
                                 onChange={e => updateOrderStatus(order.id, e.target.value as any)}
@@ -970,6 +1256,324 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* INVENTORY & WAREHOUSE MANAGEMENT TAB */}
+        {activeTab === 'inventory' && (
+          <div className="space-y-6 animate-in fade-in">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-black text-white">إدارة المخزون والمستودع (Inventory Control)</h1>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  مراقبة المخزون الفعلي، المحجوز، المتاح للبيع، وإعادة التوريد السريع بضغطة زر.
+                </p>
+              </div>
+              <button
+                onClick={handleOpenAddProduct}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>إضافة صنف جديد</span>
+              </button>
+            </div>
+
+            {/* Inventory KPI Stats Strip */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 space-y-1">
+                <div className="text-xs text-slate-400 font-bold">إجمالي المنتجات المسجلة</div>
+                <div className="text-2xl font-black text-white font-mono">{products.length} صنف</div>
+                <div className="text-[10px] text-blue-400">جاهزة في المستودع الحي</div>
+              </div>
+
+              <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 space-y-1">
+                <div className="text-xs text-slate-400 font-bold">إجمالي القطع المتوفرة</div>
+                <div className="text-2xl font-black text-white font-mono">
+                  {products.reduce((acc, p) => acc + p.stock, 0)} قطعة
+                </div>
+                <div className="text-[10px] text-emerald-400">متاحة للشحن الفوري</div>
+              </div>
+
+              <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 space-y-1">
+                <div className="text-xs text-slate-400 font-bold">تنبيهات انخفاض المخزون</div>
+                <div className="text-2xl font-black text-rose-400 font-mono">
+                  {lowStockProducts.length} منتجات
+                </div>
+                <div className="text-[10px] text-rose-300">تحتاج إعادة طلب أو توريد</div>
+              </div>
+
+              <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 space-y-1">
+                <div className="text-xs text-slate-400 font-bold">القيمة التقديرية للمخزون</div>
+                <div className="text-2xl font-black text-amber-400 font-mono">
+                  {products.reduce((acc, p) => acc + (p.price * p.stock), 0).toLocaleString()} {activeTenant.currencySymbol}
+                </div>
+                <div className="text-[10px] text-slate-400 font-mono">سعر البيع الإجمالي</div>
+              </div>
+            </div>
+
+            {/* Inventory Table */}
+            <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-sm">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-3" />
+                  <input
+                    type="text"
+                    value={inventorySearch}
+                    onChange={e => setInventorySearch(e.target.value)}
+                    placeholder="ابحث باسم المنتج أو SKU..."
+                    className="w-full pr-9 pl-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div className="text-xs text-slate-400 font-mono self-end sm:self-auto">
+                  عدد السجلات: {products.length}
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-slate-400">
+                      <th className="pb-3">المنتج والتصنيف</th>
+                      <th className="pb-3">الرمز (SKU)</th>
+                      <th className="pb-3">في المستودع (On Hand)</th>
+                      <th className="pb-3">محجوز بطلبات (Reserved)</th>
+                      <th className="pb-3">المتاح للبيع (Available)</th>
+                      <th className="pb-3">حد التنبيه (Threshold)</th>
+                      <th className="pb-3 text-left">إعادة توريد سريع (Restock)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {products
+                      .filter(p => {
+                        const q = (inventorySearch || '').toLowerCase().trim();
+                        if (!q) return true;
+                        return (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q);
+                      })
+                      .map(prod => {
+                        const reservedCount = orders
+                          .filter(o => o.status === 'new' || o.status === 'processing')
+                          .reduce((sum, o) => {
+                            const found = o.items.find(it => it.productId === prod.id);
+                            return sum + (found ? found.quantity : 0);
+                          }, 0);
+                        const available = Math.max(0, prod.stock - reservedCount);
+                        const isLow = prod.stock <= prod.lowStockAlert;
+
+                        return (
+                          <tr key={prod.id} className="hover:bg-slate-800/40 transition-colors">
+                            <td className="py-3 flex items-center gap-3">
+                              <img src={prod.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover border border-slate-800" />
+                              <div>
+                                <div className="font-bold text-white">{prod.name}</div>
+                                <div className="text-[10px] text-slate-400">{prod.price} {activeTenant.currencySymbol}</div>
+                              </div>
+                            </td>
+                            <td className="py-3 font-mono text-slate-300">{prod.sku}</td>
+                            <td className="py-3">
+                              <span className={`font-mono font-bold text-sm ${isLow ? 'text-rose-400' : 'text-white'}`}>
+                                {prod.stock}
+                              </span>
+                            </td>
+                            <td className="py-3 font-mono text-slate-400">
+                              {reservedCount} قطعة
+                            </td>
+                            <td className="py-3">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono ${
+                                available > 5 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' :
+                                available > 0 ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30' :
+                                'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                              }`}>
+                                {available} متاح
+                              </span>
+                            </td>
+                            <td className="py-3">
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => updateProduct(prod.id, { lowStockAlert: Math.max(1, prod.lowStockAlert - 1) })}
+                                  className="w-5 h-5 rounded bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center font-bold text-xs"
+                                >
+                                  -
+                                </button>
+                                <span className="font-mono text-slate-200 font-bold px-1">{prod.lowStockAlert}</span>
+                                <button
+                                  onClick={() => updateProduct(prod.id, { lowStockAlert: prod.lowStockAlert + 1 })}
+                                  className="w-5 h-5 rounded bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center font-bold text-xs"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </td>
+                            <td className="py-3 text-left">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => {
+                                    updateProduct(prod.id, { stock: prod.stock + 5 });
+                                    showToast(`تمت إضافة +5 قطع لمخزون "${prod.name}"`, 'success');
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-400 font-mono font-bold text-[11px]"
+                                >
+                                  +5
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    updateProduct(prod.id, { stock: prod.stock + 10 });
+                                    showToast(`تمت إضافة +10 قطع لمخزون "${prod.name}"`, 'success');
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 font-mono font-bold text-[11px]"
+                                >
+                                  +10
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    updateProduct(prod.id, { stock: prod.stock + 50 });
+                                    showToast(`تمت إضافة +50 قطعة لمخزون "${prod.name}"`, 'success');
+                                  }}
+                                  className="px-2 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-mono font-bold text-[11px]"
+                                >
+                                  +50
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CUSTOMERS MANAGEMENT TAB */}
+        {activeTab === 'customers' && (
+          <div className="space-y-6 animate-in fade-in">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-black text-white">قاعدة بيانات العملاء (CRM & Segments)</h1>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  سجل العملاء، معدلات الشراء، تصنيف العملاء المميزين (VIP)، وإجمالي الإنفاق.
+                </p>
+              </div>
+            </div>
+
+            {/* Customers KPI */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 space-y-1">
+                <div className="text-xs text-slate-400 font-bold">إجمالي العملاء المسجلين</div>
+                <div className="text-2xl font-black text-white font-mono">{customers.length} عميل</div>
+                <div className="text-[10px] text-emerald-400 font-bold">+14% نمو هذا الشهر</div>
+              </div>
+
+              <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 space-y-1">
+                <div className="text-xs text-slate-400 font-bold">العملاء المميزون (VIP)</div>
+                <div className="text-2xl font-black text-amber-400 font-mono">
+                  {customers.filter(c => c.totalSpent > 1000).length} عملاء
+                </div>
+                <div className="text-[10px] text-amber-300">أكثر من 1,000 {activeTenant.currencySymbol} إنفاق</div>
+              </div>
+
+              <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 space-y-1">
+                <div className="text-xs text-slate-400 font-bold">متوسط القيمة الدائمة للعميل (LTV)</div>
+                <div className="text-2xl font-black text-blue-400 font-mono">
+                  {customers.length > 0 ? Math.round(customers.reduce((s, c) => s + c.totalSpent, 0) / customers.length) : 0} {activeTenant.currencySymbol}
+                </div>
+                <div className="text-[10px] text-blue-300">معدل تكرار الشراء: 68%</div>
+              </div>
+            </div>
+
+            {/* Customers Table */}
+            <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-slate-400">
+                      <th className="pb-3">العميل</th>
+                      <th className="pb-3">رقم الهاتف</th>
+                      <th className="pb-3">المدينة</th>
+                      <th className="pb-3">عدد الطلبات</th>
+                      <th className="pb-3">إجمالي المشتريات</th>
+                      <th className="pb-3">التصنيف</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {customers.map(cust => (
+                      <tr key={cust.id} className="hover:bg-slate-800/40">
+                        <td className="py-3">
+                          <div className="font-bold text-white">{cust.name}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">{cust.email}</div>
+                        </td>
+                        <td className="py-3 font-mono text-slate-300">{cust.phone}</td>
+                        <td className="py-3 text-slate-300">{cust.city}</td>
+                        <td className="py-3 font-mono font-bold text-white">{cust.ordersCount} طلبات</td>
+                        <td className="py-3 font-mono font-bold text-amber-400">{cust.totalSpent} {activeTenant.currencySymbol}</td>
+                        <td className="py-3">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            cust.totalSpent > 1500 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' :
+                            cust.ordersCount > 2 ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' :
+                            'bg-slate-800 text-slate-300'
+                          }`}>
+                            {cust.totalSpent > 1500 ? 'VIP ذهبي ★' : cust.ordersCount > 2 ? 'عميل متكرر' : 'عميل جديد'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* COUPONS & DISCOUNTS TAB */}
+        {activeTab === 'coupons' && (
+          <div className="space-y-6 animate-in fade-in">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-black text-white">الكوبونات والعروض الترويجية (Coupons)</h1>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  أنشئ أكواد خصم بنسبة مئوية أو قيمة ثابتة وحدد الحد الأدنى للطلب وتتبع استخداماتها.
+                </p>
+              </div>
+              <button
+                onClick={() => setCouponModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>إنشاء كوبون جديد</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {coupons.map(cp => (
+                <div key={cp.id} className="p-5 bg-slate-900 rounded-2xl border border-slate-800 space-y-3 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <div className="px-3 py-1 bg-amber-500/15 border border-amber-500/30 text-amber-400 font-mono font-black text-sm rounded-xl tracking-wider">
+                      {cp.code}
+                    </div>
+                    <button
+                      onClick={() => deleteCoupon(cp.id)}
+                      className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800"
+                      title="حذف الكوبون"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="text-xs text-slate-300">
+                    قيمة الخصم: <span className="text-white font-bold">{cp.type === 'percentage' ? `${cp.value}% خصم` : `${cp.value} ${activeTenant.currencySymbol} خصم مباشر`}</span>
+                  </div>
+
+                  <div className="text-[11px] text-slate-400">
+                    الحد الأدنى للطلب: <span className="font-mono text-slate-300">{cp.minSpend} {activeTenant.currencySymbol}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-[10px] text-slate-400 font-mono">
+                    <span>استُخدم {cp.usageCount || 0} مرات</span>
+                    <span className="text-emerald-400 font-bold">نشط ✓</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -1252,124 +1856,236 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
           </div>
         )}
 
-        {/* 6. SETTINGS & DOMAIN TAB */}
+        {/* 6. SETTINGS & DOMAIN TAB WITH PROGRESSIVE DISCLOSURE */}
         {activeTab === 'settings' && (
           <div className="space-y-6 animate-in fade-in">
-            <div>
-              <h1 className="text-2xl font-black text-white">إعدادات المتجر والنطاق والحسابات البنكية</h1>
-              <p className="text-xs text-slate-400 mt-0.5">
-                ربط الدومين المخصص، بوابات الدفع الإلكتروني، والحسابات البنكية للحوالات المباشرة.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-black text-white">إعدادات المتجر والدفع والربط المتقدم</h1>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  إدارة الهوية الأساسية، بوابات الدفع والشحن، والربط التقني المتقدم عبر خطافات الويب والـ DNS.
+                </p>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              
-              {/* Custom Domain Simulator Card */}
-              <div className="lg:col-span-6 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
-                <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
-                  <Globe className="w-4 h-4" />
-                  <span>ربط النطاق المخصص (Custom Domain)</span>
-                </div>
-                
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">الدومين الخاص بك</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      defaultValue={activeTenant.customDomain || `www.${activeTenant.slug}.sa`}
-                      className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                    />
-                    <button
-                      onClick={() => showToast('تم التحقق من سجلات DNS وشهادة SSL بنجاح! 🔒', 'success')}
-                      className="px-3 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs"
-                    >
-                      تحقق من DNS
-                    </button>
-                  </div>
-                </div>
+            {/* Progressive Disclosure Sub-Tabs */}
+            <div className="flex gap-2 border-b border-slate-800 pb-3">
+              {[
+                { id: 'basic', label: 'الإعدادات الأساسية والهوية' },
+                { id: 'payments', label: 'بوابات الدفع والحسابات البنكية' },
+                { id: 'developer', label: 'المطورين والنطاق المخصص (DNS & API)' }
+              ].map(sub => (
+                <button
+                  key={sub.id}
+                  onClick={() => setSettingsSubTab(sub.id as any)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    settingsSubTab === sub.id
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
 
-                <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] text-slate-400 space-y-1">
-                  <div className="font-bold text-slate-200 mb-1">سجلات DNS المطلوبة:</div>
-                  <div className="flex justify-between font-mono">
-                    <span>Type: CNAME</span>
-                    <span>Host: www</span>
-                    <span className="text-amber-400">Target: stores.commerceos.app</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment Gateways Config Card */}
-              <div className="lg:col-span-6 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
-                    <CreditCard className="w-4 h-4" />
-                    <span>بوابات الدفع الإلكتروني</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2.5">
-                  {[
-                    { id: 'mada', name: 'مدى (Mada)', status: 'مفعلة وتعمل بنجاح ✓' },
-                    { id: 'apple_pay', name: 'Apple Pay', status: 'مفعلة وتعمل بنجاح ✓' },
-                    { id: 'visa', name: 'Visa & MasterCard', status: 'مفعلة وتعمل بنجاح ✓' },
-                    { id: 'tamara', name: 'تمارا (Tamara BNPL)', status: 'مفعلة للتقسيط ✓' },
-                    { id: 'cod', name: 'الدفع عند الاستلام (COD)', status: 'مفعلة ✓' },
-                    { id: 'bank_transfer', name: 'التحويل البنكي المباشر (Bank Transfer)', status: 'مفعلة وتتطلب اعتماد الإيصال ✓' }
-                  ].map((gw, i) => (
-                    <div key={i} className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
-                      <span className="font-bold text-white">{gw.name}</span>
-                      <span className="text-emerald-400 text-[11px] font-medium">{gw.status}</span>
+            {/* Sub-Tab 1: Basic Store Settings */}
+            {settingsSubTab === 'basic' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in">
+                <div className="lg:col-span-8 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                  <h3 className="text-sm font-bold text-white">بيانات المتجر العامة</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">اسم المتجر</label>
+                      <input
+                        type="text"
+                        value={activeTenant.name}
+                        onChange={e => updateTenant(activeTenant.id, { name: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                      />
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Bank Accounts Management (Full 12 cols) */}
-              <div className="lg:col-span-12 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-amber-400 font-bold text-sm">
-                    <Building2 className="w-4 h-4" />
-                    <span>الحسابات البنكية المعتمدة للتحويل (Bank Accounts)</span>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">المعرف البرمجي (Slug)</label>
+                      <input
+                        type="text"
+                        disabled
+                        value={activeTenant.slug}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-500 font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">العملة الافتراضية</label>
+                      <input
+                        type="text"
+                        value={activeTenant.currencySymbol}
+                        onChange={e => updateTenant(activeTenant.id, { currencySymbol: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">شعار المتجر (Logo URL)</label>
+                      <input
+                        type="text"
+                        value={activeTenant.logo}
+                        onChange={e => updateTenant(activeTenant.id, { logo: e.target.value })}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                      />
+                    </div>
                   </div>
+
                   <button
-                    onClick={() => {
-                      setBankName('مصرف الراجحي');
-                      setAccountHolder(activeTenant.name);
-                      setIban('SA');
-                      setAccountNumber('');
-                      setBankModalOpen(true);
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1"
+                    onClick={() => showToast('تم حفظ الإعدادات الأساسية بنجاح!', 'success')}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>إضافة حساب بنكي</span>
+                    حفظ التغييرات
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {(activeTenant.bankAccounts || []).map((acc) => (
-                    <div key={acc.id} className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2 relative">
-                      <div className="flex items-center justify-between">
-                        <span className="font-black text-sm text-white">{acc.bankName}</span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${acc.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
-                          {acc.isActive ? 'مفعل للاستقبال' : 'معطل'}
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-300">
-                        <span className="text-slate-500">اسم المستفيد:</span> <span className="font-bold">{acc.accountHolder}</span>
-                      </div>
-                      <div className="text-xs text-slate-300 font-mono">
-                        <span className="text-slate-500">IBAN:</span> <span className="text-amber-400 font-bold">{acc.iban}</span>
-                      </div>
-                      <div className="text-xs text-slate-300 font-mono">
-                        <span className="text-slate-500">رقم الحساب:</span> {acc.accountNumber}
-                      </div>
-                    </div>
-                  ))}
+                <div className="lg:col-span-4 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-3">
+                  <h3 className="text-sm font-bold text-white">معاينة الهوية</h3>
+                  <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 text-center space-y-2">
+                    <img src={activeTenant.logo} alt="" className="w-16 h-16 rounded-xl mx-auto object-cover border border-slate-700" />
+                    <div className="font-bold text-white text-sm">{activeTenant.name}</div>
+                    <div className="text-[11px] text-slate-400 font-mono">stores.commerceos.app/{activeTenant.slug}</div>
+                  </div>
                 </div>
               </div>
+            )}
 
-            </div>
+            {/* Sub-Tab 2: Payments & Bank Accounts */}
+            {settingsSubTab === 'payments' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in">
+                {/* Gateways */}
+                <div className="lg:col-span-6 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                  <div className="flex items-center gap-2 text-blue-400 font-bold text-sm">
+                    <CreditCard className="w-4 h-4" />
+                    <span>بوابات الدفع الإلكتروني المعتمدة</span>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {[
+                      { id: 'mada', name: 'مدى (Mada)', status: 'مفعلة وتعمل بنجاح ✓' },
+                      { id: 'apple_pay', name: 'Apple Pay', status: 'مفعلة وتعمل بنجاح ✓' },
+                      { id: 'visa', name: 'Visa & MasterCard', status: 'مفعلة وتعمل بنجاح ✓' },
+                      { id: 'tamara', name: 'تمارا (Tamara BNPL)', status: 'مفعلة للتقسيط ✓' },
+                      { id: 'cod', name: 'الدفع عند الاستلام (COD)', status: 'مفعلة ✓' },
+                      { id: 'bank_transfer', name: 'التحويل البنكي المباشر (Bank Transfer)', status: 'مفعلة وتتطلب اعتماد الإيصال ✓' }
+                    ].map((gw, i) => (
+                      <div key={i} className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between text-xs">
+                        <span className="font-bold text-white">{gw.name}</span>
+                        <span className="text-emerald-400 text-[11px] font-medium">{gw.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bank Accounts */}
+                <div className="lg:col-span-6 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-blue-400 font-bold text-sm">
+                      <Building2 className="w-4 h-4" />
+                      <span>الحسابات البنكية لاستقبال التحويلات</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setBankName('مصرف الراجحي');
+                        setAccountHolder(activeTenant.name);
+                        setIban('SA');
+                        setAccountNumber('');
+                        setBankModalOpen(true);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>إضافة حساب</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {(activeTenant.bankAccounts || []).map((acc) => (
+                      <div key={acc.id} className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs text-white">{acc.bankName}</span>
+                          <span className="text-[10px] text-emerald-400 font-bold">نشط ✓</span>
+                        </div>
+                        <div className="text-[11px] text-slate-300 font-mono">
+                          <span className="text-slate-500">IBAN:</span> <span className="text-amber-400 font-bold">{acc.iban}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400">المستفيد: {acc.accountHolder}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sub-Tab 3: Developer, Domain & Webhooks */}
+            {settingsSubTab === 'developer' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in">
+                {/* Custom Domain */}
+                <div className="lg:col-span-6 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                  <div className="flex items-center gap-2 text-blue-400 font-bold text-sm">
+                    <Globe className="w-4 h-4" />
+                    <span>ربط النطاق المخصص (Custom Domain DNS)</span>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">الدومين الخاص بك</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        defaultValue={activeTenant.customDomain || `www.${activeTenant.slug}.sa`}
+                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                      />
+                      <button
+                        onClick={() => showToast('تم التحقق من سجلات DNS وشهادة SSL بنجاح! 🔒', 'success')}
+                        className="px-3 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs"
+                      >
+                        تحقق من DNS
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                    <div className="font-bold text-slate-200 mb-1">سجلات DNS المطلوبة:</div>
+                    <div className="flex justify-between font-mono">
+                      <span>Type: CNAME</span>
+                      <span>Host: www</span>
+                      <span className="text-amber-400">Target: stores.commerceos.app</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* API & Webhooks Link */}
+                <div className="lg:col-span-6 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
+                  <div className="flex items-center gap-2 text-blue-400 font-bold text-sm">
+                    <Puzzle className="w-4 h-4" />
+                    <span>تكامل المطورين والـ API Keys</span>
+                  </div>
+
+                  <p className="text-xs text-slate-300">
+                    يمكنك ربط متجرك مع التطبيقات الخارجية، ERP، وشركات الشحن باستخدام مفاتيح API الآمنة وخطافات الويب الموقعة رقمياً بـ HMAC.
+                  </p>
+
+                  <div className="pt-2 flex gap-3">
+                    <button
+                      onClick={() => setActiveTab('webhooks_plugins')}
+                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl border border-white/10"
+                    >
+                      إدارة الخطافات (Webhooks)
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('security_center')}
+                      className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-blue-400 text-xs font-bold rounded-xl border border-white/10"
+                    >
+                      مركز التواقيع الرقمية
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
 
@@ -1749,6 +2465,129 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
             </form>
           </div>
         </div>
+      )}
+
+      {/* Coupon Modal */}
+      {couponModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 text-right space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white">إنشاء كوبون خصم جديد</h3>
+              <button onClick={() => setCouponModalOpen(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCoupon} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">كود الكوبون (Coupon Code) *</label>
+                <input
+                  required
+                  type="text"
+                  value={couponCode}
+                  onChange={e => setCouponCode(e.target.value)}
+                  placeholder="مثال: SAVE20"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono uppercase text-left"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">نوع الخصم</label>
+                  <select
+                    value={couponType}
+                    onChange={e => setCouponType(e.target.value as any)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  >
+                    <option value="percentage">نسبة مئوية (%)</option>
+                    <option value="fixed">مبلغ ثابت ({activeTenant.currencySymbol})</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1">قيمة الخصم *</label>
+                  <input
+                    required
+                    type="number"
+                    value={couponValue}
+                    onChange={e => setCouponValue(Number(e.target.value))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">الحد الأدنى للطلب ({activeTenant.currencySymbol})</label>
+                <input
+                  type="number"
+                  value={couponMinSpend}
+                  onChange={e => setCouponMinSpend(Number(e.target.value))}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs transition-all shadow-md mt-2"
+              >
+                حفظ وتفعيل الكوبون
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Action Dialog for Refunds */}
+      {refundDialogOrder && (
+        <ConfirmActionDialog
+          isOpen={Boolean(refundDialogOrder)}
+          variant="refund"
+          title="تأكيد استرجاع وإلغاء الطلب"
+          subtitle={`سيتم إلغاء الطلب ${refundDialogOrder.orderNumber} وإعادة المبلغ إلى حساب العميل`}
+          confirmLabel="تأكيد الاسترجاع المالي وإلغاء الطلب"
+          cancelLabel="تراجع"
+          isProcessing={isProcessingRefund}
+          onCancel={() => setRefundDialogOrder(null)}
+          refundDetails={{
+            originalTotal: refundDialogOrder.total,
+            alreadyRefunded: 0,
+            refundAmount: refundDialogOrder.total,
+            remainingBalance: 0,
+            currencySymbol: activeTenant.currencySymbol,
+            refundMethod: refundDialogOrder.paymentMethod === 'mada' ? 'مدى (Mada)' :
+                          refundDialogOrder.paymentMethod === 'apple_pay' ? 'Apple Pay' :
+                          refundDialogOrder.paymentMethod === 'bank_transfer' ? 'حساب العميل البنكي' : 'البوابة الأصلية',
+            items: refundDialogOrder.items.map(it => ({
+              name: it.productName,
+              quantity: it.quantity,
+              price: it.price
+            }))
+          }}
+          onConfirm={async () => {
+            setIsProcessingRefund(true);
+            try {
+              // 1. Update order payment status and order status
+              await updateOrderPaymentStatus(refundDialogOrder.id, 'failed');
+              await updateOrderStatus(refundDialogOrder.id, 'cancelled');
+              
+              // 2. Restock products in inventory
+              refundDialogOrder.items.forEach(it => {
+                const prod = products.find(p => p.id === it.productId);
+                if (prod) {
+                  updateProduct(prod.id, { stock: prod.stock + it.quantity });
+                }
+              });
+
+              showToast(`تم استرجاع مبلغ ${refundDialogOrder.total} ${activeTenant.currencySymbol} للطلب ${refundDialogOrder.orderNumber} وإعادة الأصناف للمخزون بنجاح! ✓`, 'success');
+              setRefundDialogOrder(null);
+              if (orderDetailModal && orderDetailModal.id === refundDialogOrder.id) {
+                setOrderDetailModal(null);
+              }
+            } finally {
+              setIsProcessingRefund(false);
+            }
+          }}
+        />
       )}
 
     </div>

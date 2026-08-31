@@ -1,3 +1,12 @@
+export * from './types/saas';
+import { 
+  TenantLifecycleState, 
+  SubscriptionStatus, 
+  BillingStatus, 
+  StoreOperationalStatus,
+  SaaSPlanId 
+} from './types/saas';
+
 export type BusinessType = 
   | 'honey' 
   | 'coffee' 
@@ -324,6 +333,12 @@ export interface TenantStore {
   customDomainVerified?: boolean;
   plan: SubscriptionPlanId;
   status: 'active' | 'suspended' | 'trial';
+  lifecycleState?: TenantLifecycleState;
+  subscriptionStatus?: SubscriptionStatus;
+  billingStatus?: BillingStatus;
+  storeOperationalStatus?: StoreOperationalStatus;
+  saasPlanId?: SaaSPlanId;
+  billingCustomerId?: string;
   createdAt: string;
   contact: {
     email: string;

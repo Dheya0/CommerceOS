@@ -30,7 +30,7 @@ import { api } from '../api/client';
 import { DEFAULT_PLATFORM_CONFIG, validateLicenseKey, generateLicenseKey } from '../utils/licensingEngine';
 import { generateDesignTokens } from '../utils/themeEngine';
 
-export type AppView = 'home' | 'storefront' | 'merchant_dashboard' | 'builder_wizard' | 'platform_admin' | 'live_customizer' | 'visual_ide' | 'auth_page';
+export type AppView = 'home' | 'storefront' | 'merchant_dashboard' | 'builder_wizard' | 'platform_admin' | 'live_customizer' | 'visual_ide' | 'auth_page' | 'pricing' | 'design_system';
 export type PreviewDevice = 'desktop' | 'tablet' | 'mobile';
 
 interface ToastInfo {
@@ -266,45 +266,39 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const login = async (email: string, password?: string, targetTenantId?: string): Promise<boolean> => {
     const cleanEmail = email.trim().toLowerCase();
     const effectiveTenantId = targetTenantId || activeTenantId;
-    const targetTenant = tenants.find(t => t.id === effectiveTenantId) || tenants[0];
-    
-    // Find staff or create auth user
-    const tenantStaff = staff.filter(s => s.tenantId === targetTenant.id);
-    const matchedStaff = tenantStaff.find(s => s.email.toLowerCase() === cleanEmail) || 
-      staff.find(s => s.email.toLowerCase() === cleanEmail);
 
-    let user: AuthUser;
-    if (matchedStaff) {
-      user = {
-        id: matchedStaff.id,
-        name: matchedStaff.name,
-        email: matchedStaff.email,
-        role: matchedStaff.role,
-        tenantId: matchedStaff.tenantId,
-        permissions: matchedStaff.permissions
-      };
-      setCurrentStaffRole(matchedStaff.role);
-      setActiveTenantId(matchedStaff.tenantId);
-    } else {
-      user = {
-        id: `user-${Date.now()}`,
-        name: cleanEmail.split('@')[0],
-        email: cleanEmail,
-        role: 'store_owner',
-        tenantId: targetTenant.id
-      };
-      setCurrentStaffRole('store_owner');
-      setActiveTenantId(targetTenant.id);
-    }
-
-    setCurrentUser(user);
     try {
-      localStorage.setItem('commerceos_auth_user', JSON.stringify(user));
-    } catch {}
+      const res = await api.login('store_owner', cleanEmail, password || 'CommerceOS@2026');
+      if (res && res.user) {
+        const user: AuthUser = {
+          id: res.user.id,
+          name: res.user.name,
+          email: res.user.email,
+          role: res.user.role,
+          tenantId: res.user.tenantId || effectiveTenantId,
+          permissions: res.user.permissions
+        };
 
-    setAuthModalOpen(false);
-    showToast(`مرحباً بك ${user.name}! تم تسجيل الدخول بنجاح`, 'success');
-    return true;
+        setCurrentUser(user);
+        setCurrentStaffRole(res.user.role || 'store_owner');
+        if (res.user.tenantId) {
+          setActiveTenantId(res.user.tenantId);
+          api.setTenant(res.user.tenantId);
+        }
+
+        try {
+          localStorage.setItem('commerceos_auth_user', JSON.stringify(user));
+        } catch {}
+
+        setAuthModalOpen(false);
+        showToast(`مرحباً بك ${user.name}! تم تسجيل الدخول بنجاح`, 'success');
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      showToast(err.message || 'فشل تسجيل الدخول، يرجى التحقق من البريد وكلمة المرور', 'error');
+      return false;
+    }
   };
 
   const register = async (data: {
@@ -503,9 +497,11 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const logout = () => {
+    api.logout().catch(() => {});
     setCurrentUser(null);
     try {
       localStorage.removeItem('commerceos_auth_user');
+      localStorage.removeItem('cos_auth_token');
     } catch {}
     showToast('تم تسجيل الخروج بنجاح', 'info');
     setCurrentView('home');

@@ -5,10 +5,13 @@ import { LandingPage } from './components/home/LandingPage';
 import { StorefrontView } from './components/storefront/StorefrontView';
 import { MerchantDashboard } from './components/dashboard/MerchantDashboard';
 import { PlatformAdminDashboard } from './components/admin/PlatformAdminDashboard';
+import { MerchantAppShell } from './components/merchant/MerchantAppShell';
 import { StoreBuilderWizard } from './components/builder/StoreBuilderWizard';
 import { LiveDesignStudio } from './components/builder/LiveDesignStudio';
 import { VisualIDE } from './components/builder/VisualIDE';
+import { PricingPage } from './components/saas/PricingPage';
 import { AuthPageView } from './components/auth/AuthPageView';
+import { DesignSystemPlayground } from './design-system/DesignSystemPlayground';
 import { TamperAlertModal } from './components/common/TamperAlertModal';
 import { AuthModal } from './components/auth/AuthModal';
 import { CommandPalette } from './components/common/CommandPalette';
@@ -38,7 +41,7 @@ const AppContent: React.FC = () => {
       <div className="fixed top-[40%] left-[25%] w-[400px] h-[400px] bg-cyan-600/5 rounded-full blur-[120px] pointer-events-none z-0" />
 
       {/* Global Platform Navigation Bar */}
-      {currentView !== 'auth_page' && (
+      {currentView !== 'auth_page' && currentView !== 'merchant_dashboard' && (
         <PlatformHeader onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
       )}
 
@@ -46,12 +49,14 @@ const AppContent: React.FC = () => {
       <main className="relative z-10">
         {currentView === 'home' && <LandingPage />}
         {currentView === 'storefront' && <StorefrontView />}
-        {currentView === 'merchant_dashboard' && <MerchantDashboard onOpenCommandPalette={() => setCommandPaletteOpen(true)} />}
+        {currentView === 'merchant_dashboard' && <MerchantAppShell onOpenCommandPalette={() => setCommandPaletteOpen(true)} />}
         {currentView === 'builder_wizard' && <StoreBuilderWizard />}
         {currentView === 'live_customizer' && <LiveDesignStudio />}
         {currentView === 'visual_ide' && <VisualIDE />}
+        {currentView === 'pricing' && <PricingPage />}
         {currentView === 'platform_admin' && <PlatformAdminDashboard />}
         {currentView === 'auth_page' && <AuthPageView />}
+        {currentView === 'design_system' && <DesignSystemPlayground />}
       </main>
 
       {/* Command Palette (Cmd/Ctrl + K) */}

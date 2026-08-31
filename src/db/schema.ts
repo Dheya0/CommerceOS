@@ -505,6 +505,135 @@ export const webhookEvents = pgTable(
   ]
 );
 
+/**
+ * INVENTORY MOVEMENTS TABLE (LEDGER)
+ * Immutable audit ledger of all stock changes (INITIAL, SALE, RETURN, RESTOCK, ADJUSTMENT, CANCEL).
+ */
+export const inventoryMovements = pgTable(
+  'inventory_movements',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    productId: text('product_id')
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    variantId: text('variant_id'),
+    type: text('type').notNull(), // INITIAL | SALE | RETURN | RESTOCK | ADJUSTMENT | CANCEL | DAMAGE | RESERVATION | RELEASE
+    quantity: integer('quantity').notNull(), // signed integer (e.g. -2 for sale, +10 for restock)
+    referenceType: text('reference_type'), // order | return | adjustment | restock | reservation
+    referenceId: text('reference_id'),
+    beforeQuantity: integer('before_quantity').notNull(),
+    afterQuantity: integer('after_quantity').notNull(),
+    createdBy: text('created_by').notNull().default('system'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    index('idx_inventory_movements_product').on(table.tenantId, table.productId),
+    index('idx_inventory_movements_reference').on(table.referenceType, table.referenceId),
+    index('idx_inventory_movements_created').on(table.tenantId, table.createdAt)
+  ]
+);
+
+/**
+ * COUPON REDEMPTIONS TABLE
+ * Tracks individual coupon usages per order and customer with atomic concurrency protection.
+ */
+export const couponRedemptions = pgTable(
+  'coupon_redemptions',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id')
+      .notNull()
+      .references(() => tenants.id, { onDelete: 'cascade' }),
+    couponId: text('coupon_id')
+      .notNull()
+      .references(() => coupons.id, { onDelete: 'cascade' }),
+    orderId: text('order_id')
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    customerEmail: text('customer_email').notNull(),
+    discountAmount: integer('discount_amount').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    uniqueIndex('idx_coupon_redemption_order').on(table.couponId, table.orderId),
+    index('idx_coupon_redemptions_customer').on(table.tenantId, table.customerEmail),
+    index('idx_coupon_redemptions_coupon').on(table.couponId)
+  ]
+);
+
+/**
+ * TRANSACTIONAL OUTBOX EVENTS TABLE
+ * Durable background event dispatcher ensuring guaranteed at-least-once asynchronous event delivery.
+ */
+export const outboxEvents = pgTable(
+  'outbox_events',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id').notNull(),
+    eventType: text('event_type').notNull(), // order.created | payment.paid | refund.succeeded | inventory.low
+    aggregateType: text('aggregate_type').notNull(), // order | payment | product | coupon
+    aggregateId: text('aggregate_id').notNull(),
+    payload: jsonb('payload').notNull(),
+    status: text('status').notNull().default('pending'), // pending | published | failed
+    retryCount: integer('retry_count').notNull().default(0),
+    errorMessage: text('error_message'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    processedAt: timestamp('processed_at', { withTimezone: true })
+  },
+  (table) => [
+    index('idx_outbox_events_status').on(table.status, table.createdAt),
+    index('idx_outbox_events_tenant').on(table.tenantId, table.eventType)
+  ]
+);
+
+/**
+ * ASYNC BACKGROUND JOBS & DEAD LETTER QUEUE (DLQ)
+ * Enterprise durable job execution with retry backoff, concurrency isolation, and DLQ.
+ */
+export const backgroundJobs = pgTable(
+  'background_jobs',
+  {
+    id: text('id').primaryKey(),
+    tenantId: text('tenant_id'),
+    jobType: text('job_type').notNull(),
+    payload: jsonb('payload').notNull(),
+    status: text('status').notNull().default('queued'), // queued | processing | completed | failed | dead_letter | cancelled
+    attempts: integer('attempts').notNull().default(0),
+    maxAttempts: integer('max_attempts').notNull().default(3),
+    lastError: text('last_error'),
+    lockedBy: text('locked_by'),
+    lockedUntil: timestamp('locked_until', { withTimezone: true }),
+    scheduledFor: timestamp('scheduled_for', { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    processedAt: timestamp('processed_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true })
+  },
+  (table) => [
+    index('idx_background_jobs_status_scheduled').on(table.status, table.scheduledFor),
+    index('idx_background_jobs_tenant').on(table.tenantId, table.jobType)
+  ]
+);
+
+/**
+ * DISTRIBUTED LOCKS TABLE
+ * Central database-backed distributed mutex for multi-instance single-executor scheduled tasks.
+ */
+export const distributedLocks = pgTable(
+  'distributed_locks',
+  {
+    resourceKey: text('resource_key').primaryKey(),
+    ownerToken: text('owner_token').notNull(),
+    acquiredAt: timestamp('acquired_at', { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull()
+  },
+  (table) => [
+    index('idx_distributed_locks_expires').on(table.expiresAt)
+  ]
+);
+
 // --- DRIZZLE RELATIONS ---
 export const tenantsRelations = relations(tenants, ({ many }) => ({
   staff: many(staff),
@@ -515,7 +644,9 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
   abandonedCarts: many(abandonedCarts),
   notifications: many(notifications),
   paymentIntents: many(paymentIntents),
-  refunds: many(refunds)
+  refunds: many(refunds),
+  inventoryMovements: many(inventoryMovements),
+  couponRedemptions: many(couponRedemptions)
 }));
 
 export const staffRelations = relations(staff, ({ one }) => ({
@@ -530,7 +661,8 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     fields: [products.tenantId],
     references: [tenants.id]
   }),
-  orderItems: many(orderItems)
+  orderItems: many(orderItems),
+  inventoryMovements: many(inventoryMovements)
 }));
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
@@ -540,7 +672,8 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
   }),
   items: many(orderItems),
   paymentIntents: many(paymentIntents),
-  refunds: many(refunds)
+  refunds: many(refunds),
+  couponRedemptions: many(couponRedemptions)
 }));
 
 export const paymentIntentsRelations = relations(paymentIntents, ({ one, many }) => ({
@@ -582,5 +715,31 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
   product: one(products, {
     fields: [orderItems.productId],
     references: [products.id]
+  })
+}));
+
+export const inventoryMovementsRelations = relations(inventoryMovements, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [inventoryMovements.tenantId],
+    references: [tenants.id]
+  }),
+  product: one(products, {
+    fields: [inventoryMovements.productId],
+    references: [products.id]
+  })
+}));
+
+export const couponRedemptionsRelations = relations(couponRedemptions, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [couponRedemptions.tenantId],
+    references: [tenants.id]
+  }),
+  coupon: one(coupons, {
+    fields: [couponRedemptions.couponId],
+    references: [coupons.id]
+  }),
+  order: one(orders, {
+    fields: [couponRedemptions.orderId],
+    references: [orders.id]
   })
 }));

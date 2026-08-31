@@ -16,6 +16,8 @@ import {
   Refund,
   Order
 } from '../../types.ts';
+import { OutboxService } from '../../../server/services/outbox.service.ts';
+import { Money } from '../../../server/utils/money.ts';
 
 export interface CreatePaymentIntentParams {
   tenantId: string;
@@ -302,6 +304,21 @@ export class PaymentService {
           createdAt: now
         });
 
+        // 7. Transactional Outbox Event
+        await OutboxService.recordEvent(tx, {
+          tenantId,
+          eventType: targetState === 'PAID' ? 'payment.captured' : targetState === 'FAILED' ? 'payment.failed' : `payment.${targetState.toLowerCase()}`,
+          aggregateType: 'payment',
+          aggregateId: paymentIntentId,
+          payload: {
+            paymentIntentId,
+            orderId: currentIntent.orderId,
+            amount: finalCaptured,
+            provider: provider || currentIntent.provider,
+            transactionId
+          }
+        });
+
         const updatedIntent: PaymentIntent = {
           id: currentIntent.id,
           tenantId: currentIntent.tenantId,
@@ -425,6 +442,17 @@ export class PaymentService {
           })
           .where(eq(paymentIntents.id, paymentIntentId));
 
+        // Update corresponding Order paymentStatus atomically
+        if (intent.orderId) {
+          await tx
+            .update(orders)
+            .set({
+              paymentStatus: isFullRefund ? 'refunded' : 'partially_refunded',
+              updatedAt: now
+            })
+            .where(eq(orders.id, intent.orderId));
+        }
+
         // Audit log
         await tx.insert(auditLogs).values({
           id: `log_ref_${refundId}`,
@@ -440,6 +468,22 @@ export class PaymentService {
             reason
           },
           createdAt: now
+        });
+
+        // Outbox Event for Refund
+        await OutboxService.recordEvent(tx, {
+          tenantId,
+          eventType: 'refund.succeeded',
+          aggregateType: 'refund',
+          aggregateId: refundId,
+          payload: {
+            refundId,
+            paymentIntentId,
+            orderId: intent.orderId,
+            amount,
+            isFullRefund,
+            newRefundedTotal
+          }
         });
 
         const refundObj: Refund = {

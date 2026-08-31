@@ -101,14 +101,27 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  const handleQuickDemoLogin = (role: StaffRole, email: string, tenantId: string) => {
-    setLoginEmail(email);
-    setLoginPassword('demo123456');
-    setSelectedTenantId(tenantId);
-    setActiveTenantId(tenantId);
-    setCurrentStaffRole(role);
-    login(email, 'demo123456', tenantId);
-    setCurrentView('merchant_dashboard');
+  const handleQuickDemoLogin = async (role: StaffRole, email: string, tenantId: string, customPassword?: string) => {
+    setIsLoading(true);
+    try {
+      const pwd = customPassword || (email.includes('superadmin') ? 'CommerceOS@HQ2026' : 'CommerceOS@2026');
+      setLoginEmail(email);
+      setLoginPassword(pwd);
+      setSelectedTenantId(tenantId);
+      setActiveTenantId(tenantId);
+      setCurrentStaffRole(role);
+      const success = await login(email, pwd, tenantId);
+      if (success) {
+        setAuthModalOpen(false);
+        if (email.includes('superadmin')) {
+          setCurrentView('platform_admin');
+        } else {
+          setCurrentView('merchant_dashboard');
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -316,17 +329,14 @@ export const AuthModal: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setCurrentView('platform_admin');
-                      setAuthModalOpen(false);
-                    }}
+                    onClick={() => handleQuickDemoLogin('store_owner', 'superadmin@commerceos.app', 'tenant-royal-honey', 'CommerceOS@HQ2026')}
                     className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 hover:border-slate-700 text-right transition-all flex items-center justify-between group"
                   >
                     <div>
                       <div className="text-xs font-bold text-white group-hover:text-blue-400 transition-colors">
                         مشرف منصة CommerceOS HQ
                       </div>
-                      <div className="text-[10px] text-slate-500 font-mono">admin@commerceos.app</div>
+                      <div className="text-[10px] text-slate-500 font-mono">superadmin@commerceos.app</div>
                     </div>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 font-bold border border-blue-500/20">
                       HQ Admin

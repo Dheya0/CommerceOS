@@ -41,6 +41,20 @@ class CommerceApiClient {
     }
   }
 
+  public async get<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+    const cleanEndpoint = endpoint.startsWith('/api/v1') ? endpoint.replace('/api/v1', '') : endpoint;
+    return this.request<T>(cleanEndpoint, { ...options, method: 'GET' });
+  }
+
+  public async post<T>(endpoint: string, body: any = {}, options: RequestInit = {}): Promise<T> {
+    const cleanEndpoint = endpoint.startsWith('/api/v1') ? endpoint.replace('/api/v1', '') : endpoint;
+    return this.request<T>(cleanEndpoint, {
+      ...options,
+      method: 'POST',
+      body: typeof body === 'string' ? body : JSON.stringify(body)
+    });
+  }
+
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -279,6 +293,161 @@ class CommerceApiClient {
 
   async getPlatformAnalytics(): Promise<any> {
     return this.request('/analytics/platform');
+  }
+
+  // --- SaaS Billing & Lifecycle ---
+  async getSaaSPlans(): Promise<any> {
+    return this.request('/saas/plans');
+  }
+
+  async getSaaSSubscription(tenantId?: string): Promise<any> {
+    const query = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
+    return this.request(`/saas/subscription${query}`);
+  }
+
+  async upgradeSaaSPlan(planId: string, billingCycle: 'monthly' | 'yearly' = 'monthly'): Promise<any> {
+    return this.request('/saas/subscription/upgrade', {
+      method: 'POST',
+      body: JSON.stringify({ planId, billingCycle })
+    });
+  }
+
+  async downgradeSaaSPlan(planId: string): Promise<any> {
+    return this.request('/saas/subscription/downgrade', {
+      method: 'POST',
+      body: JSON.stringify({ planId })
+    });
+  }
+
+  async cancelSaaSSubscription(reason?: string): Promise<any> {
+    return this.request('/saas/subscription/cancel', {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    });
+  }
+
+  async reactivateSaaSSubscription(): Promise<any> {
+    return this.request('/saas/subscription/reactivate', {
+      method: 'POST'
+    });
+  }
+
+  async getSaaSUsage(tenantId?: string): Promise<any> {
+    const query = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
+    return this.request(`/saas/usage${query}`);
+  }
+
+  async getSaaSInvoices(tenantId?: string): Promise<any> {
+    const query = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
+    return this.request(`/saas/invoices${query}`);
+  }
+
+  async getSaaSInvoiceById(invoiceId: string): Promise<any> {
+    return this.request(`/saas/invoices/${invoiceId}`);
+  }
+
+  async paySaaSInvoice(invoiceId: string): Promise<any> {
+    return this.request(`/saas/invoices/${invoiceId}/pay`, {
+      method: 'POST'
+    });
+  }
+
+  async getBillingCustomer(): Promise<any> {
+    return this.request('/saas/customer');
+  }
+
+  async updateBillingCustomer(data: any): Promise<any> {
+    return this.request('/saas/customer', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // --- Domains ---
+  async getDomains(): Promise<any> {
+    return this.request('/saas/domains');
+  }
+
+  async addCustomDomain(hostname: string): Promise<any> {
+    return this.request('/saas/domains', {
+      method: 'POST',
+      body: JSON.stringify({ hostname })
+    });
+  }
+
+  async verifyDomain(domainId: string): Promise<any> {
+    return this.request(`/saas/domains/${domainId}/verify`, {
+      method: 'POST'
+    });
+  }
+
+  async setPrimaryDomain(domainId: string): Promise<any> {
+    return this.request(`/saas/domains/${domainId}/primary`, {
+      method: 'POST'
+    });
+  }
+
+  async deleteDomain(domainId: string): Promise<any> {
+    return this.request(`/saas/domains/${domainId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // --- API Keys & Webhooks ---
+  async getApiKeys(): Promise<any> {
+    return this.request('/saas/api-keys');
+  }
+
+  async createApiKey(name: string, scopes: string[]): Promise<any> {
+    return this.request('/saas/api-keys', {
+      method: 'POST',
+      body: JSON.stringify({ name, scopes })
+    });
+  }
+
+  async revokeApiKey(keyId: string): Promise<any> {
+    return this.request(`/saas/api-keys/${keyId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async getWebhooks(): Promise<any> {
+    return this.request('/saas/webhooks');
+  }
+
+  async createWebhook(name: string, url: string, events: string[]): Promise<any> {
+    return this.request('/saas/webhooks', {
+      method: 'POST',
+      body: JSON.stringify({ name, url, events })
+    });
+  }
+
+  async testWebhook(webhookId: string): Promise<any> {
+    return this.request(`/saas/webhooks/${webhookId}/test`, {
+      method: 'POST'
+    });
+  }
+
+  async retryWebhookDelivery(deliveryId: string): Promise<any> {
+    return this.request(`/saas/webhooks/deliveries/${deliveryId}/retry`, {
+      method: 'POST'
+    });
+  }
+
+  // --- Platform Admin SaaS Endpoints ---
+  async getSaaSAdminAnalytics(): Promise<any> {
+    return this.request('/saas/admin/analytics');
+  }
+
+  async getSaaSAdminAuditLogs(): Promise<any> {
+    return this.request('/saas/admin/audit-logs');
+  }
+
+  async adminOverrideSaaS(tenantId: string, overrideType: string, value: any, reason: string): Promise<any> {
+    return this.request('/saas/admin/override', {
+      method: 'POST',
+      body: JSON.stringify({ tenantId, overrideType, value, reason })
+    });
   }
 }
 

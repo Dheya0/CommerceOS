@@ -815,6 +815,27 @@ export const INITIAL_STAFF: StaffMember[] = [
     id: 'staff-1',
     tenantId: 'tenant-royal-honey',
     name: 'أحمد الغامدي (مالك المتجر)',
+    email: 'care@royalhoney.sa',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    role: 'store_owner',
+    permissions: {
+      products: true,
+      orders: true,
+      customers: true,
+      inventory: true,
+      coupons: true,
+      theme: true,
+      staff: true,
+      settings: true,
+      reports: true
+    },
+    status: 'active',
+    createdAt: '2026-01-10'
+  },
+  {
+    id: 'staff-1-alt',
+    tenantId: 'tenant-royal-honey',
+    name: 'أحمد الغامدي',
     email: 'ahmed@royalhoney.sa',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     role: 'store_owner',
@@ -836,7 +857,7 @@ export const INITIAL_STAFF: StaffMember[] = [
     id: 'staff-2',
     tenantId: 'tenant-royal-honey',
     name: 'سارة الزهراني (مديرة المنتجات والمخزون)',
-    email: 'sara.products@royalhoney.sa',
+    email: 'products@royalhoney.sa',
     avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
     role: 'product_manager',
     permissions: {
@@ -857,7 +878,7 @@ export const INITIAL_STAFF: StaffMember[] = [
     id: 'staff-3',
     tenantId: 'tenant-royal-honey',
     name: 'محمد الدوسري (مدير الطلبات والشحن)',
-    email: 'mohammed.orders@royalhoney.sa',
+    email: 'orders@royalhoney.sa',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     role: 'order_manager',
     permissions: {

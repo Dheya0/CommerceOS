@@ -3,6 +3,7 @@ import { db } from '../db';
 import { requirePermission, ROLE_PERMISSIONS } from '../middleware/auth';
 import { hashPassword } from '../utils/security';
 import { StaffMember, StaffRole } from '../../src/types';
+import { saasBillingService } from '../services/saasBilling.service.ts';
 
 export const staffRouter = Router();
 
@@ -52,6 +53,15 @@ staffRouter.post('/', requirePermission('staff'), (req: Request, res: Response) 
     return res.status(409).json({ 
       error: 'DuplicateStaffEmail', 
       message: 'عضو بهذا البريد الإلكتروني مسجل بالفعل في هذا المتجر' 
+    });
+  }
+
+  // Server-side SaaS Staff Quota Check
+  const quotaCheck = saasBillingService.assertQuota(tenantId, 'staff', 1);
+  if (!quotaCheck.allowed) {
+    return res.status(403).json({
+      error: 'StaffQuotaExceeded',
+      message: quotaCheck.error || 'تم تجاوز الحد الأقصى لحسابات الموظفين المسموح بها في باقتك الحالية. يرجى الترقية لإضافة المزيد.'
     });
   }
 

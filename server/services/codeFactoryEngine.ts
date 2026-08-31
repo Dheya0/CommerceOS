@@ -4,8 +4,7 @@ import { fileURLToPath } from 'url';
 import * as archiverModule from 'archiver';
 const archiver = (archiverModule as any).default || archiverModule;
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const rootDir = process.cwd();
 
 export interface ExportStorePayload {
   storeId: string;

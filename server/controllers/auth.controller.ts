@@ -18,8 +18,9 @@ export class AuthController extends BaseController {
     }
   };
 
-  public logout = async (_req: Request, res: Response, next: NextFunction) => {
+  public logout = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      await this.authSvc.logout(req.user?.tokenId, req.user?.id);
       this.sendSuccess(res, { message: 'تم تسجيل الخروج بنجاح' });
     } catch (err) {
       next(err);
@@ -42,7 +43,7 @@ export class AuthController extends BaseController {
     try {
       const { role, tenantId } = req.body;
       const targetTenantId = tenantId || (req.user ? req.user.tenantId : req.tenantId);
-      const result = await this.authSvc.switchRole(role, targetTenantId, req.user?.id);
+      const result = await this.authSvc.switchRole(role, targetTenantId, req.user);
       this.sendSuccess(res, result, 200, `تم التبديل إلى دور (${role})`);
     } catch (err) {
       next(err);

@@ -5,6 +5,8 @@ import {
   orderItems,
   products,
   coupons,
+  couponRedemptions,
+  inventoryMovements,
   customers,
   auditLogs,
   tenants,
@@ -12,6 +14,17 @@ import {
 } from '../schema.ts';
 import { eq, and, sql, inArray } from 'drizzle-orm';
 import { Order, OrderItem, PaymentIntent } from '../../types.ts';
+import { OutboxService } from '../../../server/services/outbox.service.ts';
+import { Money } from '../../../server/utils/money.ts';
+
+// Allowed State Transitions FSM
+export const ORDER_ALLOWED_TRANSITIONS: Record<Order['status'], Order['status'][]> = {
+  new: ['processing', 'cancelled'],
+  processing: ['shipped', 'cancelled'],
+  shipped: ['delivered', 'cancelled'],
+  delivered: [], // Terminal
+  cancelled: []  // Terminal
+};
 
 export interface CreateOrderTxParams {
   tenantId: string;
@@ -164,6 +177,7 @@ export class OrderService {
         // 6. Atomic Coupon Evaluation with FOR UPDATE lock
         let discount = 0;
         let validatedCouponCode: string | undefined = undefined;
+        let coupRecord: any = null;
 
         if (couponCode && couponCode.trim()) {
           const cleanCode = couponCode.trim().toUpperCase();
@@ -182,6 +196,7 @@ export class OrderService {
 
           if (lockedCoupons.length > 0) {
             const coup = lockedCoupons[0];
+            coupRecord = coup;
             const now = new Date();
 
             if (coup.expiresAt && new Date(coup.expiresAt) < now) {
@@ -226,23 +241,7 @@ export class OrderService {
         const taxAmount = Math.round((subtotal - discount) * 0.15); // 15% VAT
         const finalTotal = Math.max(0, subtotal - discount + shippingFee);
 
-        // 8. Atomically Decrement Product Inventory in PostgreSQL
-        for (const [productId, qty] of requestedQuantities.entries()) {
-          await tx
-            .update(products)
-            .set({
-              stock: sql`${products.stock} - ${qty}`,
-              updatedAt: new Date()
-            })
-            .where(
-              and(
-                eq(products.id, productId),
-                eq(products.tenantId, tenantId)
-              )
-            );
-        }
-
-        // 9. Insert Order Record (STRICT: paymentStatus ALWAYS initialized as pending / pending_verification)
+        // 8. Generate Order Identifiers and Insert Order Record First (satisfies foreign key constraints)
         const orderNumber = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
         const orderId = orderNumber;
         const now = new Date();
@@ -278,6 +277,56 @@ export class OrderService {
         };
 
         await tx.insert(orders).values(newOrderData);
+
+        // 9. Atomically Decrement Product Inventory and record Immutable Audit Ledger
+        for (const [productId, qty] of requestedQuantities.entries()) {
+          const prod = productMap.get(productId)!;
+          const beforeStock = prod.stock;
+          const afterStock = beforeStock - qty;
+
+          await tx
+            .update(products)
+            .set({
+              stock: sql`${products.stock} - ${qty}`,
+              updatedAt: now
+            })
+            .where(
+              and(
+                eq(products.id, productId),
+                eq(products.tenantId, tenantId)
+              )
+            );
+
+          // Write Immutable Inventory Movement Ledger Entry (Phase 1 Ledger Requirement)
+          const movementId = `inv_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+          await tx.insert(inventoryMovements).values({
+            id: movementId,
+            tenantId,
+            productId,
+            type: 'SALE',
+            quantity: -qty,
+            beforeQuantity: beforeStock,
+            afterQuantity: afterStock,
+            referenceType: 'order',
+            referenceId: orderId,
+            createdBy: customer.name,
+            createdAt: now
+          });
+        }
+
+        // 10. Record Coupon Redemption if coupon applied
+        if (validatedCouponCode && coupRecord) {
+          const redemptionId = `crd_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+          await tx.insert(couponRedemptions).values({
+            id: redemptionId,
+            tenantId,
+            couponId: coupRecord.id,
+            orderId: orderId,
+            customerEmail: customer.email || `${customer.phone}@customer.commerceos.app`,
+            discountAmount: discount,
+            createdAt: now
+          });
+        }
 
         // 10. Generate Authoritative Payment Intent (PENDING state)
         const intentId = `pi_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
@@ -324,10 +373,11 @@ export class OrderService {
 
         // 12. Upsert Customer in Tenant Registry
         const customerEmail = customer.email || `${customer.phone}@customer.commerceos.app`;
+        const customerUniqueId = `cust_${tenantId.slice(-8)}_${customer.phone.replace(/[^0-9]/g, '')}_${crypto.randomBytes(3).toString('hex')}`;
         await tx
           .insert(customers)
           .values({
-            id: `cust_${customer.phone.replace(/[^0-9]/g, '')}`,
+            id: customerUniqueId,
             tenantId,
             name: customer.name,
             email: customerEmail,
@@ -364,6 +414,22 @@ export class OrderService {
             coupon: validatedCouponCode || 'none'
           },
           createdAt: now
+        });
+
+        // 14. Transactional Outbox Event for Asynchronous Processing
+        await OutboxService.recordEvent(tx, {
+          tenantId,
+          eventType: 'order.created',
+          aggregateType: 'order',
+          aggregateId: orderId,
+          payload: {
+            orderId,
+            orderNumber,
+            total: finalTotal,
+            customerEmail,
+            customerName: customer.name,
+            itemsCount: normalizedItems.length
+          }
         });
 
         // Construct Return Object conforming to Order interface
@@ -444,7 +510,71 @@ export class OrderService {
         }
 
         const currentOrder = existing[0];
+        const currentStatus = currentOrder.status as Order['status'];
+
+        // Strict FSM Transition Validation
+        if (currentStatus !== newStatus) {
+          const allowedTransitions = ORDER_ALLOWED_TRANSITIONS[currentStatus] || [];
+          if (!allowedTransitions.includes(newStatus)) {
+            throw new Error(`انتقال غير صالح لحالة الطلب: لا يمكن الانتقال من ${currentStatus} إلى ${newStatus}`);
+          }
+        }
+
         const now = new Date();
+
+        // If cancelling order: restore stock atomically and record inventory movements
+        if (newStatus === 'cancelled' && currentStatus !== 'cancelled') {
+          const itemsList = Array.isArray(currentOrder.items) ? (currentOrder.items as any[]) : [];
+          for (const item of itemsList) {
+            if (item.productId && item.quantity) {
+              // Fetch current product stock
+              const prodRows = await tx
+                .select()
+                .from(products)
+                .where(and(eq(products.id, item.productId), eq(products.tenantId, tenantId)))
+                .for('update')
+                .limit(1);
+
+              if (prodRows.length > 0) {
+                const prod = prodRows[0];
+                const beforeStock = prod.stock;
+                const afterStock = beforeStock + item.quantity;
+
+                await tx
+                  .update(products)
+                  .set({
+                    stock: sql`${products.stock} + ${item.quantity}`,
+                    updatedAt: now
+                  })
+                  .where(eq(products.id, item.productId));
+
+                const movementId = `inv_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+                await tx.insert(inventoryMovements).values({
+                  id: movementId,
+                  tenantId,
+                  productId: item.productId,
+                  type: 'RELEASE',
+                  quantity: item.quantity,
+                  beforeQuantity: beforeStock,
+                  afterQuantity: afterStock,
+                  referenceType: 'order',
+                  referenceId: orderId,
+                  createdBy: operatorName,
+                  createdAt: now
+                });
+              }
+            }
+          }
+
+          // Outbox event for order cancellation
+          await OutboxService.recordEvent(tx, {
+            tenantId,
+            eventType: 'order.cancelled',
+            aggregateType: 'order',
+            aggregateId: orderId,
+            payload: { orderId, previousStatus: currentStatus, operatorName }
+          });
+        }
 
         await tx
           .update(orders)

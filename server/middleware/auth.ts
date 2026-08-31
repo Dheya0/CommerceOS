@@ -324,3 +324,26 @@ export function requireStoreOwner(req: Request, res: Response, next: NextFunctio
     message: 'هذه العملية محصورة بمالك المتجر حصراً'
   });
 }
+
+/**
+ * Role Guard:
+ * Strictly checks that the user has one of the allowed roles.
+ */
+export function requireRole(allowedRoles: string[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return next();
+    }
+    if (req.user.identityType === 'platform_admin') {
+      return next();
+    }
+    if (allowedRoles.includes(req.user.role)) {
+      return next();
+    }
+    return res.status(403).json({
+      error: 'ForbiddenRole',
+      message: 'غير مصرح لدورك الحالي بتنفيذ هذه العملية'
+    });
+  };
+}
+

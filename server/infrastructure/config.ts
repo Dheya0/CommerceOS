@@ -46,12 +46,12 @@ class ConfigService {
   }
 
   private validateEnvironment(): void {
-    const requiredEnvVars: string[] = [];
-    const missing = requiredEnvVars.filter(key => !process.env[key]);
-
-    if (missing.length > 0) {
-      console.error(`[FATAL] Missing required environment variables: ${missing.join(', ')}`);
-      throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    const isProd = process.env.NODE_ENV === 'production';
+    if (isProd) {
+      if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim().length < 32) {
+        console.error('[FATAL SECURITY VIOLATION] JWT_SECRET must be set and at least 32 characters long in production.');
+        throw new Error('FATAL SECURITY VIOLATION: JWT_SECRET environment variable is missing or too short for production.');
+      }
     }
   }
 

@@ -1,6 +1,7 @@
 import { productRepository, ProductRepository } from '../repositories/product.repository.ts';
 import { NotFoundError, ValidationError } from '../domain/errors.ts';
 import { Product, Category } from '../../src/types.ts';
+import { saasBillingService } from './saasBilling.service.ts';
 
 export class ProductService {
   constructor(private productRepo: ProductRepository = productRepository) {}
@@ -22,6 +23,13 @@ export class ProductService {
     if (!productData.name) {
       throw new ValidationError('اسم المنتج مطلوب');
     }
+
+    // Server-side Quota Enforcement
+    const quotaCheck = saasBillingService.assertQuota(tenantId, 'products', 1);
+    if (!quotaCheck.allowed) {
+      throw new ValidationError(quotaCheck.error || 'تم تجاوز الحد الأقصى للمنتجات في باقتك الحالية');
+    }
+
     return this.productRepo.create({
       ...productData,
       name: productData.name,

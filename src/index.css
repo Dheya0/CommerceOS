@@ -2,15 +2,38 @@
 
 @layer base {
   :root {
-    --font-sans: 'IBM Plex Sans Arabic', 'Alexandria', system-ui, -apple-system, sans-serif;
+    --font-sans: 'IBM Plex Sans Arabic', 'Alexandria', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --font-heading: 'Alexandria', 'IBM Plex Sans Arabic', sans-serif;
     --font-serif: 'Playfair Display', serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+    /* Sovereign CommerceOS Token Palette Variables */
+    --color-bg-base: #07111F;
+    --color-bg-elevated: #0B1626;
+    --color-bg-surface: #101C2C;
+    --color-bg-surface-strong: #142238;
+    --color-gold: #D4AF37;
+    --color-gold-hover: #C59B27;
+    --color-gold-glow: rgba(212, 175, 55, 0.22);
+    
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
   }
 
   body {
     font-family: var(--font-sans);
     letter-spacing: -0.01em;
+    background-color: var(--color-bg-base);
+    color: #F1F5F9;
   }
+}
+
+/* Sovereign Focus Rings */
+.focus-ring-gold {
+  outline: none;
+  box-shadow: 0 0 0 2px #07111F, 0 0 0 4px rgba(212, 175, 55, 0.65);
 }
 
 /* Custom smooth scrollbar */
@@ -19,17 +42,26 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(7, 17, 31, 0.8);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.4);
+  background: rgba(100, 116, 139, 0.35);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.6);
+  background: rgba(212, 175, 55, 0.5);
 }
 
-/* Animation utilities */
+/* Subtle Sovereign Glow Animation */
+@keyframes pulse-gold {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 12px rgba(212, 175, 55, 0.3)); }
+  50% { opacity: 0.85; filter: drop-shadow(0 0 22px rgba(212, 175, 55, 0.55)); }
+}
+
+.animate-pulse-gold {
+  animation: pulse-gold 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 @keyframes pulse-subtle {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.85; }
@@ -38,4 +70,5 @@
 .animate-pulse-subtle {
   animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
 
