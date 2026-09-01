@@ -1,6 +1,6 @@
 {
-  "name": "CommerceOS — منصة المتاجر الذكية",
-  "description": "منصة White-Label لبناء وإدارة المتاجر الإلكترونية مع محرك النشر والبناء الشامل (Build Once, Publish Everywhere) لتصدير متاجر الويب وتطبيقات Android و iOS و PWA وحزم الاستضافة الذاتية Docker.",
+  "name": "CommerceOS — Commerce Builder & Code Generator",
+  "description": "Build your commerce stack. Own the source code. Generate full-stack web and mobile apps, preview interactively, and deploy anywhere with 100% sovereign ownership.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

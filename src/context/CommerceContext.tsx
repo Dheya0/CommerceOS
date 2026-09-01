@@ -169,7 +169,14 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
   const [previewDevice, setPreviewDevice] = useState<PreviewDevice>('desktop');
   const [language, setLanguage] = useState<'ar' | 'en'>('ar');
-  const [activeTenantId, setActiveTenantId] = useState<string>('tenant-royal-honey');
+  const [activeTenantId, setActiveTenantId] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('commerceos_active_tenant_id');
+      return saved || '';
+    } catch {
+      return '';
+    }
+  });
   const [currentStaffRole, setCurrentStaffRole] = useState<StaffRole>('store_owner');
   const [isServerSyncing, setIsServerSyncing] = useState<boolean>(false);
 
@@ -280,8 +287,13 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const cleanEmail = email.trim().toLowerCase();
     const effectiveTenantId = targetTenantId || activeTenantId;
 
+    if (!password) {
+      showToast('يرجى إدخال كلمة المرور', 'error');
+      return false;
+    }
+
     try {
-      const res = await api.login('store_owner', cleanEmail, password || 'CommerceOS@2026');
+      const res = await api.login('store_owner', cleanEmail, password);
       if (res && res.user) {
         const user: AuthUser = {
           id: res.user.id,
