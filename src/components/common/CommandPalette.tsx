@@ -251,18 +251,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       onClick={onClose}
     >
       <div 
-        className="w-full max-w-2xl rounded-3xl bg-zinc-950/95 border border-white/15 shadow-[0_0_60px_rgba(59,130,246,0.25)] overflow-hidden flex flex-col relative text-right"
+        className="w-full max-w-2xl rounded-3xl bg-[#0B1422]/95 border border-[#233247] shadow-2xl overflow-hidden flex flex-col relative text-right"
         dir="rtl"
         onClick={e => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        {/* Glowing Mesh Gradients inside Modal */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
+        {/* Ambient Gold Glow */}
+        <div className="absolute top-0 right-0 w-80 h-80 bg-[#C9A45C]/10 rounded-full blur-[100px] pointer-events-none" />
 
         {/* Header & Search Bar */}
-        <div className="p-4 border-b border-zinc-800/80 flex items-center gap-3 relative z-10">
-          <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+        <div className="p-4 border-b border-[#233247] flex items-center gap-3 relative z-10">
+          <div className="p-2 rounded-xl bg-[#C9A45C]/10 border border-[#C9A45C]/30 text-[#C9A45C]">
             <Search className="w-5 h-5" />
           </div>
           <input
@@ -274,14 +273,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
               setSelectedIndex(0);
             }}
             placeholder="ابحث عن متجر، أداة، قاعدة خصم، تصدير الكود، أو إعداد..."
-            className="flex-1 bg-transparent border-none text-white text-sm font-semibold placeholder:text-zinc-500 focus:outline-none"
+            className="flex-1 bg-transparent border-none text-[#F4F6F8] text-sm font-semibold placeholder:text-[#97A4B5] focus:outline-none"
           />
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-[10px] text-zinc-400 font-mono">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#050B14] border border-[#233247] text-[10px] text-[#97A4B5] font-mono">
             <span>ESC للإغلاق</span>
           </div>
           <button 
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors"
+            className="p-1 rounded-lg hover:bg-[#101B2C] text-[#97A4B5] hover:text-white transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -290,7 +289,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         {/* Results List */}
         <div className="max-h-[380px] overflow-y-auto p-3 space-y-1 relative z-10">
           {filteredItems.length === 0 ? (
-            <div className="py-12 text-center text-zinc-500 text-xs">
+            <div className="py-12 text-center text-[#97A4B5] text-xs">
               لا توجد نتائج مطابقة لـ "{query}"
             </div>
           ) : (
@@ -304,24 +303,26 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={`p-3 rounded-2xl cursor-pointer flex items-center justify-between gap-3 transition-all ${
                     isSelected 
-                      ? 'bg-blue-600/20 border border-blue-500/40 shadow-[0_0_20px_rgba(59,130,246,0.2)] text-white' 
-                      : 'hover:bg-zinc-900/60 border border-transparent text-zinc-300'
+                      ? 'bg-[#101B2C] border border-[#C9A45C]/50 shadow-lg text-white' 
+                      : 'hover:bg-[#101B2C]/50 border border-transparent text-[#97A4B5]'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`p-2.5 rounded-xl border shrink-0 ${item.color}`}>
+                    <div className={`p-2.5 rounded-xl border shrink-0 ${
+                      isSelected ? 'bg-[#C9A45C]/20 border-[#C9A45C]/40 text-[#C9A45C]' : 'bg-[#050B14] border-[#233247] text-[#97A4B5]'
+                    }`}>
                       <Icon className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <div className="text-xs font-bold flex items-center gap-2 truncate">
+                      <div className="text-xs font-bold flex items-center gap-2 truncate text-white">
                         <span>{item.title}</span>
                         {'isCurrent' in item && item.isCurrent && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#C9A45C]/20 text-[#C9A45C] border border-[#C9A45C]/30">
                             المتجر النشط
                           </span>
                         )}
                       </div>
-                      <div className="text-[11px] text-zinc-400 truncate mt-0.5 font-mono">
+                      <div className="text-[11px] text-[#97A4B5] truncate mt-0.5 font-mono">
                         {item.subtitle}
                       </div>
                     </div>
@@ -329,7 +330,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
 
                   <div className="flex items-center gap-2 shrink-0">
                     {isSelected && (
-                      <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-blue-400 font-mono">
+                      <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-[#C9A45C] font-mono">
                         <span>تنفيذ</span>
                         <CornerDownLeft className="w-3 h-3" />
                       </span>
@@ -342,19 +343,19 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
         </div>
 
         {/* Footer Shortcut Bar */}
-        <div className="p-3 bg-zinc-900/50 border-t border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-400 relative z-10">
+        <div className="p-3 bg-[#050B14] border-t border-[#233247] flex items-center justify-between text-[11px] text-[#97A4B5] relative z-10">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1 font-mono">
-              <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px]">↑</kbd>
-              <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px]">↓</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-[#0B1422] text-[#F4F6F8] border border-[#233247] text-[10px]">↑</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-[#0B1422] text-[#F4F6F8] border border-[#233247] text-[10px]">↓</kbd>
               <span>للتنقل</span>
             </span>
             <span className="flex items-center gap-1 font-mono">
-              <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700 text-[10px]">Enter</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-[#0B1422] text-[#F4F6F8] border border-[#233247] text-[10px]">Enter</kbd>
               <span>للاختيار</span>
             </span>
           </div>
-          <div className="font-mono text-blue-400 text-[10px] flex items-center gap-1">
+          <div className="font-mono text-[#C9A45C] text-[10px] flex items-center gap-1 font-bold">
             <Command className="w-3 h-3" />
             <span>CommerceOS Command Engine</span>
           </div>

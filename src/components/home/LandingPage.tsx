@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
-  Crown, 
   Sparkles, 
   ArrowRight, 
   Store, 
@@ -13,117 +12,23 @@ import {
   Layers,
   CheckCircle2,
   Lock,
-  ChevronRight,
-  Menu,
-  X
+  ChevronRight
 } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
 
 export const LandingPage: React.FC = () => {
   const {
     setCurrentView,
-    isAuthenticated,
-    currentUser,
-    logout,
     language
   } = useCommerce();
 
   const isAr = language === 'ar';
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#050B14] text-[#F4F6F8] selection:bg-[#C9A45C] selection:text-[#050B14] font-sans antialiased overflow-x-hidden" dir={isAr ? 'rtl' : 'ltr'}>
+    <div className="text-[#F4F6F8] selection:bg-[#C9A45C] selection:text-[#050B14] font-sans antialiased overflow-x-hidden" dir={isAr ? 'rtl' : 'ltr'}>
       
       {/* Subtle Ambient Lighting */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-[#C9A45C]/10 via-transparent to-transparent blur-[120px] pointer-events-none -z-10" />
-
-      {/* HEADER / NAVIGATION */}
-      <header className="sticky top-0 z-50 bg-[#050B14]/85 backdrop-blur-xl border-b border-[#233247]/60 px-4 sm:px-8 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          
-          {/* Logo & Brand */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('home')}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C9A45C] to-[#9A7B26] text-[#050B14] flex items-center justify-center font-black shadow-lg shadow-[#C9A45C]/10">
-              <Crown className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-lg font-black tracking-tight text-white">CommerceOS</div>
-              <div className="text-[10px] text-[#C9A45C] font-bold uppercase tracking-wider">{isAr ? 'منصة التجارة السيادية' : 'Sovereign Commerce'}</div>
-            </div>
-          </div>
-
-          {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-8 text-xs font-bold text-[#97A4B5]">
-            <a href="#platform" className="hover:text-white transition-colors">{isAr ? 'المنصة' : 'Platform'}</a>
-            <a href="#solutions" className="hover:text-white transition-colors">{isAr ? 'الحلول' : 'Solutions'}</a>
-            <button onClick={() => setCurrentView('pricing' as any)} className="hover:text-white transition-colors">{isAr ? 'الأسعار' : 'Pricing'}</button>
-            <a href="#resources" className="hover:text-white transition-colors">{isAr ? 'الموارد' : 'Resources'}</a>
-          </nav>
-
-          {/* Auth Actions */}
-          <div className="hidden md:flex items-center gap-3">
-            {isAuthenticated && currentUser ? (
-              <button
-                onClick={() => setCurrentView('merchant_dashboard')}
-                className="px-4 py-2.5 rounded-xl bg-[#0B1422] hover:bg-[#101B2C] border border-[#233247] text-xs font-bold text-white transition-all flex items-center gap-2 shadow"
-              >
-                <Store className="w-4 h-4 text-[#C9A45C]" />
-                <span>{currentUser.name}</span>
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => setCurrentView('auth_page')}
-                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-colors"
-                >
-                  {isAr ? 'تسجيل الدخول' : 'Sign In'}
-                </button>
-                <button
-                  onClick={() => setCurrentView('auth_page')}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#C9A45C] to-[#9A7B26] text-[#050B14] text-xs font-black hover:opacity-90 shadow-lg shadow-[#C9A45C]/20 transition-all flex items-center gap-2"
-                >
-                  <span>{isAr ? 'ابدأ مجانًا' : 'Start Free'}</span>
-                  <ArrowRight className={`w-3.5 h-3.5 ${isAr ? 'rotate-180' : ''}`} />
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* Mobile Menu Toggle */}
-          <div className="md:hidden flex items-center">
-            <button 
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-xl bg-[#0B1422] border border-[#233247] text-white"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          </div>
-
-        </div>
-
-        {/* Mobile Dropdown */}
-        {mobileMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 border-t border-[#233247] pt-4 space-y-3">
-            <a href="#platform" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-slate-300 hover:text-white">{isAr ? 'المنصة' : 'Platform'}</a>
-            <a href="#solutions" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-slate-300 hover:text-white">{isAr ? 'الحلول' : 'Solutions'}</a>
-            <button onClick={() => { setMobileMenuOpen(false); setCurrentView('pricing' as any); }} className="block text-sm text-slate-300 hover:text-white text-start w-full">{isAr ? 'الأسعار' : 'Pricing'}</button>
-            <div className="pt-2 flex flex-col gap-2">
-              <button
-                onClick={() => { setMobileMenuOpen(false); setCurrentView('auth_page'); }}
-                className="w-full py-2.5 rounded-xl bg-[#0B1422] border border-[#233247] text-xs font-bold text-white text-center"
-              >
-                {isAr ? 'تسجيل الدخول' : 'Sign In'}
-              </button>
-              <button
-                onClick={() => { setMobileMenuOpen(false); setCurrentView('auth_page'); }}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#C9A45C] to-[#9A7B26] text-[#050B14] text-xs font-black text-center"
-              >
-                {isAr ? 'ابدأ مجانًا' : 'Start Free'}
-              </button>
-            </div>
-          </div>
-        )}
-      </header>
 
       {/* HERO SECTION */}
       <section className="relative pt-20 pb-28 px-4 sm:px-8 max-w-7xl mx-auto text-center">
@@ -316,53 +221,6 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
       </section>
-
-      {/* FOOTER */}
-      <footer className="border-t border-[#233247] py-16 px-4 sm:px-8 bg-[#050B14]">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
-          <div className="col-span-2 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#C9A45C] to-[#9A7B26] text-[#050B14] flex items-center justify-center font-black">
-                <Crown className="w-4 h-4" />
-              </div>
-              <span className="text-base font-black text-white">CommerceOS</span>
-            </div>
-            <p className="text-xs text-[#97A4B5] max-w-sm">
-              {isAr ? 'منصة التجارة السيادية الرائدة للعلامات التجارية والمؤسسات.' : 'The leading sovereign commerce platform for brands and enterprises.'}
-            </p>
-          </div>
-
-          <div>
-            <div className="text-xs font-bold text-white uppercase tracking-wider mb-4">{isAr ? 'المنصة' : 'Platform'}</div>
-            <ul className="space-y-2.5 text-xs text-[#97A4B5]">
-              <li><a href="#platform" className="hover:text-white transition-colors">{isAr ? 'المميزات' : 'Features'}</a></li>
-              <li><a href="#solutions" className="hover:text-white transition-colors">{isAr ? 'الحلول' : 'Solutions'}</a></li>
-              <li><button onClick={() => setCurrentView('pricing' as any)} className="hover:text-white transition-colors">{isAr ? 'الباقات والأسعار' : 'Pricing'}</button></li>
-            </ul>
-          </div>
-
-          <div>
-            <div className="text-xs font-bold text-white uppercase tracking-wider mb-4">{isAr ? 'الموارد' : 'Resources'}</div>
-            <ul className="space-y-2.5 text-xs text-[#97A4B5]">
-              <li><a href="#resources" className="hover:text-white transition-colors">{isAr ? 'التوثيق التقني' : 'Documentation'}</a></li>
-              <li><a href="#resources" className="hover:text-white transition-colors">{isAr ? 'دعم العملاء' : 'Support'}</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <div className="text-xs font-bold text-white uppercase tracking-wider mb-4">{isAr ? 'الشركة' : 'Company'}</div>
-            <ul className="space-y-2.5 text-xs text-[#97A4B5]">
-              <li><a href="#about" className="hover:text-white transition-colors">{isAr ? 'عن المنصة' : 'About'}</a></li>
-              <li><a href="#legal" className="hover:text-white transition-colors">{isAr ? 'الشروط والأحكام' : 'Terms & Privacy'}</a></li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto pt-8 border-t border-[#233247] flex flex-col sm:flex-row items-center justify-between text-xs text-[#97A4B5]">
-          <div>© {new Date().getFullYear()} CommerceOS. {isAr ? 'جميع الحقوق محفوظة.' : 'All rights reserved.'}</div>
-          <div className="mt-4 sm:mt-0 font-medium">Sovereign Commerce Platform</div>
-        </div>
-      </footer>
 
     </div>
   );

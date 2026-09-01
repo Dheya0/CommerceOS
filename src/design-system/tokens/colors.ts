@@ -4,11 +4,12 @@
 export const rawColors = {
   // Deep Navy Backgrounds
   navy: {
-    base: '#07111F',        // App background base
-    elevated: '#0B1626',    // Sidebar, elevated containers
-    surface: '#101C2C',     // Cards, main surfaces
-    surfaceStrong: '#142238', // High-contrast surfaces, headers
-    overlay: 'rgba(4, 10, 18, 0.82)',
+    base: '#050B14',        // App background base (#050B14)
+    surface: '#0B1422',     // Surface (#0B1422)
+    elevated: '#101B2C',    // Elevated (#101B2C)
+    border: '#233247',      // Border (#233247)
+    surfaceStrong: '#142238',
+    overlay: 'rgba(5, 11, 20, 0.85)',
   },
 
   // Sovereign Warm Gold Accent Scale
@@ -16,30 +17,30 @@ export const rawColors = {
     50: '#FBF8EE',
     100: '#F5EED5',
     200: '#ECDCAB',
-    300: '#E0C77A',
-    400: '#D4AF37',   // Primary Sovereign Gold Accent
-    500: '#C59B27',   // Gold Solid Button / Active State
-    600: '#A9801C',
-    700: '#846016',
-    800: '#644714',
-    900: '#483311',
-    glow: 'rgba(212, 175, 55, 0.18)',
-    glowStrong: 'rgba(212, 175, 55, 0.35)',
+    300: '#E0C078',   // Gold Light (#E0C078)
+    400: '#C9A45C',   // Primary Sovereign Gold (#C9A45C)
+    500: '#B8934A',   // Active / Hover Gold
+    600: '#9A7B26',
+    700: '#7E631B',
+    800: '#5F4A13',
+    900: '#42330B',
+    glow: 'rgba(201, 164, 92, 0.18)',
+    glowStrong: 'rgba(201, 164, 92, 0.35)',
   },
 
-  // Neutral Silver & Slate Scale (Balanced for contrast)
+  // Neutral Silver & Slate Scale
   neutral: {
-    50: '#F8FAFC',
-    100: '#F1F5F9',
-    200: '#E2E8F0',
+    50: '#FFFFFF',
+    100: '#F4F6F8',   // Text Primary (#F4F6F8)
+    200: '#E1E6EB',
     300: '#CBD5E1',
-    400: '#94A3B8',
+    400: '#97A4B5',   // Text Muted (#97A4B5)
     500: '#64748B',
     600: '#475569',
     700: '#334155',
     800: '#1E293B',
     900: '#0F172A',
-    950: '#060D17',
+    950: '#050B14',
   },
 
   // Semantic Colors
@@ -74,31 +75,32 @@ export const rawColors = {
 export const semanticColors = {
   // Backgrounds & Surfaces
   bgBase: rawColors.navy.base,
-  bgElevated: rawColors.navy.elevated,
   bgSurface: rawColors.navy.surface,
+  bgElevated: rawColors.navy.elevated,
   bgSurfaceStrong: rawColors.navy.surfaceStrong,
   bgOverlay: rawColors.navy.overlay,
 
   // Text
-  textPrimary: rawColors.neutral[100],
+  textPrimary: rawColors.neutral[100], // #F4F6F8
   textSecondary: rawColors.neutral[300],
-  textMuted: rawColors.neutral[400],
+  textMuted: rawColors.neutral[400],   // #97A4B5
   textSubtle: rawColors.neutral[500],
   textInverse: rawColors.neutral[950],
-  textGold: rawColors.gold[400],
+  textGold: rawColors.gold[400],       // #C9A45C
+  textGoldLight: rawColors.gold[300],  // #E0C078
 
   // Borders & Dividers
-  borderSubtle: 'rgba(255, 255, 255, 0.06)',
-  borderDefault: 'rgba(255, 255, 255, 0.10)',
-  borderStrong: 'rgba(255, 255, 255, 0.18)',
-  borderGold: 'rgba(212, 175, 55, 0.40)',
-  borderGoldFocus: '#D4AF37',
+  borderSubtle: '#233247',
+  borderDefault: '#233247',
+  borderStrong: 'rgba(201, 164, 92, 0.30)',
+  borderGold: 'rgba(201, 164, 92, 0.40)',
+  borderGoldFocus: '#C9A45C',
 
   // Interactive Accents
-  accentPrimary: rawColors.gold[500],
-  accentHover: rawColors.gold[400],
-  accentActive: rawColors.gold[600],
-  accentSubtle: 'rgba(212, 175, 55, 0.12)',
+  accentPrimary: rawColors.gold[400],
+  accentHover: rawColors.gold[300],
+  accentActive: rawColors.gold[500],
+  accentSubtle: 'rgba(201, 164, 92, 0.12)',
   accentText: rawColors.navy.base,
 
   // Status

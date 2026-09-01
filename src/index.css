@@ -8,13 +8,16 @@
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
     /* Sovereign CommerceOS Token Palette Variables */
-    --color-bg-base: #07111F;
-    --color-bg-elevated: #0B1626;
-    --color-bg-surface: #101C2C;
-    --color-bg-surface-strong: #142238;
-    --color-gold: #D4AF37;
-    --color-gold-hover: #C59B27;
-    --color-gold-glow: rgba(212, 175, 55, 0.22);
+    --color-bg-base: #050B14;
+    --color-bg-surface: #0B1422;
+    --color-bg-elevated: #101B2C;
+    --color-border: #233247;
+    --color-gold: #C9A45C;
+    --color-gold-light: #E0C078;
+    --color-gold-hover: #B8934A;
+    --color-gold-glow: rgba(201, 164, 92, 0.22);
+    --color-text: #F4F6F8;
+    --color-muted: #97A4B5;
     
     --radius-sm: 6px;
     --radius-md: 8px;
@@ -25,15 +28,15 @@
   body {
     font-family: var(--font-sans);
     letter-spacing: -0.01em;
-    background-color: var(--color-bg-base);
-    color: #F1F5F9;
+    background-color: #050B14;
+    color: #F4F6F8;
   }
 }
 
 /* Sovereign Focus Rings */
 .focus-ring-gold {
   outline: none;
-  box-shadow: 0 0 0 2px #07111F, 0 0 0 4px rgba(212, 175, 55, 0.65);
+  box-shadow: 0 0 0 2px #050B14, 0 0 0 4px rgba(201, 164, 92, 0.65);
 }
 
 /* Custom smooth scrollbar */
@@ -42,20 +45,20 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(7, 17, 31, 0.8);
+  background: rgba(5, 11, 20, 0.9);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.35);
+  background: rgba(151, 164, 181, 0.35);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(212, 175, 55, 0.5);
+  background: rgba(201, 164, 92, 0.5);
 }
 
 /* Subtle Sovereign Glow Animation */
 @keyframes pulse-gold {
-  0%, 100% { opacity: 1; filter: drop-shadow(0 0 12px rgba(212, 175, 55, 0.3)); }
-  50% { opacity: 0.85; filter: drop-shadow(0 0 22px rgba(212, 175, 55, 0.55)); }
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 10px rgba(201, 164, 92, 0.25)); }
+  50% { opacity: 0.85; filter: drop-shadow(0 0 18px rgba(201, 164, 92, 0.45)); }
 }
 
 .animate-pulse-gold {
