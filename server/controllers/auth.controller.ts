@@ -10,7 +10,7 @@ export class AuthController extends BaseController {
   public login = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { email, password, role, tenantId } = req.body;
-      const targetTenantId = tenantId || req.tenantId || 'tenant-royal-honey';
+      const targetTenantId = tenantId || req.tenantId || '';
       const result = await this.authSvc.login({ email, password, role, tenantId: targetTenantId });
       this.sendSuccess(res, result, 200, 'تم تسجيل الدخول بنجاح');
     } catch (err) {

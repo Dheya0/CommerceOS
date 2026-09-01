@@ -271,48 +271,6 @@ export const PlatformHeader: React.FC<PlatformHeaderProps> = ({ onOpenCommandPal
               </div>
             )}
 
-            {/* RBAC Role Simulator (Visible on Merchant Dashboard) */}
-            {currentView === 'merchant_dashboard' && (
-              <div className="relative" ref={roleRef}>
-                <button
-                  onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-                  className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${roleLabels[currentStaffRole].color}`}
-                  title="محاكاة الصلاحيات والتجربة الإدارية"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span className="max-w-[120px] truncate">{roleLabels[currentStaffRole].titleAr}</span>
-                  <ChevronDown className="w-3 h-3 opacity-70" />
-                </button>
-
-                {roleDropdownOpen && (
-                  <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-zinc-950/95 border border-white/15 shadow-[0_0_30px_rgba(0,0,0,0.8)] backdrop-blur-2xl p-2.5 z-50 text-right">
-                    <div className="text-[11px] font-bold text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-800">
-                      اختبار صلاحيات الأدوار (RBAC)
-                    </div>
-                    <div className="space-y-1">
-                      {(Object.keys(roleLabels) as StaffRole[]).map(role => (
-                        <button
-                          key={role}
-                          onClick={() => {
-                            setCurrentStaffRole(role);
-                            setRoleDropdownOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
-                            role === currentStaffRole
-                              ? 'bg-blue-600/20 text-blue-300 font-bold'
-                              : 'text-zinc-300 hover:bg-zinc-900'
-                          }`}
-                        >
-                          <span>{roleLabels[role].titleAr}</span>
-                          {role === currentStaffRole && <Check className="w-3 h-3 text-blue-400" />}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* User Auth Status / Trigger */}
             {isAuthenticated && currentUser ? (
               <div className="flex items-center gap-1.5">

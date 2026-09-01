@@ -75,9 +75,15 @@ staffRouter.post('/', requirePermission('staff'), (req: Request, res: Response) 
     });
   }
 
+  if (!password || password.length < 8) {
+    return res.status(400).json({
+      error: 'InvalidPassword',
+      message: 'كلمة المرور مطلوبة ويجب أن تتكون من 8 أحرف على الأقل'
+    });
+  }
+
   const id = `staff-${Date.now()}`;
-  const defaultPassword = password || 'CommerceOS@2026';
-  const passwordHash = hashPassword(defaultPassword);
+  const passwordHash = hashPassword(password);
 
   const newStaff: StaffMember = {
     id,

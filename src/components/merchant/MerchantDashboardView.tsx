@@ -393,50 +393,55 @@ export const MerchantDashboardView: React.FC<MerchantDashboardViewProps> = ({ se
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-start text-xs">
-              <thead>
-                <tr className="border-b border-[#233247] text-[#667386] font-semibold">
-                  <th className="pb-3 text-start">{isAr ? 'رقم الطلب' : 'Order'}</th>
-                  <th className="pb-3 text-start">{isAr ? 'العميل' : 'Customer'}</th>
-                  <th className="pb-3 text-start">{isAr ? 'المبلغ الإجمالي' : 'Total'}</th>
-                  <th className="pb-3 text-start">{isAr ? 'حالة الدفع' : 'Payment'}</th>
-                  <th className="pb-3 text-start">{isAr ? 'الحالة' : 'Status'}</th>
-                  <th className="pb-3 text-end">{isAr ? 'التاريخ' : 'Date'}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#233247]/50">
-                {[
-                  { id: '#1048', customer: 'أحمد بن خالد', total: '450.00', currency: 'SAR', payment: 'مدفوع', status: 'مكتمل', date: 'منذ 5 د' },
-                  { id: '#1047', customer: 'سارة العتيبي', total: '1,290.00', currency: 'SAR', payment: 'مدفوع', status: 'قيد المعالجة', date: 'منذ 25 د' },
-                  { id: '#1046', customer: 'فيصل القحطاني', total: '320.00', currency: 'SAR', payment: 'معلق', status: 'معلق', date: 'منذ ساعة' },
-                  { id: '#1045', customer: 'منى الشمري', total: '780.00', currency: 'SAR', payment: 'مدفوع', status: 'تم الشحن', date: 'منذ 3 ساعات' },
-                  { id: '#1044', customer: 'خالد الدوسري', total: '210.00', currency: 'SAR', payment: 'مدفوع', status: 'مكتمل', date: 'منذ 5 ساعات' },
-                ].map((order, idx) => (
-                  <tr key={idx} className="hover:bg-[#101B2C]/50 transition-colors">
-                    <td className="py-3.5 font-bold text-[#F4F6F8]">{order.id}</td>
-                    <td className="py-3.5 text-[#97A4B5] font-medium">{order.customer}</td>
-                    <td className="py-3.5 font-bold text-[#C9A45C]">{order.total} {order.currency}</td>
-                    <td className="py-3.5">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                        order.payment === 'مدفوع' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'
-                      }`}>
-                        {order.payment}
-                      </span>
-                    </td>
-                    <td className="py-3.5">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                        order.status === 'مكتمل' ? 'bg-emerald-500/15 text-emerald-400' :
-                        order.status === 'قيد المعالجة' ? 'bg-blue-500/15 text-blue-400' :
-                        order.status === 'تم الشحن' ? 'bg-purple-500/15 text-purple-400' : 'bg-amber-500/15 text-amber-400'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 text-end text-[#667386]">{order.date}</td>
+            {orders.length === 0 ? (
+              <div className="text-center py-10 text-slate-500">
+                <ShoppingBag className="w-10 h-10 mx-auto mb-2 opacity-30 text-[#C9A45C]" />
+                <p className="text-xs font-semibold">{isAr ? 'لا توجد طلبات مسجلة بعد' : 'No orders recorded yet'}</p>
+              </div>
+            ) : (
+              <table className="w-full text-start text-xs">
+                <thead>
+                  <tr className="border-b border-[#233247] text-[#667386] font-semibold">
+                    <th className="pb-3 text-start">{isAr ? 'رقم الطلب' : 'Order'}</th>
+                    <th className="pb-3 text-start">{isAr ? 'العميل' : 'Customer'}</th>
+                    <th className="pb-3 text-start">{isAr ? 'المبلغ الإجمالي' : 'Total'}</th>
+                    <th className="pb-3 text-start">{isAr ? 'حالة الدفع' : 'Payment'}</th>
+                    <th className="pb-3 text-start">{isAr ? 'الحالة' : 'Status'}</th>
+                    <th className="pb-3 text-end">{isAr ? 'التاريخ' : 'Date'}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-[#233247]/50">
+                  {orders.slice(0, 5).map((order) => (
+                    <tr key={order.id} className="hover:bg-[#101B2C]/50 transition-colors">
+                      <td className="py-3.5 font-bold text-[#F4F6F8]">{order.orderNumber}</td>
+                      <td className="py-3.5 text-[#97A4B5] font-medium">{order.customerName}</td>
+                      <td className="py-3.5 font-bold text-[#C9A45C]">{order.total.toLocaleString()} {order.currency || currency}</td>
+                      <td className="py-3.5">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                          order.paymentStatus === 'paid' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'
+                        }`}>
+                          {order.paymentStatus === 'paid' ? (isAr ? 'مدفوع' : 'Paid') : (isAr ? 'معلق' : 'Pending')}
+                        </span>
+                      </td>
+                      <td className="py-3.5">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                          order.status === 'delivered' ? 'bg-emerald-500/15 text-emerald-400' :
+                          order.status === 'processing' ? 'bg-blue-500/15 text-blue-400' :
+                          order.status === 'shipped' ? 'bg-purple-500/15 text-purple-400' : 'bg-amber-500/15 text-amber-400'
+                        }`}>
+                          {order.status === 'delivered' ? (isAr ? 'مكتمل' : 'Delivered') :
+                           order.status === 'processing' ? (isAr ? 'قيد المعالجة' : 'Processing') :
+                           order.status === 'shipped' ? (isAr ? 'تم الشحن' : 'Shipped') : (isAr ? 'جديد' : 'New')}
+                        </span>
+                      </td>
+                      <td className="py-3.5 text-end text-[#667386]">
+                        {new Date(order.createdAt).toLocaleDateString(isAr ? 'ar-SA' : 'en-US')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
@@ -457,27 +462,28 @@ export const MerchantDashboardView: React.FC<MerchantDashboardViewProps> = ({ se
             </div>
 
             <div className="space-y-3.5">
-              {[
-                { name: isAr ? 'ساعة ذهبية فاخرة' : 'Luxury Gold Watch', sales: '34 وحدة', revenue: '15,300 SAR' },
-                { name: isAr ? 'عطر العود الملكي' : 'Royal Oud Perfume', sales: '28 وحدة', revenue: '11,200 SAR' },
-                { name: isAr ? 'محفظة جلد طبيعي' : 'Leather Wallet', sales: '22 وحدة', revenue: '6,600 SAR' },
-                { name: isAr ? 'نظارة شمسية كلاسيكية' : 'Classic Sunglasses', sales: '19 وحدة', revenue: '4,750 SAR' },
-              ].map((prod, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-[#050B14] border border-[#233247] hover:bg-[#101B2C] transition-all">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-[#101B2C] border border-[#233247] flex items-center justify-center font-bold text-xs text-[#F4F6F8] shrink-0">
-                      {idx + 1}
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="text-xs font-bold text-[#F4F6F8] truncate">{prod.name}</h4>
-                      <p className="text-[10px] text-[#667386] mt-0.5">{prod.sales}</p>
-                    </div>
-                  </div>
-                  <div className="text-end shrink-0">
-                    <div className="text-xs font-bold text-[#C9A45C]">{prod.revenue}</div>
-                  </div>
+              {products.length === 0 ? (
+                <div className="text-center py-8 text-slate-500 text-xs">
+                  {isAr ? 'لم تتم إضافة منتجات بعد' : 'No products added yet'}
                 </div>
-              ))}
+              ) : (
+                products.slice(0, 4).map((prod, idx) => (
+                  <div key={prod.id} className="flex items-center justify-between p-3 rounded-2xl bg-[#050B14] border border-[#233247] hover:bg-[#101B2C] transition-all">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-[#101B2C] border border-[#233247] flex items-center justify-center font-bold text-xs text-[#F4F6F8] shrink-0">
+                        {idx + 1}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold text-[#F4F6F8] truncate">{isAr ? prod.name : (prod.nameEn || prod.name)}</h4>
+                        <p className="text-[10px] text-[#667386] mt-0.5">{prod.stock} {isAr ? 'متوفر' : 'in stock'}</p>
+                      </div>
+                    </div>
+                    <div className="text-end shrink-0">
+                      <div className="text-xs font-bold text-[#C9A45C]">{prod.price.toLocaleString()} {currency}</div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

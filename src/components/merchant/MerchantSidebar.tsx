@@ -35,8 +35,10 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
   setCollapsed,
   onOpenWorkspaceSwitcher
 }) => {
-  const { activeTenant, language, currentStaffRole } = useCommerce();
+  const { activeTenant, language, currentStaffRole, orders } = useCommerce();
   const isAr = language === 'ar';
+
+  const pendingOrdersCount = orders.filter(o => o.status === 'new' || o.status === 'processing').length;
 
   const navGroups = [
     {
@@ -48,7 +50,12 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
     {
       title: isAr ? 'المبيعات' : 'Sales',
       items: [
-        { id: 'orders', label: isAr ? 'الطلبات' : 'Orders', icon: ShoppingBag, badge: '12' },
+        { 
+          id: 'orders', 
+          label: isAr ? 'الطلبات' : 'Orders', 
+          icon: ShoppingBag, 
+          badge: pendingOrdersCount > 0 ? String(pendingOrdersCount) : undefined 
+        },
         { id: 'customers', label: isAr ? 'العملاء' : 'Customers', icon: Users }
       ]
     },

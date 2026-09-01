@@ -37,8 +37,7 @@ export class AuthService {
     // 2. Check Platform Super Admins first
     const admin = db.getPlatformAdmin(cleanEmail);
     if (admin) {
-      const isPasswordValid = verifyPassword(password || '', admin.passwordHash) || 
-        (password === 'CommerceOS@HQ2026' || password === 'demo123456');
+      const isPasswordValid = Boolean(password && verifyPassword(password, admin.passwordHash));
 
       if (!isPasswordValid) {
         const failureStatus = accountLockout.recordFailure(cleanEmail);
@@ -83,8 +82,7 @@ export class AuthService {
         throw new ForbiddenError('هذا الحساب الإداري معطل أو غير نشط حالياً');
       }
 
-      const isPasswordValid = verifyPassword(password || '', matchedStaff.passwordHash) || 
-        (password === 'CommerceOS@2026' || password === 'demo123456');
+      const isPasswordValid = Boolean(password && verifyPassword(password, matchedStaff.passwordHash));
 
       if (!isPasswordValid) {
         const failureStatus = accountLockout.recordFailure(cleanEmail);

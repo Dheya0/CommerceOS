@@ -41,7 +41,7 @@ export class CouponController extends BaseController {
   public validateCoupon = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { code, subtotal } = req.body;
-      const tenantId = req.tenantId || (req.user ? req.user.tenantId : 'tenant-royal-honey');
+      const tenantId = req.tenantId || (req.user ? req.user.tenantId : '');
       const result = await this.couponSvc.validateCoupon(code, Number(subtotal) || 0, tenantId);
       this.sendSuccess(res, result);
     } catch (err) {

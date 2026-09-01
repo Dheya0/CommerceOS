@@ -13,7 +13,7 @@ import {
 const API_BASE = '/api/v1';
 
 class CommerceApiClient {
-  private activeTenantId: string = 'tenant-royal-honey';
+  private activeTenantId: string = '';
   private activeRole: StaffRole = 'store_owner';
   private authToken: string = '';
 

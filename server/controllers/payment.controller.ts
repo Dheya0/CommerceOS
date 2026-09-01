@@ -9,7 +9,7 @@ export class PaymentController extends BaseController {
 
   public getTransactions = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = req.user ? req.user.tenantId : (req.tenantId || 'tenant-royal-honey');
+      const tenantId = req.user ? req.user.tenantId : (req.tenantId || '');
       const transactions = await this.paymentSvc.getTransactions(tenantId);
       this.sendSuccess(res, { transactions, count: transactions.length });
     } catch (err) {
@@ -20,7 +20,7 @@ export class PaymentController extends BaseController {
   public getIntent = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
-      const tenantId = req.user ? req.user.tenantId : (req.tenantId || 'tenant-royal-honey');
+      const tenantId = req.user ? req.user.tenantId : (req.tenantId || '');
       const intent = await this.paymentSvc.getIntentById(id, tenantId);
       this.sendSuccess(res, { paymentIntent: intent });
     } catch (err) {
@@ -31,7 +31,7 @@ export class PaymentController extends BaseController {
   public processRefund = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { paymentIntentId, amount, reason } = req.body;
-      const tenantId = req.user ? req.user.tenantId : (req.tenantId || 'tenant-royal-honey');
+      const tenantId = req.user ? req.user.tenantId : (req.tenantId || '');
       const initiatedBy = req.user ? req.user.name : 'Store Admin';
       const result = await this.paymentSvc.processRefund({
         paymentIntentId,

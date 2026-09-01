@@ -3,46 +3,22 @@ import { NotificationLog } from '../../src/types';
 
 export const notificationsRouter = Router();
 
-const notificationLogsStore: NotificationLog[] = [
-  {
-    id: 'ntf-01',
-    tenantId: 'tenant-royal-honey',
-    channel: 'whatsapp',
-    recipient: '+966501112233',
-    recipientName: 'عبدالله السبيعي',
-    triggerEvent: 'order_created',
-    templateName: 'order_confirmation_ar',
-    messageBody: 'عزيزي عبدالله السبيعي، تم استلام طلبك رقم (#ORD-101) بنجاح بقيمة 540 ريال. سنوافيك برابط التتبع فور الشحن 🍯',
-    status: 'delivered',
-    sentAt: '2026-08-21 21:15',
-    provider: 'whatsapp_cloud_api'
-  },
-  {
-    id: 'ntf-02',
-    tenantId: 'tenant-royal-honey',
-    channel: 'sms',
-    recipient: '+966554443322',
-    recipientName: 'نورة القحطاني',
-    triggerEvent: 'order_shipped',
-    templateName: 'order_shipping_tracking_ar',
-    messageBody: 'تم شحن طلبك (#ORD-102) عبر أرامكس! رقم الشحنة: 394829104. التتبع: https://track.aramex.com/394829104',
-    status: 'delivered',
-    sentAt: '2026-08-21 18:30',
-    provider: 'unifonic'
-  }
-];
+const notificationLogsStore: NotificationLog[] = [];
 
 // GET /api/v1/notifications/logs - List notification dispatch logs
 notificationsRouter.get('/logs', (req: Request, res: Response) => {
+  const tenantId = req.user?.tenantId || req.tenantId || '';
+  const logs = tenantId ? notificationLogsStore.filter(l => l.tenantId === tenantId) : notificationLogsStore;
   res.json({
     success: true,
-    logs: notificationLogsStore
+    logs
   });
 });
 
 // POST /api/v1/notifications/send-test - Send test WhatsApp / SMS notification
 notificationsRouter.post('/send-test', (req: Request, res: Response) => {
   const { channel, recipient, template, customParams } = req.body;
+  const tenantId = req.user?.tenantId || req.tenantId || '';
 
   if (!recipient) {
     return res.status(400).json({ error: 'Recipient phone number is required' });
@@ -60,10 +36,10 @@ notificationsRouter.post('/send-test', (req: Request, res: Response) => {
 
   const newLog: NotificationLog = {
     id: `ntf-${Date.now()}`,
-    tenantId: 'tenant-royal-honey',
+    tenantId,
     channel: channel || 'whatsapp',
     recipient,
-    recipientName: customParams?.name || 'عميل تجريبي',
+    recipientName: customParams?.name || 'عميل المتجر',
     triggerEvent: template || 'order_created',
     templateName: `${template}_template`,
     messageBody,

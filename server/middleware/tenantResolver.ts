@@ -59,11 +59,7 @@ export function tenantResolver(req: Request, res: Response, next: NextFunction) 
     );
   }
 
-  // 4. Default fallback ONLY if no explicit tenant was requested
-  if (!resolvedTenant && !candidateIdOrSlug) {
-    resolvedTenant = db.getTenantByIdOrSlug('tenant-royal-honey') || db.getTenants()[0];
-  }
-
+  // 4. If no explicit tenant was matched, do not fallback to any hardcoded default store
   if (resolvedTenant) {
     req.tenant = resolvedTenant;
     req.tenantId = resolvedTenant.id;
