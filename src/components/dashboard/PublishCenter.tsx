@@ -356,10 +356,10 @@ export const PublishCenter: React.FC = () => {
           </div>
 
           {/* Target 2: Android Studio Project */}
-          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between space-y-6 hover:border-emerald-500/50 transition-all">
+          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between space-y-6 hover:border-[#C9A45C]/50 transition-all">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 border border-[#C9A45C]/30 flex items-center justify-center text-[#C9A45C]">
                   <Smartphone className="w-6 h-6" />
                 </div>
                 <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold">
@@ -384,20 +384,20 @@ export const PublishCenter: React.FC = () => {
                 disabled={isBuilding}
                 className="w-full py-3 rounded-2xl bg-[#101B2C] hover:bg-[#233247] border border-[#233247] text-white text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <Download className="w-4 h-4 text-emerald-400" />
+                <Download className="w-4 h-4 text-[#C9A45C]" />
                 <span>{isAr ? 'تنزيل مشروع أندرويد (.ZIP)' : 'Download Android Project'}</span>
               </button>
             </div>
           </div>
 
           {/* Target 3: iOS Xcode Project */}
-          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between space-y-6 hover:border-blue-500/50 transition-all">
+          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between space-y-6 hover:border-[#C9A45C]/50 transition-all">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 border border-[#C9A45C]/30 flex items-center justify-center text-[#C9A45C]">
                   <Apple className="w-6 h-6" />
                 </div>
-                <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[11px] font-bold">
+                <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold">
                   Xcode Workspace
                 </span>
               </div>
@@ -419,20 +419,20 @@ export const PublishCenter: React.FC = () => {
                 disabled={isBuilding}
                 className="w-full py-3 rounded-2xl bg-[#101B2C] hover:bg-[#233247] border border-[#233247] text-white text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <Download className="w-4 h-4 text-blue-400" />
+                <Download className="w-4 h-4 text-[#C9A45C]" />
                 <span>{isAr ? 'تنزيل مشروع iOS (.ZIP)' : 'Download iOS Project'}</span>
               </button>
             </div>
           </div>
 
           {/* Target 4: PWA */}
-          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between space-y-6 hover:border-amber-500/50 transition-all">
+          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between space-y-6 hover:border-[#C9A45C]/50 transition-all">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 border border-[#C9A45C]/30 flex items-center justify-center text-[#C9A45C]">
                   <Smartphone className="w-6 h-6" />
                 </div>
-                <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[11px] font-bold">
+                <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold">
                   PWA Standalone
                 </span>
               </div>
@@ -454,20 +454,20 @@ export const PublishCenter: React.FC = () => {
                 disabled={isBuilding}
                 className="w-full py-3 rounded-2xl bg-[#101B2C] hover:bg-[#233247] border border-[#233247] text-white text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <Download className="w-4 h-4 text-amber-400" />
+                <Download className="w-4 h-4 text-[#C9A45C]" />
                 <span>{isAr ? 'تنزيل حزمة PWA (.ZIP)' : 'Download PWA Bundle'}</span>
               </button>
             </div>
           </div>
 
           {/* Target 5: Docker Self-Hosted */}
-          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between space-y-6 hover:border-purple-500/50 transition-all">
+          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between space-y-6 hover:border-[#C9A45C]/50 transition-all">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 border border-[#C9A45C]/30 flex items-center justify-center text-[#C9A45C]">
                   <Server className="w-6 h-6" />
                 </div>
-                <span className="px-3 py-1 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[11px] font-bold">
+                <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold">
                   Docker Compose
                 </span>
               </div>
@@ -489,20 +489,20 @@ export const PublishCenter: React.FC = () => {
                 disabled={isBuilding}
                 className="w-full py-3 rounded-2xl bg-[#101B2C] hover:bg-[#233247] border border-[#233247] text-white text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <Download className="w-4 h-4 text-purple-400" />
+                <Download className="w-4 h-4 text-[#C9A45C]" />
                 <span>{isAr ? 'تنزيل حزمة Docker (.ZIP)' : 'Download Docker Stack'}</span>
               </button>
             </div>
           </div>
 
           {/* Target 6: Web Production SPA */}
-          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between space-y-6 hover:border-cyan-500/50 transition-all">
+          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between space-y-6 hover:border-[#C9A45C]/50 transition-all">
             <div className="space-y-4">
               <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 border border-[#C9A45C]/30 flex items-center justify-center text-[#C9A45C]">
                   <Globe className="w-6 h-6" />
                 </div>
-                <span className="px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[11px] font-bold">
+                <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold">
                   Vite Static SPA
                 </span>
               </div>
@@ -524,7 +524,7 @@ export const PublishCenter: React.FC = () => {
                 disabled={isBuilding}
                 className="w-full py-3 rounded-2xl bg-[#101B2C] hover:bg-[#233247] border border-[#233247] text-white text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <Download className="w-4 h-4 text-cyan-400" />
+                <Download className="w-4 h-4 text-[#C9A45C]" />
                 <span>{isAr ? 'تنزيل حزمة الويب (.ZIP)' : 'Download Web SPA'}</span>
               </button>
             </div>

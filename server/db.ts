@@ -11,16 +11,7 @@ import {
   TenantStore,
   StoreTheme
 } from '../src/types';
-import { 
-  INITIAL_TENANTS, 
-  INITIAL_PRODUCTS, 
-  INITIAL_CATEGORIES, 
-  INITIAL_ORDERS, 
-  INITIAL_CUSTOMERS, 
-  INITIAL_COUPONS, 
-  INITIAL_STAFF, 
-  SUBSCRIPTION_PLANS 
-} from '../src/data/initialData';
+import { SUBSCRIPTION_PLANS } from '../src/data/initialData';
 import { hashPassword } from './utils/security';
 
 export interface PlatformAdminUser {
