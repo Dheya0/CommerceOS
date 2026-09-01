@@ -5,419 +5,362 @@ import {
   ArrowRight, 
   Store, 
   ShieldCheck, 
-  Smartphone, 
-  Cpu, 
-  Layers, 
-  Lock, 
-  CheckCircle2, 
-  ExternalLink, 
   Zap, 
   Globe, 
   CreditCard, 
   Box, 
-  Terminal, 
-  Sliders, 
-  Trash2,
-  RefreshCw,
-  ShoppingBag,
   TrendingUp,
-  Server,
-  Code2,
-  Users
+  Layers,
+  CheckCircle2,
+  Lock,
+  ChevronRight,
+  Menu,
+  X
 } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
 
 export const LandingPage: React.FC = () => {
   const {
-    openAuthModal,
     setCurrentView,
-    tenants,
-    activeTenant,
-    setActiveTenantId,
-    currentUser,
     isAuthenticated,
+    currentUser,
     logout,
-    resetToCleanStore,
-    showToast,
     language
   } = useCommerce();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'features' | 'stores' | 'architecture'>('overview');
-
-  const handleSelectStoreAndPreview = (tenantId: string, view: 'storefront' | 'merchant_dashboard') => {
-    setActiveTenantId(tenantId);
-    setCurrentView(view);
-  };
-
-  const handleCleanCurrentStore = () => {
-    if (window.confirm(`هل أنت متأكد من رغبتك في تصفير متجر "${activeTenant.name}" وحذف كافة المنتجات والأقسام والطلبات الافتراضية لتبدأ بإدخال بياناتك الحقيقية من الصفر؟`)) {
-      resetToCleanStore(activeTenant.id);
-    }
-  };
+  const isAr = language === 'ar';
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-amber-500 selection:text-slate-950 font-sans" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-[#050B14] text-[#F4F6F8] selection:bg-[#C9A45C] selection:text-[#050B14] font-sans antialiased overflow-x-hidden" dir={isAr ? 'rtl' : 'ltr'}>
       
-      {/* Top Ambient Glows */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-gradient-to-b from-amber-500/10 via-amber-600/5 to-transparent blur-[140px] pointer-events-none -z-10" />
-      <div className="fixed top-1/3 -right-40 w-96 h-96 bg-blue-600/10 blur-[120px] pointer-events-none -z-10" />
+      {/* Subtle Ambient Lighting */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-[#C9A45C]/10 via-transparent to-transparent blur-[120px] pointer-events-none -z-10" />
 
-      {/* NAVIGATION BAR */}
-      <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 px-4 lg:px-8 py-3.5 transition-all">
+      {/* HEADER / NAVIGATION */}
+      <header className="sticky top-0 z-50 bg-[#050B14]/85 backdrop-blur-xl border-b border-[#233247]/60 px-4 sm:px-8 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           
-          {/* Logo & Platform Name */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/20">
+          {/* Logo & Brand */}
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('home')}>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#C9A45C] to-[#9A7B26] text-[#050B14] flex items-center justify-center font-black shadow-lg shadow-[#C9A45C]/10">
               <Crown className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-black tracking-tight text-white">CommerceOS</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 font-bold border border-amber-500/30">
-                  Enterprise Cloud v4.2
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
-                المنصة التجارية السيادية متعددة المتاجر ومزرعة البناء الموزعة
-              </p>
+              <div className="text-lg font-black tracking-tight text-white">CommerceOS</div>
+              <div className="text-[10px] text-[#C9A45C] font-bold uppercase tracking-wider">{isAr ? 'منصة التجارة السيادية' : 'Sovereign Commerce'}</div>
             </div>
           </div>
 
-          {/* Quick Nav Links */}
-          <nav className="hidden md:flex items-center gap-1 bg-slate-900/60 p-1 rounded-2xl border border-slate-800 text-xs font-bold text-slate-300">
-            <button 
-              onClick={() => setActiveTab('overview')}
-              className={`px-3.5 py-1.5 rounded-xl transition-all ${activeTab === 'overview' ? 'bg-amber-500 text-slate-950 shadow' : 'hover:text-white'}`}
-            >
-              الرئيسية
-            </button>
-            <button 
-              onClick={() => setActiveTab('stores')}
-              className={`px-3.5 py-1.5 rounded-xl transition-all ${activeTab === 'stores' ? 'bg-amber-500 text-slate-950 shadow' : 'hover:text-white'}`}
-            >
-              المتاجر الجاهزة
-            </button>
-            <button 
-              onClick={() => setActiveTab('features')}
-              className={`px-3.5 py-1.5 rounded-xl transition-all ${activeTab === 'features' ? 'bg-amber-500 text-slate-950 shadow' : 'hover:text-white'}`}
-            >
-              المميزات والتقنيات
-            </button>
-            <button 
-              onClick={() => setActiveTab('architecture')}
-              className={`px-3.5 py-1.5 rounded-xl transition-all ${activeTab === 'architecture' ? 'bg-amber-500 text-slate-950 shadow' : 'hover:text-white'}`}
-            >
-              مزرعة البناء (DevOps)
-            </button>
+          {/* Desktop Navigation Links */}
+          <nav className="hidden md:flex items-center gap-8 text-xs font-bold text-[#97A4B5]">
+            <a href="#platform" className="hover:text-white transition-colors">{isAr ? 'المنصة' : 'Platform'}</a>
+            <a href="#solutions" className="hover:text-white transition-colors">{isAr ? 'الحلول' : 'Solutions'}</a>
+            <button onClick={() => setCurrentView('pricing' as any)} className="hover:text-white transition-colors">{isAr ? 'الأسعار' : 'Pricing'}</button>
+            <a href="#resources" className="hover:text-white transition-colors">{isAr ? 'الموارد' : 'Resources'}</a>
           </nav>
 
-          {/* Auth & Action Buttons */}
-          <div className="flex items-center gap-2.5">
+          {/* Auth Actions */}
+          <div className="hidden md:flex items-center gap-3">
             {isAuthenticated && currentUser ? (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentView('merchant_dashboard')}
-                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs font-bold text-white transition-all flex items-center gap-2"
-                >
-                  <Store className="w-4 h-4 text-amber-400" />
-                  <span>لوحة التحكم ({currentUser.name})</span>
-                </button>
-                <button
-                  onClick={logout}
-                  className="px-3 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-xs font-bold transition-all"
-                  title="تسجيل الخروج"
-                >
-                  خروج
-                </button>
-              </div>
+              <button
+                onClick={() => setCurrentView('merchant_dashboard')}
+                className="px-4 py-2.5 rounded-xl bg-[#0B1422] hover:bg-[#101B2C] border border-[#233247] text-xs font-bold text-white transition-all flex items-center gap-2 shadow"
+              >
+                <Store className="w-4 h-4 text-[#C9A45C]" />
+                <span>{currentUser.name}</span>
+              </button>
             ) : (
               <>
                 <button
                   onClick={() => setCurrentView('auth_page')}
-                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-750 text-xs font-bold text-slate-200 transition-all flex items-center gap-1.5"
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-colors"
                 >
-                  <Lock className="w-3.5 h-3.5 text-amber-400" />
-                  <span>تسجيل الدخول</span>
+                  {isAr ? 'تسجيل الدخول' : 'Sign In'}
                 </button>
-
                 <button
                   onClick={() => setCurrentView('auth_page')}
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 text-xs font-black hover:opacity-95 shadow-lg shadow-amber-500/20 transition-all flex items-center gap-1.5"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#C9A45C] to-[#9A7B26] text-[#050B14] text-xs font-black hover:opacity-90 shadow-lg shadow-[#C9A45C]/20 transition-all flex items-center gap-2"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>إنشاء متجر جديد</span>
+                  <span>{isAr ? 'ابدأ مجانًا' : 'Start Free'}</span>
+                  <ArrowRight className={`w-3.5 h-3.5 ${isAr ? 'rotate-180' : ''}`} />
                 </button>
               </>
             )}
           </div>
 
+          {/* Mobile Menu Toggle */}
+          <div className="md:hidden flex items-center">
+            <button 
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-xl bg-[#0B1422] border border-[#233247] text-white"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
+
         </div>
+
+        {/* Mobile Dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden mt-4 pb-4 border-t border-[#233247] pt-4 space-y-3">
+            <a href="#platform" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-slate-300 hover:text-white">{isAr ? 'المنصة' : 'Platform'}</a>
+            <a href="#solutions" onClick={() => setMobileMenuOpen(false)} className="block text-sm text-slate-300 hover:text-white">{isAr ? 'الحلول' : 'Solutions'}</a>
+            <button onClick={() => { setMobileMenuOpen(false); setCurrentView('pricing' as any); }} className="block text-sm text-slate-300 hover:text-white text-start w-full">{isAr ? 'الأسعار' : 'Pricing'}</button>
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                onClick={() => { setMobileMenuOpen(false); setCurrentView('auth_page'); }}
+                className="w-full py-2.5 rounded-xl bg-[#0B1422] border border-[#233247] text-xs font-bold text-white text-center"
+              >
+                {isAr ? 'تسجيل الدخول' : 'Sign In'}
+              </button>
+              <button
+                onClick={() => { setMobileMenuOpen(false); setCurrentView('auth_page'); }}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#C9A45C] to-[#9A7B26] text-[#050B14] text-xs font-black text-center"
+              >
+                {isAr ? 'ابدأ مجانًا' : 'Start Free'}
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* HERO SECTION */}
-      <section className="relative px-4 lg:px-8 pt-12 pb-16 max-w-7xl mx-auto">
-        <div className="text-center space-y-6 max-w-4xl mx-auto">
-          
-          {/* Tagline Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold shadow-lg shadow-amber-500/5">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>المنصة التجارية المستقلة المتكاملة للتجار ورواد الأعمال</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-          </div>
-
-          {/* Main Title */}
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-[1.2]">
-            أطلق متجرك الإلكتروني وتطبيقاتك{' '}
-            <span className="bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-500 bg-clip-text text-transparent">
-              بملكية سيادية كاملة
-            </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto font-normal leading-relaxed">
-            منصة متكاملة تجمع بين تصميم المتاجر الفاخرة، إدارة الطلبات والمخزون، الدفع الخليجي (مدى، أبل باي، تمارا)، ومزرعة بناء آلية لتصدير تطبيقات الهاتف (iOS/Android) وحزم النشر السحابي.
-          </p>
-
-          {/* Call to Actions */}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            
-            <button
-              onClick={() => openAuthModal('register')}
-              className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 font-black text-sm hover:opacity-95 shadow-xl shadow-amber-500/25 transition-all flex items-center gap-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>ابدأ بتأسيس متجرك الآن</span>
-              <ArrowRight className="w-4 h-4 rotate-180" />
-            </button>
-
-            <button
-              onClick={() => openAuthModal('login')}
-              className="px-6 py-3.5 rounded-2xl bg-slate-900 hover:bg-slate-850 border border-slate-750 text-white font-bold text-sm transition-all flex items-center gap-2"
-            >
-              <Lock className="w-4 h-4 text-amber-400" />
-              <span>تسجيل الدخول للوحة التحكم</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentView('storefront')}
-              className="px-5 py-3.5 rounded-2xl bg-slate-800/80 hover:bg-slate-750 border border-slate-700 text-slate-200 font-bold text-sm transition-all flex items-center gap-2"
-            >
-              <ShoppingBag className="w-4 h-4 text-emerald-400" />
-              <span>معاينة متجر حي مباشر</span>
-            </button>
-
-          </div>
-
-          {/* CLEAN DATA ACTION BOX (Explicit User Request Solution) */}
-          <div className="mt-8 p-4 rounded-3xl bg-slate-900/90 border border-amber-500/30 shadow-2xl max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-right">
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
-                <Trash2 className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-white flex items-center gap-2">
-                  <span>التحكم بالبيانات وإزالة البيانات الوهمية (Clean Data Control)</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">جاهز للفحص</span>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  المتجر النشط حالياً: <span className="text-amber-400 font-bold">{activeTenant.name}</span>. يمكنك تصفير البيانات للبدء من الصفر أو إنشاء متجر فارغ مخصص.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={handleCleanCurrentStore}
-                className="px-3.5 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-300 text-xs font-bold transition-all flex items-center gap-1.5"
-                title="مسح المنتجات والطلبات الوهمية من المتجر الحالي"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>تصفير ومسح الوهمي</span>
-              </button>
-
-              <button
-                onClick={() => openAuthModal('register')}
-                className="px-3.5 py-2 rounded-xl bg-amber-500 text-slate-950 hover:bg-amber-400 text-xs font-black transition-all flex items-center gap-1.5 shadow-md shadow-amber-500/20"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>متجر جديد نظيف</span>
-              </button>
-            </div>
-          </div>
-
+      <section className="relative pt-20 pb-28 px-4 sm:px-8 max-w-7xl mx-auto text-center">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#C9A45C]/10 border border-[#C9A45C]/30 text-[#C9A45C] text-xs font-bold mb-6">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>{isAr ? 'منصة التجارة الإلكترونية السيادية والمستقلة' : 'Sovereign & Independent Commerce Platform'}</span>
         </div>
-      </section>
 
-      {/* QUICK STORES SHOWCASE BAR */}
-      <section className="px-4 lg:px-8 pb-12 max-w-7xl mx-auto">
-        <div className="p-6 rounded-3xl bg-slate-900/60 border border-slate-800 space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-slate-800 pb-4">
-            <div>
-              <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                <Store className="w-4 h-4 text-amber-400" />
-                <span>المتاجر النشطة على المنصة (Live Multi-Tenants)</span>
-              </h2>
-              <p className="text-xs text-slate-400">انقر على أي متجر لمعاينته مباشرة كعميل أو إدارته كتاجر</p>
+        <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight max-w-4xl mx-auto leading-[1.15]">
+          {isAr ? (
+            <>
+              ابنِ متجرك. أدر تجارتك. <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#C9A45C] via-[#E6CA7E] to-[#9A7B26]">
+                وانمُ من مكان واحد.
+              </span>
+            </>
+          ) : (
+            <>
+              Build your store. Manage your business. <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#C9A45C] via-[#E6CA7E] to-[#9A7B26]">
+                Scale from one place.
+              </span>
+            </>
+          )}
+        </h1>
+
+        <p className="mt-6 text-base sm:text-lg text-[#97A4B5] max-w-2xl mx-auto font-normal leading-relaxed">
+          {isAr 
+            ? 'منصة موحدة مصممة للعلامات التجارية الطموحة لامتلاك قنواتهم البيعية بملكية كاملة، أداء فائق، وخبرة تشغيلية بلا حدود.'
+            : 'A unified platform built for ambitious brands to own their sales channels with full sovereignty, superior performance, and boundless operations.'}
+        </p>
+
+        <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <button
+            onClick={() => setCurrentView('auth_page')}
+            className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-[#C9A45C] to-[#9A7B26] text-[#050B14] font-black text-sm hover:opacity-95 shadow-xl shadow-[#C9A45C]/20 transition-all flex items-center justify-center gap-3"
+          >
+            <span>{isAr ? 'ابدأ متجرك مجانًا' : 'Start Your Store Free'}</span>
+            <ArrowRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
+          </button>
+
+          <button
+            onClick={() => setCurrentView('auth_page')}
+            className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-[#0B1422] hover:bg-[#101B2C] border border-[#233247] text-white font-bold text-sm transition-all flex items-center justify-center gap-2"
+          >
+            <span>{isAr ? 'تسجيل الدخول' : 'Sign In'}</span>
+          </button>
+        </div>
+
+        {/* Abstract Minimal Product Preview Composition */}
+        <div className="mt-16 relative max-w-5xl mx-auto">
+          <div className="absolute inset-0 bg-gradient-to-t from-[#050B14] via-transparent to-transparent z-10 pointer-events-none" />
+          <div className="rounded-3xl bg-[#0B1422] border border-[#233247] p-4 sm:p-6 shadow-2xl overflow-hidden relative">
+            <div className="flex items-center justify-between pb-4 border-b border-[#233247] mb-6">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-red-500/80" />
+                <div className="w-3 h-3 rounded-full bg-amber-500/80" />
+                <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
+              </div>
+              <div className="text-xs text-[#97A4B5] font-mono">commerceos.app/dashboard</div>
+              <div className="w-4" />
             </div>
-            <span className="text-xs text-slate-500 font-mono">
-              {tenants.length} متاجر مستقلة مشغلة
-            </span>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {tenants.map(tenant => {
-              const isSelected = tenant.id === activeTenant.id;
-              return (
-                <div 
-                  key={tenant.id}
-                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
-                    isSelected 
-                      ? 'bg-slate-850 border-amber-500/50 shadow-lg shadow-amber-500/10' 
-                      : 'bg-slate-950 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-amber-400 font-bold border border-slate-700">
-                        <Store className="w-4 h-4" />
-                      </div>
-                      {isSelected && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-                          النشط حالياً
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-white">{tenant.name}</h3>
-                      <p className="text-[11px] text-slate-400 font-mono mt-0.5">{tenant.domain || `${tenant.slug}.commerceos.app`}</p>
-                      <p className="text-xs text-slate-400 line-clamp-2 mt-1.5">{tenant.description}</p>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 mt-4 border-t border-slate-800/80 flex items-center gap-2">
-                    <button
-                      onClick={() => handleSelectStoreAndPreview(tenant.id, 'storefront')}
-                      className="flex-1 py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-white text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <ShoppingBag className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>عرض المتجر</span>
-                    </button>
-                    <button
-                      onClick={() => handleSelectStoreAndPreview(tenant.id, 'merchant_dashboard')}
-                      className="py-1.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Sliders className="w-3.5 h-3.5" />
-                      <span>الإدارة</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-start">
+              <div className="p-4 rounded-2xl bg-[#050B14] border border-[#233247]">
+                <div className="text-xs text-[#97A4B5]">{isAr ? 'إيرادات المتجر' : 'Store Revenue'}</div>
+                <div className="text-2xl font-black text-white mt-1">124,500 <span className="text-sm text-[#C9A45C]">SAR</span></div>
+                <div className="text-xs text-emerald-400 mt-1">+18.4% vs last month</div>
+              </div>
+              <div className="p-4 rounded-2xl bg-[#050B14] border border-[#233247]">
+                <div className="text-xs text-[#97A4B5]">{isAr ? 'إجمالي الطلبات' : 'Total Orders'}</div>
+                <div className="text-2xl font-black text-white mt-1">418</div>
+                <div className="text-xs text-emerald-400 mt-1">+12 active fulfillments</div>
+              </div>
+              <div className="p-4 rounded-2xl bg-[#050B14] border border-[#233247]">
+                <div className="text-xs text-[#97A4B5]">{isAr ? 'العملاء النشطون' : 'Active Customers'}</div>
+                <div className="text-2xl font-black text-white mt-1">1,284</div>
+                <div className="text-xs text-emerald-400 mt-1">High retention</div>
+              </div>
+              <div className="p-4 rounded-2xl bg-[#050B14] border border-[#233247]">
+                <div className="text-xs text-[#97A4B5]">{isAr ? 'معدل التحويل' : 'Conversion Rate'}</div>
+                <div className="text-2xl font-black text-white mt-1">3.42%</div>
+                <div className="text-xs text-emerald-400 mt-1">Optimized checkout</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* PLATFORM FEATURES GRID */}
-      <section className="px-4 lg:px-8 py-12 max-w-7xl mx-auto space-y-8">
-        <div className="text-center space-y-2 max-w-2xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-black text-white">
-            قدرات وبنية تحتية للمتاجر الكبرى
+      {/* CORE VALUE PILLARS (Build, Sell, Operate, Grow) */}
+      <section id="platform" className="py-24 px-4 sm:px-8 max-w-7xl mx-auto border-t border-[#233247]">
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <h2 className="text-3xl sm:text-4xl font-black text-white">
+            {isAr ? 'منصة متكاملة لكل مراحل نمو تجارتك' : 'An integrated platform for every growth stage'}
           </h2>
-          <p className="text-xs sm:text-sm text-slate-400">
-            صممت المنصة لتوفر أعلى درجات المرونة، الأمان، وتصدير الأكواد والتطبيقات بدون أي قيود.
+          <p className="text-[#97A4B5] text-sm mt-3">
+            {isAr ? 'كل الأدوات التي تحتاجها لإطلاق متجرك، إدارة مخزونك، ومعالجة المدفوعات تحت سقف واحد.' : 'All the tools you need to launch your store, manage inventory, and process payments under one roof.'}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           
-          {/* Feature 1: Multi-Tenancy */}
-          <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-slate-750 transition-all space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-              <Layers className="w-6 h-6" />
+          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] space-y-4 hover:border-[#C9A45C]/50 transition-colors">
+            <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 text-[#C9A45C] flex items-center justify-center font-bold">
+              <Store className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-white">عزل المستأجرين (Multi-Tenant Isolation)</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              عزل تام لكل متجر في قواعد البيانات، المنتجات، الطلبات، وصلاحيات الموظفين مع لوحة تحكم مستقلة ونطاق مخصص.
+            <h3 className="text-lg font-bold text-white">{isAr ? '1. ابنِ متجرك' : '1. Build Store'}</h3>
+            <p className="text-xs text-[#97A4B5] leading-relaxed">
+              {isAr ? 'أنشئ واجهة متجر تفاعلية ومخصصة بالكامل لتعكس هوية علامتك التجارية دون تعقيد.' : 'Create an interactive storefront fully customized to reflect your brand identity.'}
             </p>
           </div>
 
-          {/* Feature 2: Build Farm DevOps */}
-          <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-slate-750 transition-all space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-              <Cpu className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-bold text-white">مزرعة بناء التطبيقات (DevOps Farm)</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              طوابير مهام معزولة عبر Redis/BullMQ و WebSockets لتجميع وتوليد تطبيقات iOS و Android الأصلية وحزم Docker بدون إجهاد السيرفر.
-            </p>
-          </div>
-
-          {/* Feature 3: Sovereign White-Label */}
-          <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-slate-750 transition-all space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-bold text-white">رخص الملكية ومكافحة التلاعب</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              إمكانية إزالة العلامة المائية بالكامل (100% White-Label) مع تشفير الرخص وفحص التوقيع الرقمي لمنع التلاعب البرمجي.
-            </p>
-          </div>
-
-          {/* Feature 4: Theme Engine & Visual IDE */}
-          <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-slate-750 transition-all space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-              <Sliders className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-bold text-white">محرر الواجهات الحي (Theme IDE)</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              تخصيص كامل للألوان والخطوط والترتيب والأقسام التفاعلية مع معاينة فورية على الشاشات المختلفة (Desktop, Tablet, Mobile).
-            </p>
-          </div>
-
-          {/* Feature 5: Gulf & Global Payments */}
-          <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-slate-750 transition-all space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-400">
+          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] space-y-4 hover:border-[#C9A45C]/50 transition-colors">
+            <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 text-[#C9A45C] flex items-center justify-center font-bold">
               <CreditCard className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-white">بوابات الدفع الخليجية والعالمية</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              دعم أصلي لشبكة مدى (Mada)، Apple Pay، فيزا وماستركارد، تمارا (Tamara)، والتحويل البنكي مع إدارة الضريبة والقسائم.
+            <h3 className="text-lg font-bold text-white">{isAr ? '2. بِع في كل مكان' : '2. Sell Everywhere'}</h3>
+            <p className="text-xs text-[#97A4B5] leading-relaxed">
+              {isAr ? 'استقبل مدفوعاتك بأمان تام عبر بوابات دفع محلية وعالمية متعددة وموثوقة.' : 'Accept payments securely through multiple trusted local and global gateways.'}
             </p>
           </div>
 
-          {/* Feature 6: PWA & Native Ready */}
-          <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 hover:border-slate-750 transition-all space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
-              <Smartphone className="w-6 h-6" />
+          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] space-y-4 hover:border-[#C9A45C]/50 transition-colors">
+            <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 text-[#C9A45C] flex items-center justify-center font-bold">
+              <Box className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-bold text-white">تطبيق ويب تقدمي (PWA) وأصلي</h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              تثبيت فوري على شاشة الهاتف، إشعارات فورية (Push Notifications)، وعمل سلس حتى بدون اتصال بالإنترنت (Offline Mode).
+            <h3 className="text-lg font-bold text-white">{isAr ? '3. أدر العمليات' : '3. Operate Seamlessly'}</h3>
+            <p className="text-xs text-[#97A4B5] leading-relaxed">
+              {isAr ? 'تابع الطلبات، أدر المخزون، ونظم شحناتك من لوحة تحكم مركزية سريعة ودقيقة.' : 'Track orders, manage inventory, and organize shipments from a fast centralized dashboard.'}
+            </p>
+          </div>
+
+          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] space-y-4 hover:border-[#C9A45C]/50 transition-colors">
+            <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 text-[#C9A45C] flex items-center justify-center font-bold">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-bold text-white">{isAr ? '4. انمُ وتوسع' : '4. Grow & Scale'}</h3>
+            <p className="text-xs text-[#97A4B5] leading-relaxed">
+              {isAr ? 'راقب مؤشرات الأداء الحساسة، حلل سلوك العملاء، واتخذ قرارات دقيقة لزيادة مبيعاتك.' : 'Monitor key performance indicators, analyze customer behavior, and scale your sales.'}
             </p>
           </div>
 
         </div>
       </section>
 
-      {/* QUICK FOOTER */}
-      <footer className="border-t border-slate-800/80 px-4 lg:px-8 py-8 max-w-7xl mx-auto text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Crown className="w-4 h-4 text-amber-500" />
-          <span className="text-slate-300 font-bold">CommerceOS Sovereign Platform</span>
-          <span>• جميع الحقوق محفوظة {new Date().getFullYear()}</span>
+      {/* PLATFORM STORY SECTION */}
+      <section id="solutions" className="py-24 px-4 sm:px-8 max-w-7xl mx-auto border-t border-[#233247]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="space-y-6">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#C9A45C]/10 text-[#C9A45C] text-xs font-bold">
+              <ShieldCheck className="w-4 h-4" />
+              <span>{isAr ? 'ملكية سيادية كاملة' : 'Full Sovereign Ownership'}</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-black text-white">
+              {isAr ? 'بياناتك ملكك بالكامل، بلا قيود وبأعلى مستويات الأمان' : 'Your data is strictly yours, unconstrained and secure'}
+            </h2>
+            <p className="text-sm text-[#97A4B5] leading-relaxed">
+              {isAr 
+                ? 'تمنحك CommerceOS سيادة كاملة على قاعدة بياناتك، سجلات عملائك، وتفاصيل عملياتك. لا توجد عمولات خفية على المبيعات، وتصميم معمارى يضمن سرعة تحميل استثنائية.'
+                : 'CommerceOS gives you full sovereignty over your database, customer records, and operations. Zero hidden sales commissions and an architecture guaranteeing lightning speed.'}
+            </p>
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center gap-3 text-sm text-slate-200">
+                <CheckCircle2 className="w-5 h-5 text-[#C9A45C]" />
+                <span>{isAr ? 'بدون عمولة على المبيعات (0% عمولة)' : 'Zero commission on sales (0% fee)'}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-slate-200">
+                <CheckCircle2 className="w-5 h-5 text-[#C9A45C]" />
+                <span>{isAr ? 'دعم كامل للغة العربية والإنجليزية واتجاه RTL' : 'Full Arabic & English support with native RTL'}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-slate-200">
+                <CheckCircle2 className="w-5 h-5 text-[#C9A45C]" />
+                <span>{isAr ? 'إدارة متكاملة للصلاحيات والفريق (RBAC)' : 'Integrated team permissions & RBAC'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-8 rounded-3xl bg-[#0B1422] border border-[#233247] relative space-y-6">
+            <div className="text-lg font-black text-white">{isAr ? 'جاهز لإطلاق متجرك السيادي؟' : 'Ready to launch your sovereign store?'}</div>
+            <p className="text-xs text-[#97A4B5]">
+              {isAr ? 'انضم إلى الشركات والعلامات التجارية التي اختارت الاستقلالية والاحترافية.' : 'Join brands and enterprises that chose independence and professionalism.'}
+            </p>
+            <button
+              onClick={() => setCurrentView('auth_page')}
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#C9A45C] to-[#9A7B26] text-[#050B14] font-black text-sm hover:opacity-95 shadow-xl shadow-[#C9A45C]/20 transition-all flex items-center justify-center gap-2"
+            >
+              <span>{isAr ? 'أنشئ متجرك الآن مجانًا' : 'Create Your Store Free'}</span>
+              <ArrowRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="border-t border-[#233247] py-16 px-4 sm:px-8 bg-[#050B14]">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
+          <div className="col-span-2 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#C9A45C] to-[#9A7B26] text-[#050B14] flex items-center justify-center font-black">
+                <Crown className="w-4 h-4" />
+              </div>
+              <span className="text-base font-black text-white">CommerceOS</span>
+            </div>
+            <p className="text-xs text-[#97A4B5] max-w-sm">
+              {isAr ? 'منصة التجارة السيادية الرائدة للعلامات التجارية والمؤسسات.' : 'The leading sovereign commerce platform for brands and enterprises.'}
+            </p>
+          </div>
+
+          <div>
+            <div className="text-xs font-bold text-white uppercase tracking-wider mb-4">{isAr ? 'المنصة' : 'Platform'}</div>
+            <ul className="space-y-2.5 text-xs text-[#97A4B5]">
+              <li><a href="#platform" className="hover:text-white transition-colors">{isAr ? 'المميزات' : 'Features'}</a></li>
+              <li><a href="#solutions" className="hover:text-white transition-colors">{isAr ? 'الحلول' : 'Solutions'}</a></li>
+              <li><button onClick={() => setCurrentView('pricing' as any)} className="hover:text-white transition-colors">{isAr ? 'الباقات والأسعار' : 'Pricing'}</button></li>
+            </ul>
+          </div>
+
+          <div>
+            <div className="text-xs font-bold text-white uppercase tracking-wider mb-4">{isAr ? 'الموارد' : 'Resources'}</div>
+            <ul className="space-y-2.5 text-xs text-[#97A4B5]">
+              <li><a href="#resources" className="hover:text-white transition-colors">{isAr ? 'التوثيق التقني' : 'Documentation'}</a></li>
+              <li><a href="#resources" className="hover:text-white transition-colors">{isAr ? 'دعم العملاء' : 'Support'}</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <div className="text-xs font-bold text-white uppercase tracking-wider mb-4">{isAr ? 'الشركة' : 'Company'}</div>
+            <ul className="space-y-2.5 text-xs text-[#97A4B5]">
+              <li><a href="#about" className="hover:text-white transition-colors">{isAr ? 'عن المنصة' : 'About'}</a></li>
+              <li><a href="#legal" className="hover:text-white transition-colors">{isAr ? 'الشروط والأحكام' : 'Terms & Privacy'}</a></li>
+            </ul>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <button onClick={() => openAuthModal('login')} className="hover:text-amber-400 transition-colors">
-            تسجيل الدخول
-          </button>
-          <button onClick={() => openAuthModal('register')} className="hover:text-amber-400 transition-colors">
-            تسجيل متجر جديد
-          </button>
-          <button onClick={() => setCurrentView('platform_admin')} className="hover:text-amber-400 transition-colors">
-            إدارة المنصة العامة
-          </button>
+        <div className="max-w-7xl mx-auto pt-8 border-t border-[#233247] flex flex-col sm:flex-row items-center justify-between text-xs text-[#97A4B5]">
+          <div>© {new Date().getFullYear()} CommerceOS. {isAr ? 'جميع الحقوق محفوظة.' : 'All rights reserved.'}</div>
+          <div className="mt-4 sm:mt-0 font-medium">Sovereign Commerce Platform</div>
         </div>
       </footer>
 

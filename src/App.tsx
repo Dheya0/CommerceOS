@@ -3,13 +3,12 @@ import { CommerceProvider, useCommerce } from './context/CommerceContext';
 import { PlatformHeader } from './components/navigation/PlatformHeader';
 import { LandingPage } from './components/home/LandingPage';
 import { StorefrontView } from './components/storefront/StorefrontView';
-import { MerchantDashboard } from './components/dashboard/MerchantDashboard';
-import { PlatformAdminDashboard } from './components/admin/PlatformAdminDashboard';
 import { MerchantAppShell } from './components/merchant/MerchantAppShell';
 import { StoreBuilderWizard } from './components/builder/StoreBuilderWizard';
 import { LiveDesignStudio } from './components/builder/LiveDesignStudio';
 import { VisualIDE } from './components/builder/VisualIDE';
 import { PricingPage } from './components/saas/PricingPage';
+import { PlatformAdminDashboard } from './components/admin/PlatformAdminDashboard';
 import { AuthPageView } from './components/auth/AuthPageView';
 import { DesignSystemPlayground } from './design-system/DesignSystemPlayground';
 import { TamperAlertModal } from './components/common/TamperAlertModal';
@@ -32,43 +31,52 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Strict Sovereign Shell Separation: Merchant Dashboard renders ONLY MerchantAppShell without any platform headers
+  if (currentView === 'merchant_dashboard') {
+    return (
+      <div className="min-h-screen bg-[#050B14] text-[#F4F6F8] font-sans antialiased selection:bg-[#C9A45C] selection:text-[#050B14] relative overflow-x-hidden">
+        <MerchantAppShell onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
+        <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
+        <AuthModal />
+        <TamperAlertModal />
+      </div>
+    );
+  }
+
+  // Auth Shell
+  if (currentView === 'auth_page') {
+    return (
+      <div className="min-h-screen bg-[#050B14] text-[#F4F6F8] font-sans antialiased relative overflow-x-hidden">
+        <AuthPageView />
+        <AuthModal />
+        <TamperAlertModal />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 font-sans antialiased selection:bg-blue-600 selection:text-white relative overflow-x-hidden">
       
-      {/* The Abyss Background Ambient Mesh Gradients & Glows */}
       <div className="fixed top-[-10%] right-[-5%] w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[140px] pointer-events-none z-0" />
       <div className="fixed bottom-[-10%] left-[-5%] w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[140px] pointer-events-none z-0" />
-      <div className="fixed top-[40%] left-[25%] w-[400px] h-[400px] bg-cyan-600/5 rounded-full blur-[120px] pointer-events-none z-0" />
 
-      {/* Global Platform Navigation Bar */}
-      {currentView !== 'auth_page' && currentView !== 'merchant_dashboard' && (
-        <PlatformHeader onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
-      )}
+      <PlatformHeader onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
 
-      {/* Main Dynamic Viewport */}
       <main className="relative z-10">
         {currentView === 'home' && <LandingPage />}
         {currentView === 'storefront' && <StorefrontView />}
-        {currentView === 'merchant_dashboard' && <MerchantAppShell onOpenCommandPalette={() => setCommandPaletteOpen(true)} />}
         {currentView === 'builder_wizard' && <StoreBuilderWizard />}
         {currentView === 'live_customizer' && <LiveDesignStudio />}
         {currentView === 'visual_ide' && <VisualIDE />}
         {currentView === 'pricing' && <PricingPage />}
         {currentView === 'platform_admin' && <PlatformAdminDashboard />}
-        {currentView === 'auth_page' && <AuthPageView />}
         {currentView === 'design_system' && <DesignSystemPlayground />}
       </main>
 
-      {/* Command Palette (Cmd/Ctrl + K) */}
       <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
-
-      {/* Authentication & Onboarding Modal */}
       <AuthModal />
-
-      {/* Anti-Tamper & Licensing Modal */}
       <TamperAlertModal />
 
-      {/* Toast Notification Stack */}
       {toasts.length > 0 && (
         <div className="fixed bottom-6 left-6 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">
           {toasts.map(toast => (

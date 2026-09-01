@@ -131,7 +131,7 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-[#C9A45C]/15 border border-[#C9A45C]/30 text-[#C9A45C] flex items-center justify-center font-bold text-xs shrink-0">
-              {activeTenant.storeName.charAt(0)}
+              {activeTenant.storeName?.charAt(0) || 'S'}
             </div>
             {!collapsed && (
               <div className="min-w-0">

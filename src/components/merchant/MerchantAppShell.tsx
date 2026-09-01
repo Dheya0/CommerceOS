@@ -10,6 +10,7 @@ import { ProductEditorView } from './ProductEditorView';
 import { InventoryView } from './InventoryView';
 import { CustomersView } from './CustomersView';
 import { LiveDesignStudio } from '../builder/LiveDesignStudio';
+import { SettingsView } from './SettingsView';
 import { useCommerce } from '../../context/CommerceContext';
 import { X, ArrowRight } from 'lucide-react';
 
@@ -127,15 +128,19 @@ export const MerchantAppShell: React.FC<MerchantAppShellProps> = ({ onOpenComman
             <CustomersView />
           )}
 
+          {activeSection === 'settings' && (
+            <SettingsView />
+          )}
+
           {(activeSection === 'design' || activeSection === 'storefront') && (
             <LiveDesignStudio />
           )}
 
           {/* Fallback for other sections not yet in D3 */}
-          {!['overview', 'orders', 'products', 'inventory', 'customers', 'design', 'storefront'].includes(activeSection) && (
+          {!['overview', 'orders', 'products', 'inventory', 'customers', 'design', 'storefront', 'settings'].includes(activeSection) && (
             <div className="py-12 px-6 bg-white/[0.02] border border-white/10 rounded-3xl text-center space-y-4 max-w-2xl mx-auto my-12 animate-in fade-in duration-300">
               <div className="w-16 h-16 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#D4AF37] flex items-center justify-center mx-auto text-2xl font-bold">
-                {activeSection.charAt(0).toUpperCase()}
+                {activeSection?.charAt(0)?.toUpperCase() || 'M'}
               </div>
               <h2 className="text-xl font-bold text-white capitalize">
                 {activeSection} {isAr ? 'قيد التطوير في المراحل اللاحقة' : 'Module Roadmap'}

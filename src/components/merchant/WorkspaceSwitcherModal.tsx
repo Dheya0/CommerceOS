@@ -59,7 +59,7 @@ export const WorkspaceSwitcherModal: React.FC<WorkspaceSwitcherModalProps> = ({ 
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm ${
                     isActive ? 'bg-[#D4AF37] text-[#07111F]' : 'bg-white/10 text-white'
                   }`}>
-                    {tenant.storeName.charAt(0)}
+                    {tenant.storeName?.charAt(0) || 'S'}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">

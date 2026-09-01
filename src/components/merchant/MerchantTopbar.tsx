@@ -157,7 +157,7 @@ export const MerchantTopbar: React.FC<MerchantTopbarProps> = ({
             className="flex items-center gap-2.5 p-1.5 pe-3 rounded-xl bg-[#0B1422] hover:bg-[#101B2C] border border-[#233247] transition-all"
           >
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#C9A45C] to-[#9A7B26] text-[#050B14] font-bold text-xs flex items-center justify-center shadow">
-              {currentUser?.name ? currentUser.name.charAt(0) : 'M'}
+              {currentUser?.name?.charAt(0) || 'M'}
             </div>
             <div className="hidden xl:block text-start">
               <div className="text-xs font-bold text-[#F4F6F8] leading-tight">

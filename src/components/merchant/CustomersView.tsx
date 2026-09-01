@@ -132,7 +132,7 @@ export const CustomersView: React.FC<CustomersViewProps> = ({ onSelectCustomer }
                   <tr key={customer.id} className="hover:bg-white/[0.04] transition-colors">
                     <td className="py-4 px-4 font-bold text-white flex items-center gap-3">
                       <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#D4AF37] to-[#C59B27] text-[#07111F] font-black flex items-center justify-center text-xs shadow-md">
-                        {customer.name.charAt(0).toUpperCase()}
+                        {customer.name?.charAt(0)?.toUpperCase() || 'C'}
                       </div>
                       <div>
                         <div className="text-white font-bold">{customer.name}</div>

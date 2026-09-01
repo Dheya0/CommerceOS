@@ -92,12 +92,8 @@ export const PlatformHeader: React.FC<PlatformHeaderProps> = ({ onOpenCommandPal
     { view: 'home', labelAr: 'الرئيسية (Home)', labelEn: 'Home', icon: Home },
     { view: 'storefront', labelAr: 'متجر العميل (Live)', labelEn: 'Storefront', icon: Store },
     { view: 'merchant_dashboard', labelAr: 'لوحة إدارة المتجر', labelEn: 'Dashboard', icon: LayoutDashboard },
-    { view: 'design_system', labelAr: 'نظام التصميم (D0)', labelEn: 'Design System', icon: ShieldCheck },
-    { view: 'visual_ide', labelAr: 'Visual IDE (المحرر المرئي)', labelEn: 'Visual IDE', icon: Layers },
-    { view: 'live_customizer', labelAr: 'Design Studio', labelEn: 'Design Studio', icon: Palette },
     { view: 'pricing', labelAr: 'الباقات والأسعار', labelEn: 'Pricing', icon: CreditCard },
-    { view: 'builder_wizard', labelAr: 'بناء متجر جديد', labelEn: 'Store Builder', icon: Sparkles },
-    { view: 'platform_admin', labelAr: 'CommerceOS HQ', labelEn: 'Platform HQ', icon: Building2 }
+    { view: 'builder_wizard', labelAr: 'بناء متجر جديد', labelEn: 'Store Builder', icon: Sparkles }
   ];
 
   const handleCleanData = () => {

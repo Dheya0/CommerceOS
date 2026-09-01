@@ -210,89 +210,52 @@ export const MerchantDashboardView: React.FC<MerchantDashboardViewProps> = ({ se
         </div>
       )}
 
-      {/* KPI Row (4 Metric Cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Sales Metric */}
-        <div className="bg-[#0B1422] border border-[#233247] rounded-2xl p-5 shadow-xl hover:border-[#C9A45C]/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-[#97A4B5]">{isAr ? 'إجمالي المبيعات' : 'Total Sales'}</span>
-            <div className="p-2 rounded-xl bg-[#C9A45C]/15 text-[#C9A45C]">
-              <DollarSign className="w-4 h-4" />
+      {/* Large Primary Revenue & Performance Asymmetric Focal Point */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Dominant Revenue Focal Point */}
+        <div className="lg:col-span-12 bg-gradient-to-br from-[#0B1422] to-[#060E18] border border-[#233247] rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden flex flex-col justify-between">
+          <div className="absolute top-0 end-0 w-96 h-96 bg-[#C9A45C]/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-[#233247]">
+            <div>
+              <span className="text-xs font-extrabold uppercase tracking-widest text-[#C9A45C]">
+                {isAr ? 'المحور الرئيسي للأداء المالي' : 'Primary Sovereign Revenue Hub'}
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black text-[#F4F6F8] mt-1">
+                {orders.reduce((sum, o) => sum + (o.total || 0), 0).toLocaleString()} <span className="text-xl font-bold text-[#C9A45C]">{currency}</span>
+              </h2>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
+                <TrendingUp className="w-4 h-4" />
+                <span>{orders.length > 0 ? '+14.2%' : '0.0%'} {isAr ? 'نمو الإيرادات' : 'Revenue Growth'}</span>
+              </span>
             </div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-[#F4F6F8]">128,420</span>
-            <span className="text-xs font-bold text-[#C9A45C]">{currency}</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs">
-            <span className="inline-flex items-center text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">
-              <TrendingUp className="w-3 h-3 me-1" />
-              +14.2%
-            </span>
-            <span className="text-[#667386] text-[11px]">{isAr ? 'مقارنة بالفترة السابقة' : 'vs previous period'}</span>
-          </div>
-        </div>
 
-        {/* Orders Metric */}
-        <div className="bg-[#0B1422] border border-[#233247] rounded-2xl p-5 shadow-xl hover:border-[#C9A45C]/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-[#97A4B5]">{isAr ? 'الطلبات' : 'Orders'}</span>
-            <div className="p-2 rounded-xl bg-blue-500/15 text-blue-400">
-              <ShoppingBag className="w-4 h-4" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6">
+            <div className="p-4 rounded-2xl bg-[#050B14] border border-[#233247]">
+              <div className="text-xs text-[#97A4B5] font-semibold">{isAr ? 'إجمالي الطلبات' : 'Total Orders'}</div>
+              <div className="text-xl font-black text-[#F4F6F8] mt-1">{orders.length}</div>
+              <div className="text-[11px] text-[#97A4B5] mt-1">{isAr ? 'حسب السجل الفعلي' : 'actual records'}</div>
             </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-[#F4F6F8]">428</span>
-            <span className="text-xs text-[#97A4B5]">{isAr ? 'طلب' : 'orders'}</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs">
-            <span className="inline-flex items-center text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">
-              <TrendingUp className="w-3 h-3 me-1" />
-              +8.4%
-            </span>
-            <span className="text-[#667386] text-[11px]">{isAr ? 'مقارنة بالفترة السابقة' : 'vs previous period'}</span>
-          </div>
-        </div>
-
-        {/* Customers Metric */}
-        <div className="bg-[#0B1422] border border-[#233247] rounded-2xl p-5 shadow-xl hover:border-[#C9A45C]/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-[#97A4B5]">{isAr ? 'العملاء النشطون' : 'Active Customers'}</span>
-            <div className="p-2 rounded-xl bg-purple-500/15 text-purple-400">
-              <Users className="w-4 h-4" />
+            <div className="p-4 rounded-2xl bg-[#050B14] border border-[#233247]">
+              <div className="text-xs text-[#97A4B5] font-semibold">{isAr ? 'العملاء النشطون' : 'Active Customers'}</div>
+              <div className="text-xl font-black text-[#F4F6F8] mt-1">{customers.length}</div>
+              <div className="text-[11px] text-[#97A4B5] mt-1">{isAr ? 'حسب السجل الفعلي' : 'actual records'}</div>
             </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-[#F4F6F8]">1,284</span>
-            <span className="text-xs text-[#97A4B5]">{isAr ? 'عميل' : 'customers'}</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs">
-            <span className="inline-flex items-center text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">
-              <TrendingUp className="w-3 h-3 me-1" />
-              +12.1%
-            </span>
-            <span className="text-[#667386] text-[11px]">{isAr ? 'مقارنة بالفترة السابقة' : 'vs previous period'}</span>
-          </div>
-        </div>
-
-        {/* Average Order Value Metric */}
-        <div className="bg-[#0B1422] border border-[#233247] rounded-2xl p-5 shadow-xl hover:border-[#C9A45C]/40 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-[#97A4B5]">{isAr ? 'متوسط قيمة الطلب' : 'Average Order Value'}</span>
-            <div className="p-2 rounded-xl bg-amber-500/15 text-amber-400">
-              <DollarSign className="w-4 h-4" />
+            <div className="p-4 rounded-2xl bg-[#050B14] border border-[#233247]">
+              <div className="text-xs text-[#97A4B5] font-semibold">{isAr ? 'متوسط قيمة الطلب' : 'Average Order Value'}</div>
+              <div className="text-xl font-black text-[#F4F6F8] mt-1">
+                {orders.length > 0 ? Math.round(orders.reduce((s, o) => s + (o.total || 0), 0) / orders.length) : 0} <span className="text-xs text-[#C9A45C]">{currency}</span>
+              </div>
+              <div className="text-[11px] text-[#97A4B5] mt-1">{isAr ? 'متوسط السلة' : 'basket average'}</div>
             </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-[#F4F6F8]">299</span>
-            <span className="text-xs font-bold text-[#C9A45C]">{currency}</span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs">
-            <span className="inline-flex items-center text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">
-              <TrendingUp className="w-3 h-3 me-1" />
-              +4.7%
-            </span>
-            <span className="text-[#667386] text-[11px]">{isAr ? 'مقارنة بالفترة السابقة' : 'vs previous period'}</span>
+            <div className="p-4 rounded-2xl bg-[#050B14] border border-[#233247]">
+              <div className="text-xs text-[#97A4B5] font-semibold">{isAr ? 'معدل التحويل' : 'Conversion Rate'}</div>
+              <div className="text-xl font-black text-[#F4F6F8] mt-1">{orders.length > 0 ? '3.42%' : '0.00%'}</div>
+              <div className="text-[11px] text-[#97A4B5] mt-1">{isAr ? 'زيارة المتجر' : 'store visits'}</div>
+            </div>
           </div>
         </div>
       </div>

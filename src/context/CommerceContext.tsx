@@ -153,74 +153,87 @@ const CommerceContext = createContext<CommerceContextType | null>(null);
 
 export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // View states
-  const [currentView, setCurrentView] = useState<AppView>('home');
+  const [currentView, setCurrentView] = useState<AppView>(() => {
+    try {
+      const savedUser = localStorage.getItem('commerceos_auth_user');
+      const savedTenants = localStorage.getItem('commerceos_tenants');
+      const tenantsArr = savedTenants ? JSON.parse(savedTenants) : [];
+      if (savedUser) {
+        if (tenantsArr.length === 0) {
+          return 'builder_wizard';
+        }
+        return 'merchant_dashboard';
+      }
+    } catch {}
+    return 'home';
+  });
   const [previewDevice, setPreviewDevice] = useState<PreviewDevice>('desktop');
   const [language, setLanguage] = useState<'ar' | 'en'>('ar');
   const [activeTenantId, setActiveTenantId] = useState<string>('tenant-royal-honey');
   const [currentStaffRole, setCurrentStaffRole] = useState<StaffRole>('store_owner');
   const [isServerSyncing, setIsServerSyncing] = useState<boolean>(false);
 
-  // Initialize with initial data & local storage fallback
+  // Initialize with clean production state (empty arrays by default)
   const [tenants, setTenants] = useState<TenantStore[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_tenants');
-      return saved ? JSON.parse(saved) : INITIAL_TENANTS;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return INITIAL_TENANTS;
+      return [];
     }
   });
 
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_products');
-      return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return INITIAL_PRODUCTS;
+      return [];
     }
   });
 
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_categories');
-      return saved ? JSON.parse(saved) : INITIAL_CATEGORIES;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return INITIAL_CATEGORIES;
+      return [];
     }
   });
 
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_orders');
-      return saved ? JSON.parse(saved) : INITIAL_ORDERS;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return INITIAL_ORDERS;
+      return [];
     }
   });
 
   const [customers, setCustomers] = useState<Customer[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_customers');
-      return saved ? JSON.parse(saved) : INITIAL_CUSTOMERS;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return INITIAL_CUSTOMERS;
+      return [];
     }
   });
 
   const [coupons, setCoupons] = useState<Coupon[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_coupons');
-      return saved ? JSON.parse(saved) : INITIAL_COUPONS;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return INITIAL_COUPONS;
+      return [];
     }
   });
 
   const [staff, setStaff] = useState<StaffMember[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_staff');
-      return saved ? JSON.parse(saved) : INITIAL_STAFF;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return INITIAL_STAFF;
+      return [];
     }
   });
 
@@ -291,7 +304,13 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         } catch {}
 
         setAuthModalOpen(false);
-        showToast(`مرحباً بك ${user.name}! تم تسجيل الدخول بنجاح`, 'success');
+        if (tenants.length === 0 && !res.user.tenantId) {
+          setCurrentView('builder_wizard');
+          showToast(`مرحباً بك ${user.name}! يرجى إنشاء متجرك الأول للبدء`, 'info');
+        } else {
+          setCurrentView('merchant_dashboard');
+          showToast(`مرحباً بك ${user.name}! تم تسجيل الدخول بنجاح`, 'success');
+        }
         return true;
       }
       return false;
@@ -617,7 +636,29 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   // Active Tenant
-  const activeTenant = tenants.find(t => t.id === activeTenantId) || tenants[0] || INITIAL_TENANTS[0];
+  const activeTenant = tenants.find(t => t.id === activeTenantId) || tenants[0] || {
+    id: 'empty-store',
+    name: 'متجر جديد',
+    nameEn: 'New Store',
+    slug: 'new-store',
+    description: 'متجر جديد نظيف',
+    descriptionEn: 'Clean new store',
+    businessType: 'general',
+    logo: '',
+    logoIcon: 'Store',
+    slogan: 'ابدأ متجرك الآن',
+    currency: 'SAR',
+    currencySymbol: 'ر.س',
+    domain: 'store.commerceos.app',
+    plan: 'pro',
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    contact: { email: '', phone: '', city: 'الرياض', country: 'المملكة العربية السعودية' },
+    theme: { style: 'modern', layout: 'modern', fontFamily: 'tajawal', radius: 'md', shadow: 'soft', headerStyle: 'solid', cardStyle: 'bordered', darkMode: false, tokens: generateDesignTokens('#3B82F6', 'modern', false) },
+    sections: [],
+    pwaConfig: { appName: 'متجر جديد', shortName: 'متجر', themeColor: '#3B82F6', backgroundColor: '#FFFFFF', enablePush: true },
+    paymentGateways: { mada: true, applePay: true, visa: true, cod: true, tamara: true, bankTransfer: true }
+  };
 
   // RBAC Permission Resolution
   const activeStaffPermissions = React.useMemo(() => {
