@@ -31,6 +31,45 @@ export interface PlatformAdminUser {
   passwordHash: string;
 }
 
+export interface BuildRecord {
+  id: string;
+  projectId: string; // matches tenantId
+  target: string;
+  targetName: string;
+  version: string;
+  buildNumber: number;
+  status: 'queued' | 'running' | 'packaging' | 'signing' | 'completed' | 'failed';
+  progress: number;
+  currentStep?: string;
+  workerId?: string;
+  workerName?: string;
+  logs: string[];
+  artifactId?: string;
+  error?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface ArtifactRecord {
+  id: string;
+  buildId: string;
+  projectId: string;
+  ownerId?: string;
+  target: string;
+  targetName: string;
+  version: string;
+  buildNumber: number;
+  fileName: string;
+  filePath: string;
+  checksum: string; // SHA-256
+  fileSizeBytes: number;
+  fileSizeMb: string;
+  mimeType: string;
+  status: 'ready' | 'expired' | 'deleted';
+  createdAt: string;
+  expiresAt: string;
+}
+
 export interface DatabaseSchema {
   tenants: TenantStore[];
   products: Product[];
@@ -41,6 +80,8 @@ export interface DatabaseSchema {
   staff: StaffMember[];
   plans: SubscriptionPlan[];
   platformAdmins: PlatformAdminUser[];
+  builds: BuildRecord[];
+  artifacts: ArtifactRecord[];
   auditLogs: {
     id: string;
     tenantId: string;
@@ -71,8 +112,6 @@ class DatabaseEngine {
   }
 
   private loadDatabase(): DatabaseSchema {
-    const defaultStaffPasswordHash = hashPassword('CommerceOS@2026');
-
     try {
       const dataDir = path.join(process.cwd(), 'data');
       if (!fs.existsSync(dataDir)) {
@@ -82,55 +121,45 @@ class DatabaseEngine {
       if (fs.existsSync(DB_FILE_PATH)) {
         const fileContent = fs.readFileSync(DB_FILE_PATH, 'utf-8');
         const parsed = JSON.parse(fileContent);
-        if (parsed.tenants && parsed.products) {
-          // Ensure all staff have password hashes
-          parsed.staff = (parsed.staff || []).map((s: StaffMember) => ({
-            ...s,
-            passwordHash: s.passwordHash || defaultStaffPasswordHash
-          }));
+        if (Array.isArray(parsed.tenants) && Array.isArray(parsed.products)) {
+          parsed.builds = parsed.builds || [];
+          parsed.artifacts = parsed.artifacts || [];
+          parsed.auditLogs = parsed.auditLogs || [];
           return parsed;
         }
       }
     } catch (err) {
-      console.warn('Could not read existing database file, initializing from defaults:', err);
+      console.warn('Could not read existing database file, initializing clean zero-state:', err);
     }
 
-    // Default seeded schema with salted password hashes
-    const initialStaffWithPasswords: StaffMember[] = INITIAL_STAFF.map(s => ({
-      ...s,
-      passwordHash: defaultStaffPasswordHash
-    }));
+    // Clean Zero-State Database
+    const initialPlatformAdmins: PlatformAdminUser[] = [];
+    const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL;
+    const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
 
-    const initialPlatformAdmins: PlatformAdminUser[] = [
-      {
-        id: 'admin-super-01',
-        name: 'CommerceOS Platform Super Admin',
-        email: 'superadmin@commerceos.app',
+    if (bootstrapEmail && bootstrapPassword && bootstrapPassword.length >= 12) {
+      initialPlatformAdmins.push({
+        id: `admin-${Date.now()}`,
+        name: process.env.ADMIN_BOOTSTRAP_NAME || 'CommerceOS Super Admin',
+        email: bootstrapEmail.trim().toLowerCase(),
         role: 'platform_super_admin',
-        passwordHash: hashPassword('CommerceOS@HQ2026')
-      }
-    ];
+        passwordHash: hashPassword(bootstrapPassword)
+      });
+    }
 
     const initialDb: DatabaseSchema = {
-      tenants: [...INITIAL_TENANTS],
-      products: [...INITIAL_PRODUCTS],
-      categories: [...INITIAL_CATEGORIES],
-      orders: [...INITIAL_ORDERS],
-      customers: [...INITIAL_CUSTOMERS],
-      coupons: [...INITIAL_COUPONS],
-      staff: initialStaffWithPasswords,
+      tenants: [],
+      products: [],
+      categories: [],
+      orders: [],
+      customers: [],
+      coupons: [],
+      staff: [],
       plans: [...SUBSCRIPTION_PLANS],
       platformAdmins: initialPlatformAdmins,
-      auditLogs: [
-        {
-          id: 'log-seed-1',
-          tenantId: 'tenant-royal-honey',
-          action: 'STORE_INITIALIZED',
-          performedBy: 'System Bootstrap',
-          details: { message: 'Database initialized with enterprise multitenant architecture' },
-          timestamp: new Date().toISOString()
-        }
-      ]
+      builds: [],
+      artifacts: [],
+      auditLogs: []
     };
 
     this.persistNow(initialDb);
@@ -722,6 +751,77 @@ class DatabaseEngine {
   getAuditLogs(tenantId?: string) {
     if (!tenantId) return this.data.auditLogs;
     return this.data.auditLogs.filter(l => l.tenantId === tenantId);
+  }
+
+  // --- Builds & Code Factory Artifacts ---
+  getBuilds(projectId?: string): BuildRecord[] {
+    if (!this.data.builds) this.data.builds = [];
+    if (!projectId) return this.data.builds;
+    return this.data.builds.filter(b => b.projectId === projectId);
+  }
+
+  getBuildById(id: string, projectId?: string): BuildRecord | undefined {
+    if (!this.data.builds) this.data.builds = [];
+    return this.data.builds.find(
+      b => b.id === id && (!projectId || b.projectId === projectId)
+    );
+  }
+
+  createBuild(build: BuildRecord): BuildRecord {
+    if (!this.data.builds) this.data.builds = [];
+    this.data.builds.unshift(build);
+    this.addAuditLog(build.projectId, 'BUILD_CREATED', 'CodeFactory', {
+      buildId: build.id,
+      target: build.target,
+      version: build.version
+    });
+    this.queueSave();
+    return build;
+  }
+
+  updateBuild(id: string, updates: Partial<BuildRecord>): BuildRecord | null {
+    if (!this.data.builds) this.data.builds = [];
+    const idx = this.data.builds.findIndex(b => b.id === id);
+    if (idx === -1) return null;
+    this.data.builds[idx] = { ...this.data.builds[idx], ...updates };
+    this.queueSave();
+    return this.data.builds[idx];
+  }
+
+  getArtifacts(projectId?: string): ArtifactRecord[] {
+    if (!this.data.artifacts) this.data.artifacts = [];
+    if (!projectId) return this.data.artifacts;
+    return this.data.artifacts.filter(a => a.projectId === projectId);
+  }
+
+  getArtifactById(id: string, projectId?: string): ArtifactRecord | undefined {
+    if (!this.data.artifacts) this.data.artifacts = [];
+    return this.data.artifacts.find(
+      a => a.id === id && (!projectId || a.projectId === projectId)
+    );
+  }
+
+  createArtifact(artifact: ArtifactRecord): ArtifactRecord {
+    if (!this.data.artifacts) this.data.artifacts = [];
+    this.data.artifacts.unshift(artifact);
+    this.addAuditLog(artifact.projectId, 'ARTIFACT_CREATED', 'CodeFactory', {
+      artifactId: artifact.id,
+      fileName: artifact.fileName,
+      target: artifact.target,
+      checksum: artifact.checksum
+    });
+    this.queueSave();
+    return artifact;
+  }
+
+  deleteArtifact(id: string, projectId?: string): boolean {
+    if (!this.data.artifacts) this.data.artifacts = [];
+    const initialLen = this.data.artifacts.length;
+    this.data.artifacts = this.data.artifacts.filter(
+      a => !(a.id === id && (!projectId || a.projectId === projectId))
+    );
+    this.queueSave();
+    return this.data.artifacts.length < initialLen;
   }
 
   // --- Synchronization with PostgreSQL ---

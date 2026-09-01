@@ -2,17 +2,18 @@ import React from 'react';
 import { 
   Sparkles, 
   ArrowRight, 
-  Store, 
-  ShieldCheck, 
-  Zap, 
-  Globe, 
-  CreditCard, 
-  Box, 
-  TrendingUp,
   Layers,
+  Code2,
+  Download,
+  Server,
+  Smartphone,
+  Cpu,
+  ShieldCheck,
   CheckCircle2,
-  Lock,
-  ChevronRight
+  FileCode,
+  Globe,
+  Terminal,
+  Zap
 } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
 
@@ -34,22 +35,22 @@ export const LandingPage: React.FC = () => {
       <section className="relative pt-20 pb-28 px-4 sm:px-8 max-w-7xl mx-auto text-center">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#C9A45C]/10 border border-[#C9A45C]/30 text-[#C9A45C] text-xs font-bold mb-6">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>{isAr ? 'منصة التجارة الإلكترونية السيادية والمستقلة' : 'Sovereign & Independent Commerce Platform'}</span>
+          <span>{isAr ? 'Commerce Builder + Code Factory + Full-Stack Generator' : 'Commerce Builder + Code Factory + Full-Stack Generator'}</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight max-w-4xl mx-auto leading-[1.15]">
           {isAr ? (
             <>
-              ابنِ متجرك. أدر تجارتك. <br />
+              ابنِ منظومة تجارتك. <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#C9A45C] via-[#E6CA7E] to-[#9A7B26]">
-                وانمُ من مكان واحد.
+                امتلك الكود بالكامل، وانشر في أي مكان.
               </span>
             </>
           ) : (
             <>
-              Build your store. Manage your business. <br />
+              Build your commerce stack. <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#C9A45C] via-[#E6CA7E] to-[#9A7B26]">
-                Scale from one place.
+                Own the source code, deploy anywhere.
               </span>
             </>
           )}
@@ -57,8 +58,8 @@ export const LandingPage: React.FC = () => {
 
         <p className="mt-6 text-base sm:text-lg text-[#97A4B5] max-w-2xl mx-auto font-normal leading-relaxed">
           {isAr 
-            ? 'منصة موحدة مصممة للعلامات التجارية الطموحة لامتلاك قنواتهم البيعية بملكية كاملة، أداء فائق، وخبرة تشغيلية بلا حدود.'
-            : 'A unified platform built for ambitious brands to own their sales channels with full sovereignty, superior performance, and boundless operations.'}
+            ? 'CommerceOS ليست مجرد منصة استضافة مغلقة. صمّم مشروعك التجاري، عاينه تفاعلياً، ثم قم بتوليد وتنزيل كود Full-Stack حقيقي (Frontend, Backend, Database, Android, iOS, Docker) بملكية سيادية 100% دون أي قيود أو عمولات خفية.'
+            : 'CommerceOS is not a closed hosted silo. Design your commerce project, preview it interactively, then generate and download genuine production Full-Stack source code (Frontend, Backend, Database, Android, iOS, Docker) with 100% sovereign ownership.'}
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -66,7 +67,7 @@ export const LandingPage: React.FC = () => {
             onClick={() => setCurrentView('auth_page')}
             className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-[#C9A45C] to-[#9A7B26] text-[#050B14] font-black text-sm hover:opacity-95 shadow-xl shadow-[#C9A45C]/20 transition-all flex items-center justify-center gap-3"
           >
-            <span>{isAr ? 'ابدأ متجرك مجانًا' : 'Start Your Store Free'}</span>
+            <span>{isAr ? 'ابدأ بناء مشروعك مجاناً' : 'Start Building Your Project'}</span>
             <ArrowRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
           </button>
 
@@ -78,150 +79,161 @@ export const LandingPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Abstract Minimal Product Preview Composition */}
+        {/* Abstract Product Architecture Preview Box */}
         <div className="mt-16 relative max-w-5xl mx-auto">
           <div className="absolute inset-0 bg-gradient-to-t from-[#050B14] via-transparent to-transparent z-10 pointer-events-none" />
-          <div className="rounded-3xl bg-[#0B1422] border border-[#233247] p-4 sm:p-6 shadow-2xl overflow-hidden relative">
+          <div className="rounded-3xl bg-[#0B1422] border border-[#233247] p-4 sm:p-6 shadow-2xl overflow-hidden relative text-start">
             <div className="flex items-center justify-between pb-4 border-b border-[#233247] mb-6">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-red-500/80" />
                 <div className="w-3 h-3 rounded-full bg-amber-500/80" />
                 <div className="w-3 h-3 rounded-full bg-emerald-500/80" />
               </div>
-              <div className="text-xs text-[#97A4B5] font-mono">commerceos.app/dashboard</div>
-              <div className="w-4" />
+              <div className="text-xs text-[#97A4B5] font-mono">CommerceOS Code Factory — Architecture & Artifact Pipeline</div>
+              <div className="text-xs px-2.5 py-0.5 rounded-full bg-[#C9A45C]/10 text-[#C9A45C] border border-[#C9A45C]/20 font-mono">
+                v2.0 Sovereign
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-start">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div className="p-4 rounded-2xl bg-[#050B14] border border-[#233247]">
-                <div className="text-xs text-[#97A4B5]">{isAr ? 'إيرادات المتجر' : 'Store Revenue'}</div>
-                <div className="text-2xl font-black text-white mt-1">124,500 <span className="text-sm text-[#C9A45C]">SAR</span></div>
-                <div className="text-xs text-emerald-400 mt-1">+18.4% vs last month</div>
+                <div className="flex items-center gap-2 text-xs text-[#97A4B5] mb-2">
+                  <Code2 className="w-4 h-4 text-[#C9A45C]" />
+                  <span>{isAr ? 'Frontend SPA' : 'Frontend SPA'}</span>
+                </div>
+                <div className="text-sm font-bold text-white">React 18 + Vite + Tailwind</div>
+                <div className="text-xs text-emerald-400 mt-2 font-mono">100% Component Source</div>
               </div>
+
               <div className="p-4 rounded-2xl bg-[#050B14] border border-[#233247]">
-                <div className="text-xs text-[#97A4B5]">{isAr ? 'إجمالي الطلبات' : 'Total Orders'}</div>
-                <div className="text-2xl font-black text-white mt-1">418</div>
-                <div className="text-xs text-emerald-400 mt-1">+12 active fulfillments</div>
+                <div className="flex items-center gap-2 text-xs text-[#97A4B5] mb-2">
+                  <Server className="w-4 h-4 text-blue-400" />
+                  <span>{isAr ? 'Backend REST API' : 'Backend REST API'}</span>
+                </div>
+                <div className="text-sm font-bold text-white">Express + RBAC + Pricing</div>
+                <div className="text-xs text-blue-400 mt-2 font-mono">Zero-Trust Endpoints</div>
               </div>
+
               <div className="p-4 rounded-2xl bg-[#050B14] border border-[#233247]">
-                <div className="text-xs text-[#97A4B5]">{isAr ? 'العملاء النشطون' : 'Active Customers'}</div>
-                <div className="text-2xl font-black text-white mt-1">1,284</div>
-                <div className="text-xs text-emerald-400 mt-1">High retention</div>
+                <div className="flex items-center gap-2 text-xs text-[#97A4B5] mb-2">
+                  <Smartphone className="w-4 h-4 text-emerald-400" />
+                  <span>{isAr ? 'Native Mobile' : 'Native Mobile'}</span>
+                </div>
+                <div className="text-sm font-bold text-white">Android Studio + iOS Xcode</div>
+                <div className="text-xs text-emerald-400 mt-2 font-mono">Capacitor 6.0 Projects</div>
               </div>
+
               <div className="p-4 rounded-2xl bg-[#050B14] border border-[#233247]">
-                <div className="text-xs text-[#97A4B5]">{isAr ? 'معدل التحويل' : 'Conversion Rate'}</div>
-                <div className="text-2xl font-black text-white mt-1">3.42%</div>
-                <div className="text-xs text-emerald-400 mt-1">Optimized checkout</div>
+                <div className="flex items-center gap-2 text-xs text-[#97A4B5] mb-2">
+                  <Cpu className="w-4 h-4 text-purple-400" />
+                  <span>{isAr ? 'Deploy Anywhere' : 'Deploy Anywhere'}</span>
+                </div>
+                <div className="text-sm font-bold text-white">Docker Compose & VPS</div>
+                <div className="text-xs text-purple-400 mt-2 font-mono">Self-Hosted Sovereign</div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CORE VALUE PILLARS (Build, Sell, Operate, Grow) */}
-      <section id="platform" className="py-24 px-4 sm:px-8 max-w-7xl mx-auto border-t border-[#233247]">
-        <div className="text-center max-w-2xl mx-auto mb-16">
+      {/* THREE PILLARS SECTION */}
+      <section className="py-20 px-4 sm:px-8 max-w-7xl mx-auto border-t border-[#233247]">
+        <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl sm:text-4xl font-black text-white">
-            {isAr ? 'منصة متكاملة لكل مراحل نمو تجارتك' : 'An integrated platform for every growth stage'}
+            {isAr ? 'ركائز المنظومة السيادية' : 'The Sovereign Pillars'}
           </h2>
-          <p className="text-[#97A4B5] text-sm mt-3">
-            {isAr ? 'كل الأدوات التي تحتاجها لإطلاق متجرك، إدارة مخزونك، ومعالجة المدفوعات تحت سقف واحد.' : 'All the tools you need to launch your store, manage inventory, and process payments under one roof.'}
+          <p className="text-[#97A4B5] text-sm sm:text-base mt-3">
+            {isAr 
+              ? 'صممت لتمنح المطورين ورواد الأعمال أقصى درجات الحرية التقنية دون قفل منصات أو شروط احتكارية.'
+              : 'Engineered to grant developers and merchants complete technical freedom without vendor lock-in.'}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          
-          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] space-y-4 hover:border-[#C9A45C]/50 transition-colors">
-            <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 text-[#C9A45C] flex items-center justify-center font-bold">
-              <Store className="w-6 h-6" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="p-8 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between">
+            <div>
+              <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 border border-[#C9A45C]/30 flex items-center justify-center text-[#C9A45C] mb-6">
+                <Layers className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">
+                {isAr ? '1. منشئ المتاجر التفاعلي (Builder)' : '1. Interactive Commerce Builder'}
+              </h3>
+              <p className="text-sm text-[#97A4B5] leading-relaxed">
+                {isAr
+                  ? 'قم بإعداد الهوية البصرية، تصميم الواجهات، ضبط الكتالوج، وإدارة المنتجات والأسعار والتصنيفات في بيئة تفاعلية مع معاينة فورية سلسة.'
+                  : 'Configure visual identity, themes, catalog, pricing, and category structures with seamless live preview.'}
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-white">{isAr ? '1. ابنِ متجرك' : '1. Build Store'}</h3>
-            <p className="text-xs text-[#97A4B5] leading-relaxed">
-              {isAr ? 'أنشئ واجهة متجر تفاعلية ومخصصة بالكامل لتعكس هوية علامتك التجارية دون تعقيد.' : 'Create an interactive storefront fully customized to reflect your brand identity.'}
-            </p>
+            <div className="mt-6 pt-4 border-t border-[#233247] flex items-center gap-2 text-xs text-[#C9A45C] font-semibold">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{isAr ? 'معاينة فورية بدون نشر سحابي إجباري' : 'Instant client preview sandbox'}</span>
+            </div>
           </div>
 
-          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] space-y-4 hover:border-[#C9A45C]/50 transition-colors">
-            <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 text-[#C9A45C] flex items-center justify-center font-bold">
-              <CreditCard className="w-6 h-6" />
+          <div className="p-8 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between">
+            <div>
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-6">
+                <Download className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">
+                {isAr ? '2. مصنع الأكواد وحزم النشر (Code Factory)' : '2. Code Factory & Generators'}
+              </h3>
+              <p className="text-sm text-[#97A4B5] leading-relaxed">
+                {isAr
+                  ? 'بضغطة زر واحدة، تصرف المنظومة خطوط إنتاج لتوليد وتصدير كود نظيف وتطبيقات أندرويد و iOS و PWA وحزم Docker مع حساب البصمة الرقمية SHA-256.'
+                  : 'With one click, compile clean source code, Android & iOS projects, PWA bundles, and Docker packages with SHA-256 integrity.'}
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-white">{isAr ? '2. بِع في كل مكان' : '2. Sell Everywhere'}</h3>
-            <p className="text-xs text-[#97A4B5] leading-relaxed">
-              {isAr ? 'استقبل مدفوعاتك بأمان تام عبر بوابات دفع محلية وعالمية متعددة وموثوقة.' : 'Accept payments securely through multiple trusted local and global gateways.'}
-            </p>
+            <div className="mt-6 pt-4 border-t border-[#233247] flex items-center gap-2 text-xs text-emerald-400 font-semibold">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{isAr ? 'تنزيل مباشر لحزم حقيقية موثقة' : 'Direct download of genuine packages'}</span>
+            </div>
           </div>
 
-          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] space-y-4 hover:border-[#C9A45C]/50 transition-colors">
-            <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 text-[#C9A45C] flex items-center justify-center font-bold">
-              <Box className="w-6 h-6" />
+          <div className="p-8 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between">
+            <div>
+              <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-6">
+                <Server className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">
+                {isAr ? '3. النشر السيادي الذاتي (Sovereign Deploy)' : '3. Sovereign Self-Hosting'}
+              </h3>
+              <p className="text-sm text-[#97A4B5] leading-relaxed">
+                {isAr
+                  ? 'انشر على سيرفرك الخاص (Ubuntu VPS, AWS, Hetzner, DigitalOcean) أو على بيئات Docker و Cloud Run مع أدلة نشر واضحة وشاملة.'
+                  : 'Deploy on your own VPS (Ubuntu, AWS, Hetzner) or Docker & Cloud Run environments with step-by-step documentation.'}
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-white">{isAr ? '3. أدر العمليات' : '3. Operate Seamlessly'}</h3>
-            <p className="text-xs text-[#97A4B5] leading-relaxed">
-              {isAr ? 'تابع الطلبات، أدر المخزون، ونظم شحناتك من لوحة تحكم مركزية سريعة ودقيقة.' : 'Track orders, manage inventory, and organize shipments from a fast centralized dashboard.'}
-            </p>
-          </div>
-
-          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] space-y-4 hover:border-[#C9A45C]/50 transition-colors">
-            <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 text-[#C9A45C] flex items-center justify-center font-bold">
-              <TrendingUp className="w-6 h-6" />
+            <div className="mt-6 pt-4 border-t border-[#233247] flex items-center gap-2 text-xs text-purple-400 font-semibold">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{isAr ? 'حرية استضافة كاملة 0% عمولات' : 'Total hosting freedom, 0% commissions'}</span>
             </div>
-            <h3 className="text-lg font-bold text-white">{isAr ? '4. انمُ وتوسع' : '4. Grow & Scale'}</h3>
-            <p className="text-xs text-[#97A4B5] leading-relaxed">
-              {isAr ? 'راقب مؤشرات الأداء الحساسة، حلل سلوك العملاء، واتخذ قرارات دقيقة لزيادة مبيعاتك.' : 'Monitor key performance indicators, analyze customer behavior, and scale your sales.'}
-            </p>
           </div>
-
         </div>
       </section>
 
-      {/* PLATFORM STORY SECTION */}
-      <section id="solutions" className="py-24 px-4 sm:px-8 max-w-7xl mx-auto border-t border-[#233247]">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#C9A45C]/10 text-[#C9A45C] text-xs font-bold">
-              <ShieldCheck className="w-4 h-4" />
-              <span>{isAr ? 'ملكية سيادية كاملة' : 'Full Sovereign Ownership'}</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-black text-white">
-              {isAr ? 'بياناتك ملكك بالكامل، بلا قيود وبأعلى مستويات الأمان' : 'Your data is strictly yours, unconstrained and secure'}
+      {/* FINAL CALL TO ACTION */}
+      <section className="py-24 px-4 sm:px-8 max-w-5xl mx-auto text-center">
+        <div className="p-10 sm:p-14 rounded-3xl bg-gradient-to-b from-[#101B2C] to-[#0B1422] border border-[#233247] shadow-2xl relative overflow-hidden">
+          <div className="relative z-10">
+            <h2 className="text-3xl sm:text-5xl font-black text-white mb-4">
+              {isAr ? 'جاهز لبناء مشروعك وتوليد برمجياته؟' : 'Ready to build and generate your stack?'}
             </h2>
-            <p className="text-sm text-[#97A4B5] leading-relaxed">
-              {isAr 
-                ? 'تمنحك CommerceOS سيادة كاملة على قاعدة بياناتك، سجلات عملائك، وتفاصيل عملياتك. لا توجد عمولات خفية على المبيعات، وتصميم معمارى يضمن سرعة تحميل استثنائية.'
-                : 'CommerceOS gives you full sovereignty over your database, customer records, and operations. Zero hidden sales commissions and an architecture guaranteeing lightning speed.'}
-            </p>
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center gap-3 text-sm text-slate-200">
-                <CheckCircle2 className="w-5 h-5 text-[#C9A45C]" />
-                <span>{isAr ? 'بدون عمولة على المبيعات (0% عمولة)' : 'Zero commission on sales (0% fee)'}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-slate-200">
-                <CheckCircle2 className="w-5 h-5 text-[#C9A45C]" />
-                <span>{isAr ? 'دعم كامل للغة العربية والإنجليزية واتجاه RTL' : 'Full Arabic & English support with native RTL'}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-slate-200">
-                <CheckCircle2 className="w-5 h-5 text-[#C9A45C]" />
-                <span>{isAr ? 'إدارة متكاملة للصلاحيات والفريق (RBAC)' : 'Integrated team permissions & RBAC'}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-8 rounded-3xl bg-[#0B1422] border border-[#233247] relative space-y-6">
-            <div className="text-lg font-black text-white">{isAr ? 'جاهز لإطلاق متجرك السيادي؟' : 'Ready to launch your sovereign store?'}</div>
-            <p className="text-xs text-[#97A4B5]">
-              {isAr ? 'انضم إلى الشركات والعلامات التجارية التي اختارت الاستقلالية والاحترافية.' : 'Join brands and enterprises that chose independence and professionalism.'}
+            <p className="text-[#97A4B5] text-sm sm:text-base max-w-xl mx-auto mb-8">
+              {isAr
+                ? 'أنشئ مشروعك الجديد الآن، خصص الكتالوج والتصميم، ونزّل حزمتك البرمجية الكاملة بدقائق.'
+                : 'Create your project now, customize your catalog and theme, and download your complete software package in minutes.'}
             </p>
             <button
               onClick={() => setCurrentView('auth_page')}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#C9A45C] to-[#9A7B26] text-[#050B14] font-black text-sm hover:opacity-95 shadow-xl shadow-[#C9A45C]/20 transition-all flex items-center justify-center gap-2"
+              className="px-10 py-4 rounded-2xl bg-gradient-to-r from-[#C9A45C] to-[#9A7B26] text-[#050B14] font-black text-base hover:opacity-95 shadow-xl shadow-[#C9A45C]/20 transition-all inline-flex items-center gap-3"
             >
-              <span>{isAr ? 'أنشئ متجرك الآن مجانًا' : 'Create Your Store Free'}</span>
-              <ArrowRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
+              <span>{isAr ? 'إنشاء مشروع جديد' : 'Create New Project'}</span>
+              <ArrowRight className={`w-5 h-5 ${isAr ? 'rotate-180' : ''}`} />
             </button>
           </div>
         </div>
       </section>
-
     </div>
   );
 };

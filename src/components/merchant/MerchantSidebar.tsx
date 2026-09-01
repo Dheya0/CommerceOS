@@ -16,7 +16,10 @@ import {
   ChevronRight,
   ChevronDown,
   Sparkles,
-  BarChart3
+  BarChart3,
+  Rocket,
+  Download,
+  Code2
 } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
 
@@ -48,7 +51,21 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
       ]
     },
     {
-      title: isAr ? 'المبيعات' : 'Sales',
+      title: isAr ? 'مصنع الأكواد والبناء' : 'Code Factory',
+      items: [
+        { id: 'publish', label: isAr ? 'البناء والتصدير' : 'Build & Export', icon: Rocket }
+      ]
+    },
+    {
+      title: isAr ? 'الكتالوج والمخزون' : 'Catalog',
+      items: [
+        { id: 'products', label: isAr ? 'المنتجات' : 'Products', icon: Package },
+        { id: 'categories', label: isAr ? 'التصنيفات' : 'Categories', icon: Tag },
+        { id: 'inventory', label: isAr ? 'المخزون' : 'Inventory', icon: Warehouse }
+      ]
+    },
+    {
+      title: isAr ? 'المبيعات والعملاء' : 'Sales',
       items: [
         { 
           id: 'orders', 
@@ -60,27 +77,10 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
       ]
     },
     {
-      title: isAr ? 'الكتالوج' : 'Catalog',
+      title: isAr ? 'الواجهة والهوية' : 'Storefront & Design',
       items: [
-        { id: 'products', label: isAr ? 'المنتجات' : 'Products', icon: Package },
-        { id: 'categories', label: isAr ? 'التصنيفات' : 'Categories', icon: Tag },
-        { id: 'inventory', label: isAr ? 'المخزون' : 'Inventory', icon: Warehouse }
-      ]
-    },
-    {
-      title: isAr ? 'النمو والتسويق' : 'Growth',
-      items: [
-        { id: 'discounts', label: isAr ? 'الخصومات والعروض' : 'Discounts', icon: TrendingUp },
-        { id: 'marketing', label: isAr ? 'التسويق' : 'Marketing', icon: BarChart3 },
-        { id: 'analytics', label: isAr ? 'التحليلات' : 'Analytics', icon: TrendingUp }
-      ]
-    },
-    {
-      title: isAr ? 'المتجر' : 'Store',
-      items: [
-        { id: 'storefront', label: isAr ? 'واجهة المتجر' : 'Storefront', icon: Store },
-        { id: 'design', label: isAr ? 'التصميم والهوية' : 'Design', icon: Palette },
-        { id: 'domains', label: isAr ? 'النطاقات' : 'Domains', icon: Globe }
+        { id: 'storefront', label: isAr ? 'المعاينة الحية' : 'Live Preview', icon: Store },
+        { id: 'design', label: isAr ? 'التصميم والهوية' : 'Design Tokens', icon: Palette }
       ]
     }
   ];

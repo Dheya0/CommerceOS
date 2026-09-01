@@ -64,6 +64,11 @@ class ConfigService {
     const databaseUrl = process.env.DATABASE_URL;
     const platformName = process.env.PLATFORM_NAME || 'CommerceOS Enterprise';
     
+    const corsEnv = process.env.CORS_ORIGINS;
+    const corsOrigins = corsEnv 
+      ? corsEnv.split(',').map(s => s.trim()).filter(Boolean)
+      : (env === 'production' ? ['http://localhost:3000'] : ['http://localhost:3000', 'http://127.0.0.1:3000']);
+
     return {
       env,
       port,
@@ -71,7 +76,7 @@ class ConfigService {
       jwtSecret,
       databaseUrl,
       platformName,
-      corsOrigins: ['*'],
+      corsOrigins,
       enableDetailedLogging: env !== 'production' || process.env.LOG_LEVEL === 'debug',
       rateLimit: {
         windowMs: 60 * 1000,

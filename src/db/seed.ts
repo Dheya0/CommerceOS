@@ -28,24 +28,29 @@ export async function seedDatabaseIfEmpty() {
       return;
     }
 
-    console.log('[PostgreSQL] Database is empty. Initializing clean production state (0 tenants, 0 stores)...');
+    console.log('[PostgreSQL] Database initialized in clean zero-state.');
 
-    const platformAdminPasswordHash = hashPassword('CommerceOS@HQ2026');
+    // Only seed platform super admin if explicit environment bootstrap credentials are provided
+    const bootstrapEmail = process.env.ADMIN_BOOTSTRAP_EMAIL;
+    const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
 
-    // 1. Seed Platform Admins only
-    await db.insert(platformAdmins).values([
-      {
-        id: 'admin-super-01',
-        name: 'CommerceOS Platform Super Admin',
-        email: 'superadmin@commerceos.app',
-        role: 'platform_super_admin',
-        passwordHash: platformAdminPasswordHash,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ]);
-
-    console.log('[PostgreSQL] Clean production database initialized successfully (Zero default demo stores).');
+    if (bootstrapEmail && bootstrapPassword && bootstrapPassword.length >= 12) {
+      const platformAdminPasswordHash = hashPassword(bootstrapPassword);
+      await db.insert(platformAdmins).values([
+        {
+          id: `admin-${Date.now()}`,
+          name: process.env.ADMIN_BOOTSTRAP_NAME || 'CommerceOS Super Admin',
+          email: bootstrapEmail.trim().toLowerCase(),
+          role: 'platform_super_admin',
+          passwordHash: platformAdminPasswordHash,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ]);
+      console.log(`[PostgreSQL] Explicit platform bootstrap admin registered: ${bootstrapEmail}`);
+    } else {
+      console.log('[PostgreSQL] Zero-state ready. No default demo accounts created.');
+    }
   } catch (err) {
     console.error('[PostgreSQL] Initial seed error:', err);
   }

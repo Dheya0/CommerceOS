@@ -1,119 +1,198 @@
 import fs from 'fs';
 import path from 'path';
-import { generateStoreZipPackage, ExportStorePayload } from './codeFactoryEngine';
+import { generateProjectZipPackage, ExportProjectPayload, GeneratedArtifactResult } from './codeFactoryEngine.ts';
+import { db, BuildRecord, ArtifactRecord } from '../db.ts';
 
-export interface BuildJob {
-  jobId: string;
-  tenantId: string;
-  status: 'queued' | 'processing' | 'completed' | 'failed';
-  progress: number; // 0 to 100
-  currentStep: string;
-  steps: Array<{ name: string; status: 'pending' | 'active' | 'done' | 'error' }>;
-  filePath?: string;
-  fileName?: string;
-  fileSizeMb?: string;
-  error?: string;
-  createdAt: string;
+export interface BuildJobOptions {
+  projectId: string;
+  target?: 'full_stack' | 'web' | 'pwa' | 'android' | 'ios' | 'docker' | 'capacitor_all';
+  targetName?: string;
+  version?: string;
+  payload: ExportProjectPayload;
 }
 
 class BuildFarmManager {
-  private jobs = new Map<string, BuildJob>();
+  private uploadsArtifactsDir: string;
 
-  public createJob(tenantId: string, payload: ExportStorePayload): BuildJob {
-    const jobId = `job_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
-    const job: BuildJob = {
-      jobId,
-      tenantId,
+  constructor() {
+    this.uploadsArtifactsDir = path.join(process.cwd(), 'uploads', 'artifacts');
+    if (!fs.existsSync(this.uploadsArtifactsDir)) {
+      fs.mkdirSync(this.uploadsArtifactsDir, { recursive: true });
+    }
+  }
+
+  /**
+   * Enqueues a persistent build job in the database and dispatches the build pipeline
+   */
+  public enqueueBuild(options: BuildJobOptions): BuildRecord {
+    const buildId = `bld_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    const target = options.target || 'full_stack';
+    const targetNames: Record<string, string> = {
+      full_stack: 'Full-Stack Sovereign Stack',
+      web: 'Production Web SPA (Vite + Nginx)',
+      pwa: 'Progressive Web App (PWA)',
+      android: 'Android Studio Project (Capacitor 6.0)',
+      ios: 'iOS Xcode Workspace (Capacitor 6.0)',
+      docker: 'Docker Compose Self-Hosted Bundle'
+    };
+
+    const targetName = options.targetName || targetNames[target] || 'Commerce Stack';
+    const version = options.version || '1.0.0';
+
+    const existingBuilds = db.getBuilds(options.projectId);
+    const buildNumber = existingBuilds.length + 1;
+
+    const initialBuild: BuildRecord = {
+      id: buildId,
+      projectId: options.projectId,
+      target,
+      targetName,
+      version,
+      buildNumber,
       status: 'queued',
       progress: 0,
-      currentStep: 'في طابور الانتظار (Queued in Build Farm)',
-      steps: [
-        { name: 'تهيئة مساحة البناء المعزولة (Isolate Sandbox)', status: 'pending' },
-        { name: 'استنساخ قالب المتجر وحقن المتغيرات (String Interpolation)', status: 'pending' },
-        { name: 'زراعة قاعدة البيانات ومفتاح الـ Idempotency', status: 'pending' },
-        { name: 'فحص الترخيص وحقن شارة الحماية (AST Watermark)', status: 'pending' },
-        { name: 'ضغط الحزمة بصيغة ZIP (Archiver Engine)', status: 'pending' }
+      currentStep: 'في طابور البناء الموزع (Queued in Build Farm)',
+      workerId: 'worker-local-01',
+      workerName: 'Node Build Worker (Native)',
+      logs: [
+        `[${new Date().toISOString()}] Job enqueued in Build Farm Queue. Target: ${target}`,
+        `[${new Date().toISOString()}] Allocating isolated sandbox container...`
       ],
       createdAt: new Date().toISOString()
     };
-    this.jobs.set(jobId, job);
 
-    // Asynchronously process the build job (Background Worker Simulation)
-    this.processJob(jobId, payload);
+    // Save to persistent database
+    db.createBuild(initialBuild);
 
-    return job;
+    // Asynchronously execute pipeline
+    this.executeBuildPipeline(buildId, options.payload, target, version, buildNumber);
+
+    return initialBuild;
   }
 
-  public getJob(jobId: string): BuildJob | undefined {
-    return this.jobs.get(jobId);
+  /**
+   * Retrieves build record from persistent database
+   */
+  public getBuild(buildId: string, projectId?: string): BuildRecord | undefined {
+    return db.getBuildById(buildId, projectId);
   }
 
-  private async processJob(jobId: string, payload: ExportStorePayload) {
-    const job = this.jobs.get(jobId);
-    if (!job) return;
+  /**
+   * Retrieves all builds for a project
+   */
+  public getProjectBuilds(projectId: string): BuildRecord[] {
+    return db.getBuilds(projectId);
+  }
+
+  /**
+   * Pipeline Execution Worker
+   */
+  private async executeBuildPipeline(
+    buildId: string,
+    payload: ExportProjectPayload,
+    target: string,
+    version: string,
+    buildNumber: number
+  ) {
+    const update = (updates: Partial<BuildRecord>) => {
+      db.updateBuild(buildId, updates);
+    };
+
+    const appendLog = (message: string) => {
+      const current = db.getBuildById(buildId);
+      if (current) {
+        const newLogs = [...current.logs, `[${new Date().toISOString()}] ${message}`];
+        update({ logs: newLogs });
+      }
+    };
 
     try {
-      job.status = 'processing';
+      // 1. Running State
+      update({
+        status: 'running',
+        progress: 20,
+        currentStep: 'تهيئة بيئة التصريف وتوليد الشفرة المصدرية (Generating Source Code)...'
+      });
+      appendLog('Starting compilation and code generation...');
+      await sleep(400);
 
-      // Step 1: Sandbox
-      job.currentStep = 'تهيئة مساحة البناء المعزولة...';
-      job.steps[0].status = 'active';
-      job.progress = 15;
-      await sleep(600);
-      job.steps[0].status = 'done';
+      // 2. Packaging State
+      update({
+        status: 'packaging',
+        progress: 50,
+        currentStep: 'تجميع الحزم ومكونات الواجهة وقواعد البيانات (Packaging Components)...'
+      });
+      appendLog('Building architecture modules: frontend, backend, database migrations, Docker config...');
+      await sleep(500);
 
-      // Step 2: Interpolation
-      job.currentStep = 'استنساخ قالب المتجر وحقن المتغيرات المرئية...';
-      job.steps[1].status = 'active';
-      job.progress = 35;
-      await sleep(800);
-      job.steps[1].status = 'done';
+      // 3. Signing & Archiving
+      update({
+        status: 'signing',
+        progress: 75,
+        currentStep: 'توقيع الحزمة وضغط الأرشيف وحساب البصمة الرقمية (Archiving & SHA-256 Checksum)...'
+      });
+      appendLog('Compressing sovereign package into ZIP archive...');
 
-      // Step 3: DB & Idempotency
-      job.currentStep = 'زراعة قاعدة البيانات وإنشاء سجلات المنتجات...';
-      job.steps[2].status = 'active';
-      job.progress = 60;
-      await sleep(700);
-      job.steps[2].status = 'done';
+      const slug = payload.slug || 'store';
+      const artifactFileName = `${slug}-${target}-v${version}-${Date.now()}.zip`;
+      const artifactFilePath = path.join(this.uploadsArtifactsDir, artifactFileName);
+      const outputStream = fs.createWriteStream(artifactFilePath);
 
-      // Step 4: Watermark & License
-      job.currentStep = payload.hasLicense ? 'ترخيص White-Label مفعل (تخطي شارة الحماية)...' : 'حقن توقيع وحماية شارة CommerceOS الأمنية...';
-      job.steps[3].status = 'active';
-      job.progress = 80;
-      await sleep(600);
-      job.steps[3].status = 'done';
+      // Generate real ZIP file
+      const result = await generateProjectZipPackage(
+        {
+          ...payload,
+          target: target as any,
+          version,
+          buildNumber
+        },
+        outputStream
+      );
 
-      // Step 5: Archiving
-      job.currentStep = 'ضغط حزمة المتجر وصياغة ملفات التصدير النهائي (ZIP)...';
-      job.steps[4].status = 'active';
-      job.progress = 90;
+      appendLog(`Package generated successfully. Size: ${result.fileSizeMb}, SHA-256: ${result.checksum}`);
 
-      const uploadsDir = path.join(process.cwd(), 'uploads');
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-      }
+      // 4. Create Artifact in Database
+      const artifactId = `art_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+      const artifactRecord: ArtifactRecord = {
+        id: artifactId,
+        buildId,
+        projectId: payload.projectId,
+        ownerId: payload.adminEmail,
+        target,
+        targetName: target,
+        version,
+        buildNumber,
+        fileName: result.fileName,
+        filePath: artifactFilePath,
+        checksum: result.checksum,
+        fileSizeBytes: result.fileSizeBytes,
+        fileSizeMb: result.fileSizeMb,
+        mimeType: 'application/zip',
+        status: 'ready',
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days retention
+      };
 
-      const zipFileName = `${payload.slug}-sovereign-${Date.now()}.zip`;
-      const zipFilePath = path.join(uploadsDir, zipFileName);
-      const outputStream = fs.createWriteStream(zipFilePath);
+      db.createArtifact(artifactRecord);
 
-      const result = await generateStoreZipPackage(payload, outputStream);
-
-      job.steps[4].status = 'done';
-      job.status = 'completed';
-      job.progress = 100;
-      job.currentStep = 'اكتمل بناء الحزمة بنجاح تام!';
-      job.filePath = result.filePath;
-      job.fileName = result.fileName;
-      job.fileSizeMb = result.fileSizeMb;
+      // 5. Complete Build
+      update({
+        status: 'completed',
+        progress: 100,
+        currentStep: 'اكتمل البناء وتوليد الحزمة بنجاح تام! جاهزة للتحميل والنشر.',
+        artifactId,
+        completedAt: new Date().toISOString()
+      });
+      appendLog('Build completed successfully. Artifact ready for deployment.');
     } catch (error: any) {
-      console.error('[Build Farm] Worker error:', error);
-      job.status = 'failed';
-      job.currentStep = 'فشل عملية البناء والتصدير';
-      job.error = error.message;
-      for (const step of job.steps) {
-        if (step.status === 'active') step.status = 'error';
-      }
+      console.error('[Build Farm] Pipeline execution failure:', error);
+      update({
+        status: 'failed',
+        progress: 100,
+        currentStep: 'فشل في عملية البناء والتصدير',
+        error: error.message || 'Unknown build error'
+      });
+      appendLog(`BUILD FAILED: ${error.message}`);
     }
   }
 }

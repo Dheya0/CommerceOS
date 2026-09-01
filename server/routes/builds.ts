@@ -1,300 +1,187 @@
 import { Router, Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
-import { db } from '../db';
-import { requirePermission } from '../middleware/auth';
-import { generateStoreZipPackage } from '../services/codeFactoryEngine.ts';
 import { buildFarmManager } from '../services/buildFarmQueue.ts';
+import { db } from '../db.ts';
+import { requireAuth, requirePermission } from '../middleware/auth.ts';
 
 export const buildsRouter = Router();
 
-// In-memory queue state for API telemetry
-interface ServerBuildJob {
-  id: string;
-  tenantId: string;
-  tenantName: string;
-  target: string;
-  status: 'queued' | 'compiling' | 'bundling' | 'signing' | 'ready' | 'failed';
-  progress: number;
-  workerId: string;
-  workerName: string;
-  createdAt: string;
-  logs: string[];
-}
-
-const activeServerJobs = new Map<string, ServerBuildJob>();
-
-// GET /api/v1/builds/farm-metrics - Get real-time status of the Redis/BullMQ worker farm
-buildsRouter.get('/farm-metrics', (req: Request, res: Response) => {
-  res.json({
-    totalWorkers: 4,
-    activeWorkers: 1,
-    idleWorkers: 3,
-    queuedJobsCount: 0,
-    activeJobsCount: activeServerJobs.size,
-    completedTodayCount: 124,
-    avgBuildTimeSec: 4.2,
-    redisQueueHealth: 'optimal',
-    redisMemoryUsageMb: 146.8,
-    workerNodes: [
-      { id: 'worker-riyadh-01', name: 'KSA-Riyadh-Worker-Alpha', region: 'me-central2 (Riyadh)', status: 'idle', cpuLoad: 14, ramLoad: 28 },
-      { id: 'worker-jeddah-02', name: 'KSA-Jeddah-Worker-Beta', region: 'me-central2 (Jeddah)', status: 'idle', cpuLoad: 19, ramLoad: 31 },
-      { id: 'worker-fra-03', name: 'EU-Frankfurt-Capacitor-Farm', region: 'europe-west3 (Frankfurt)', status: 'busy', cpuLoad: 64, ramLoad: 58 },
-      { id: 'worker-us-04', name: 'US-Virginia-Docker-Synthesis', region: 'us-east4 (Virginia)', status: 'idle', cpuLoad: 9, ramLoad: 21 }
-    ]
-  });
-});
-
-// POST /api/v1/builds/enqueue - Enqueue a new build job to Redis/BullMQ farm
-buildsRouter.post('/enqueue', requirePermission('settings'), (req: Request, res: Response) => {
-  const tenantId = req.user!.tenantId;
-  const tenant = db.getTenantByIdOrSlug(tenantId);
-  const { target, identityConfig } = req.body;
-
-  if (!tenant) {
-    return res.status(404).json({ error: 'Tenant not found' });
-  }
-
-  const jobId = `job-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  const version = identityConfig?.version || '1.4.0';
-  const buildNumber = identityConfig?.buildNumber || 18;
-
-  const job: ServerBuildJob = {
-    id: jobId,
-    tenantId: tenant.id,
-    tenantName: tenant.name,
-    target,
-    status: 'queued',
-    progress: 0,
-    workerId: 'worker-riyadh-01',
-    workerName: 'KSA-Riyadh-Worker-Alpha',
-    createdAt: new Date().toISOString(),
-    logs: [
-      `[Redis Broker] Job #${jobId} dispatched to Queue: build-farm-${target}`,
-      `[Worker Node] Claimed by KSA-Riyadh-Worker-Alpha (ARM64 Isolated Chamber)`
-    ]
-  };
-
-  activeServerJobs.set(jobId, job);
-
-  res.status(202).json({
-    success: true,
-    message: 'تم استقبال وإدراج طلب البناء في طابور مهام Redis/BullMQ بنجاح',
-    jobId,
-    queuePosition: 1,
-    estimatedWaitSec: 4.5
-  });
-});
-
-// GET /api/v1/builds/job/:jobId - Poll job status / WebSocket fallback
-buildsRouter.get('/job/:jobId', (req: Request, res: Response) => {
-  const { jobId } = req.params;
-  const job = activeServerJobs.get(jobId);
-  
-  if (!job) {
-    return res.json({
-      id: jobId,
-      status: 'ready',
-      progress: 100,
-      currentStep: 'Build completed successfully'
-    });
-  }
-
-  res.json({ job });
-});
-
-// POST /api/v1/builds/generate - Trigger a package build for a specific target
-buildsRouter.post('/generate', requirePermission('settings'), (req: Request, res: Response) => {
-  const tenantId = req.user!.tenantId;
-  const tenant = db.getTenantByIdOrSlug(tenantId);
-  const { target, identityConfig } = req.body;
-
-  if (!tenant) {
-    return res.status(404).json({ error: 'Tenant not found' });
-  }
-
-  const buildId = `build-${Date.now()}`;
-  const version = identityConfig?.version || '1.4.0';
-  const buildNumber = identityConfig?.buildNumber || 18;
-
-  const targetFiles: Record<string, { fileName: string; size: string; targetName: string }> = {
-    web: { fileName: `${tenant.slug}-web-v${version}.zip`, size: '8.4 MB', targetName: 'Static Web Bundle' },
-    pwa: { fileName: `${tenant.slug}-pwa-bundle.zip`, size: '3.2 MB', targetName: 'PWA Sovereign Package' },
-    android: { fileName: `${tenant.slug}-v${version}-build${buildNumber}.apk`, size: '19.8 MB', targetName: 'Android Release APK' },
-    ios: { fileName: `${tenant.slug}-ios-xcode-v${version}.zip`, size: '36.2 MB', targetName: 'iOS Xcode Workspace' },
-    self_hosted: { fileName: `${tenant.slug}-selfhosted-docker.zip`, size: '14.5 MB', targetName: 'Dockerized Sovereign Stack' },
-    capacitor_all: { fileName: `${tenant.slug}-capacitor-mobile-full.zip`, size: '42.8 MB', targetName: 'Full Mobile (Android & iOS)' },
-    desktop: { fileName: `${tenant.slug}-desktop-v${version}.msi`, size: '24.1 MB', targetName: 'Desktop App (Tauri)' }
-  };
-
-  const fileInfo = targetFiles[target] || { fileName: `${tenant.slug}-build.zip`, size: '10.0 MB', targetName: 'General Build' };
-
-  const logs = [
-    `[CommerceOS Build Engine] Initialized Worker Thread for ${tenant.name} (${tenant.slug})`,
-    `[Pipeline] Target architecture selected: ${target}`,
-    `[JIT Injector] Resolved theme tokens, primaryColor: ${tenant.theme.tokens.primary}`,
-    `[Capacitor/PWA Engine] Generated platform schemas (Manifest, ServiceWorker, Gradle, Plist)`,
-    `[Security Verification] Verified HMAC signatures & Keystore aliases`,
-    `[Packager] Successfully synthesized production artifact: ${fileInfo.fileName} (${fileInfo.size})`
-  ];
-
-  const artifact = {
-    id: buildId,
-    tenantId: tenant.id,
-    target,
-    targetName: fileInfo.targetName,
-    version,
-    buildNumber,
-    status: 'succeeded',
-    createdAt: new Date().toISOString(),
-    fileSize: fileInfo.size,
-    fileName: fileInfo.fileName,
-    commitHash: Math.random().toString(16).substring(2, 9),
-    buildDurationSec: 2.8,
-    downloadUrl: `/api/v1/builds/download/${buildId}?target=${target}`,
-    logs
-  };
-
-  res.status(201).json({
-    success: true,
-    artifact
-  });
-});
-
-// GET /api/v1/builds/targets - Get available targets metadata
-buildsRouter.get('/targets', (req: Request, res: Response) => {
-  res.json({
-    targets: [
-      { id: 'pwa', name: 'Progressive Web App (PWA)', formats: ['manifest.json', 'sw.js', 'A2HS', 'Offline Cache'], tag: 'Sovereign Web' },
-      { id: 'android', name: 'Android Studio Native', formats: ['Capacitor 6.0', 'Gradle 8.0', 'APK / AAB', 'RTL Native'], tag: 'Google Play Ready' },
-      { id: 'ios', name: 'Apple iOS Xcode Workspace', formats: ['Capacitor CocoaPods', 'Info.plist', 'TestFlight / AppStore'], tag: 'App Store Ready' },
-      { id: 'self_hosted', name: 'Dockerized Sovereign Stack', formats: ['docker-compose.yml', 'Nginx Reverse Proxy', 'Express Microservice'], tag: 'Private Cloud / VPS' },
-      { id: 'capacitor_all', name: 'Full Capacitor Multi-Platform', formats: ['Android Studio', 'Xcode Project', 'Capacitor Config'], tag: 'All Mobile' }
-    ]
-  });
-});
-
-// POST /api/v1/builds/export-zip - The Code Factory Engine ZIP generator & streamer
-buildsRouter.post('/export-zip', requirePermission('settings'), async (req: Request, res: Response) => {
+// ==========================================
+// 1. Trigger / Enqueue Build
+// ==========================================
+buildsRouter.post('/trigger', requireAuth, requirePermission('settings'), async (req: Request, res: Response) => {
   try {
-    const tenantId = req.user!.tenantId;
-    const tenant = db.getTenantByIdOrSlug(tenantId);
+    const user = (req as any).user;
+    const tenantId = (req as any).tenantId || user?.tenantId || (req.headers['x-tenant-id'] as string);
+    const target = req.body.target || 'full_stack';
+    const version = req.body.version || '1.0.0';
+
+    const tenant = tenantId ? db.getTenantByIdOrSlug(tenantId) : null;
     if (!tenant) {
-      return res.status(404).json({ error: 'Tenant not found' });
+      return res.status(400).json({ error: 'Tenant context required to initiate build' });
     }
+
+    const tenantProducts = db.getProducts(tenant.id);
+    const tenantCategories = db.getCategories(tenant.id);
 
     const payload = {
-      storeId: tenant.id,
-      storeName: tenant.name,
-      storeNameEn: tenant.slug,
+      projectId: tenant.id,
+      projectName: tenant.name,
+      projectNameEn: tenant.slug,
       slug: tenant.slug,
-      currency: tenant.currency,
-      primaryColor: tenant.theme.tokens.primary,
-      secondaryColor: tenant.theme.tokens.secondary,
-      supportEmail: req.user!.email,
-      whatsappPhone: (tenant as any).whatsapp || '+966500000000',
-      businessType: tenant.businessType || 'general',
-      adminEmail: req.user!.email,
-      adminName: req.user!.name,
-      hasLicense: (tenant as any).hasLicense || false,
-      products: req.body.products || [],
-      categories: req.body.categories || []
+      currency: tenant.currency || 'SAR',
+      primaryColor: tenant.theme?.tokens?.primary || '#C9A45C',
+      secondaryColor: tenant.theme?.tokens?.secondary || '#0B1422',
+      supportEmail: user.email || 'support@commerceos.app',
+      whatsappPhone: '+966500000000',
+      businessType: tenant.businessType || 'retail',
+      logoUrl: tenant.logo,
+      adminEmail: user.email,
+      adminName: user.name || 'Store Admin',
+      hasLicense: true,
+      target,
+      version,
+      products: tenantProducts.map(p => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        stock: p.stock,
+        category: p.categoryId,
+        image: p.images?.[0] || ''
+      })),
+      categories: tenantCategories.map(c => ({
+        id: c.id,
+        name: c.name,
+        slug: c.nameEn || c.id
+      })),
+      theme: {
+        style: tenant.theme?.style,
+        layout: tenant.theme?.layout,
+        fontFamily: tenant.theme?.fontFamily
+      }
     };
 
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    const zipFileName = `${tenant.slug}-export-${Date.now()}.zip`;
-    const zipFilePath = path.join(uploadsDir, zipFileName);
-    const outputStream = fs.createWriteStream(zipFilePath);
-
-    const result = await generateStoreZipPackage(payload, outputStream);
-
-    res.download(result.filePath, result.fileName, (err) => {
-      if (err) {
-        console.error('[Code Factory] Download stream error:', err);
-      }
-      // cleanup zip file after sending
-      try {
-        if (fs.existsSync(result.filePath)) {
-          fs.unlinkSync(result.filePath);
-        }
-      } catch (e) {}
+    const build = buildFarmManager.enqueueBuild({
+      projectId: tenant.id,
+      target,
+      version,
+      payload
     });
-  } catch (error: any) {
-    console.error('[Code Factory Engine] Error generating ZIP:', error);
-    res.status(500).json({ error: 'Failed to generate store package', details: error.message });
+
+    res.status(202).json({
+      success: true,
+      message: 'Build job successfully enqueued in Code Factory pipeline',
+      build
+    });
+  } catch (err: any) {
+    console.error('Trigger build error:', err);
+    res.status(500).json({ error: 'Internal build error', details: err.message });
   }
 });
 
-// GET /api/v1/builds/download/:buildId - Download generated bundle
-buildsRouter.get('/download/:buildId', (req: Request, res: Response) => {
-  const { buildId } = req.params;
-  const target = (req.query.target as string) || 'pwa';
-  
-  res.setHeader('Content-Type', 'application/octet-stream');
-  res.setHeader('Content-Disposition', `attachment; filename="${buildId}-${target}.zip"`);
-  
-  // Return a sample binary stream payload
-  const buffer = Buffer.from(`CommerceOS Build Package ${buildId} for target ${target}`);
-  res.send(buffer);
-});
+// ==========================================
+// 2. Get Build Status & Logs
+// ==========================================
+buildsRouter.get('/:buildId', requireAuth, (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { buildId } = req.params;
+    const tenantId = (req as any).tenantId || user?.tenantId || (req.headers['x-tenant-id'] as string);
+    const build = db.getBuildById(buildId, user.identityType === 'platform_admin' ? undefined : tenantId);
 
-// POST /api/v1/builds/start-async - Start background Build Farm worker job
-buildsRouter.post('/start-async', requirePermission('settings'), (req: Request, res: Response) => {
-  const tenantId = req.user!.tenantId;
-  const tenant = db.getTenantByIdOrSlug(tenantId);
-  if (!tenant) {
-    return res.status(404).json({ error: 'Tenant not found' });
-  }
-
-  const payload = {
-    storeId: tenant.id,
-    storeName: tenant.name,
-    storeNameEn: tenant.slug,
-    slug: tenant.slug,
-    currency: tenant.currency,
-    primaryColor: tenant.theme.tokens.primary,
-    secondaryColor: tenant.theme.tokens.secondary,
-    supportEmail: req.user!.email,
-    whatsappPhone: (tenant as any).whatsapp || '+966500000000',
-    businessType: tenant.businessType || 'general',
-    adminEmail: req.user!.email,
-    adminName: req.user!.name,
-    hasLicense: (tenant as any).hasLicense || false,
-    products: req.body.products || [],
-    categories: req.body.categories || []
-  };
-
-  const job = buildFarmManager.createJob(tenantId, payload);
-  res.json({ success: true, jobId: job.jobId, job });
-});
-
-// GET /api/v1/builds/job/:jobId - Poll background build worker status & steps
-buildsRouter.get('/job/:jobId', (req: Request, res: Response) => {
-  const { jobId } = req.params;
-  const job = buildFarmManager.getJob(jobId);
-  if (!job) {
-    return res.status(404).json({ error: 'Job not found' });
-  }
-  res.json({ success: true, job });
-});
-
-// GET /api/v1/builds/download-job/:jobId - Download completed ZIP from build farm worker
-buildsRouter.get('/download-job/:jobId', (req: Request, res: Response) => {
-  const { jobId } = req.params;
-  const job = buildFarmManager.getJob(jobId);
-  if (!job || job.status !== 'completed' || !job.filePath) {
-    return res.status(400).json({ error: 'Build job not completed or file not ready' });
-  }
-
-  res.download(job.filePath, job.fileName || 'store-export.zip', (err) => {
-    if (err) {
-      console.error('[Build Farm] Download error:', err);
+    if (!build) {
+      return res.status(404).json({ error: 'Build job not found' });
     }
-  });
+
+    res.json({ build });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve build status' });
+  }
 });
 
+// ==========================================
+// 3. List Builds for Tenant
+// ==========================================
+buildsRouter.get('/', requireAuth, (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const tenantId = (req as any).tenantId || user?.tenantId || (req.headers['x-tenant-id'] as string);
 
+    if (!tenantId && user.identityType !== 'platform_admin') {
+      return res.status(400).json({ error: 'Tenant context required' });
+    }
+
+    const builds = db.getBuilds(user.identityType === 'platform_admin' ? undefined : tenantId);
+    res.json({ builds });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to list builds' });
+  }
+});
+
+// ==========================================
+// 4. List Verified Artifacts for Tenant
+// ==========================================
+buildsRouter.get('/artifacts/list', requireAuth, (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const tenantId = (req as any).tenantId || user?.tenantId || (req.headers['x-tenant-id'] as string);
+
+    if (!tenantId && user.identityType !== 'platform_admin') {
+      return res.status(400).json({ error: 'Tenant context required' });
+    }
+
+    const artifacts = db.getArtifacts(user.identityType === 'platform_admin' ? undefined : tenantId);
+    res.json({ artifacts });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to list artifacts' });
+  }
+});
+
+// ==========================================
+// 5. Secure Artifact Download
+// ==========================================
+buildsRouter.get('/download/:artifactId', requireAuth, (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const tenantId = (req as any).tenantId || user?.tenantId || (req.headers['x-tenant-id'] as string);
+    const { artifactId } = req.params;
+
+    // Search by artifact ID or Build ID
+    let artifact = db.getArtifactById(artifactId);
+    if (!artifact) {
+      const allArtifacts = db.getArtifacts();
+      artifact = allArtifacts.find(a => a.buildId === artifactId);
+    }
+
+    if (!artifact) {
+      return res.status(404).json({ error: 'Artifact not found or has expired' });
+    }
+
+    // Tenant Isolation Check
+    if (user.identityType !== 'platform_admin' && tenantId && artifact.projectId !== tenantId) {
+      return res.status(403).json({ error: 'Access denied to this artifact package' });
+    }
+
+    const filePath = path.resolve(artifact.filePath);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Artifact file is missing on storage node' });
+    }
+
+    // Set download headers
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${artifact.fileName}"`);
+    if (artifact.fileSizeBytes) {
+      res.setHeader('Content-Length', artifact.fileSizeBytes);
+    }
+    if (artifact.checksum) {
+      res.setHeader('X-Checksum-SHA256', artifact.checksum);
+    }
+
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+  } catch (err: any) {
+    console.error('Download artifact error:', err);
+    res.status(500).json({ error: 'Failed to stream artifact package' });
+  }
+});
