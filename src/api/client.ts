@@ -96,6 +96,13 @@ class CommerceApiClient {
     return res;
   }
 
+  async register(name: string, email: string, password?: string) {
+    return this.request<{ success: boolean; user: any }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password })
+    });
+  }
+
   async logout() {
     try {
       await this.request('/auth/logout', { method: 'POST' });

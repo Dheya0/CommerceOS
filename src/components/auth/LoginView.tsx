@@ -28,7 +28,7 @@ export const LoginView: React.FC = () => {
       const success = await login(email, password);
       if (success) {
         showToast(isAr ? 'تم تسجيل الدخول بنجاح' : 'Signed in successfully', 'success');
-        setCurrentView('merchant_dashboard');
+        setCurrentView('personal_profile');
       } else {
         setErrorMessage(isAr ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة.' : 'Invalid email or password.');
       }

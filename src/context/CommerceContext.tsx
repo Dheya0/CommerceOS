@@ -30,7 +30,7 @@ import { api } from '../api/client';
 import { DEFAULT_PLATFORM_CONFIG, validateLicenseKey, generateLicenseKey } from '../utils/licensingEngine';
 import { generateDesignTokens } from '../utils/themeEngine';
 
-export type AppView = 'home' | 'storefront' | 'merchant_dashboard' | 'builder_wizard' | 'platform_admin' | 'live_customizer' | 'visual_ide' | 'auth_page' | 'pricing' | 'design_system';
+export type AppView = 'home' | 'storefront' | 'merchant_dashboard' | 'builder_wizard' | 'platform_admin' | 'live_customizer' | 'visual_ide' | 'auth_page' | 'pricing' | 'design_system' | 'personal_profile';
 export type PreviewDevice = 'desktop' | 'tablet' | 'mobile';
 
 interface ToastInfo {
@@ -107,7 +107,7 @@ interface CommerceContextType {
   refreshFromBackend: () => Promise<void>;
 
   // Actions
-  createTenant: (newTenant: TenantStore, initialProducts?: Product[], initialCategories?: Category[]) => void;
+  createTenant: (newTenant: any, initialProducts?: Product[], initialCategories?: Category[]) => Promise<TenantStore>;
   updateTenant: (tenantId: string, updates: Partial<TenantStore>) => void;
   deleteTenant: (tenantId: string) => void;
   updateTheme: (tenantId: string, theme: StoreTheme) => void;
@@ -156,13 +156,8 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [currentView, setCurrentView] = useState<AppView>(() => {
     try {
       const savedUser = localStorage.getItem('commerceos_auth_user');
-      const savedTenants = localStorage.getItem('commerceos_tenants');
-      const tenantsArr = savedTenants ? JSON.parse(savedTenants) : [];
       if (savedUser) {
-        if (tenantsArr.length === 0) {
-          return 'builder_wizard';
-        }
-        return 'merchant_dashboard';
+        return 'personal_profile';
       }
     } catch {}
     return 'home';
@@ -316,13 +311,8 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         } catch {}
 
         setAuthModalOpen(false);
-        if (tenants.length === 0 && !res.user.tenantId) {
-          setCurrentView('builder_wizard');
-          showToast(`مرحباً بك ${user.name}! يرجى إنشاء متجرك الأول للبدء`, 'info');
-        } else {
-          setCurrentView('merchant_dashboard');
-          showToast(`مرحباً بك ${user.name}! تم تسجيل الدخول بنجاح`, 'success');
-        }
+        setCurrentView('personal_profile');
+        showToast(language === 'ar' ? `مرحباً بك ${user.name}! تم تسجيل الدخول بنجاح` : `Welcome ${user.name}! Signed in successfully`, 'success');
         return true;
       }
       return false;
@@ -335,196 +325,19 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const register = async (data: {
     name: string;
     email: string;
-    phone?: string;
     password?: string;
-    storeName: string;
-    storeSlug: string;
-    businessType: BusinessType;
-    cleanStore?: boolean;
   }): Promise<boolean> => {
-    const cleanSlug = data.storeSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-') || `store-${Date.now()}`;
-    const newTenantId = `tenant-${cleanSlug}`;
-
-    const colorMap: Record<BusinessType, string> = {
-      honey: '#D4A017',
-      coffee: '#8B4513',
-      fashion: '#1E293B',
-      perfume: '#9333EA',
-      tech: '#2563EB',
-      beauty: '#EC4899',
-      sweets: '#F59E0B',
-      accessories: '#0D9488',
-      food: '#E11D48',
-      general: '#3B82F6'
-    };
-
-    const primaryColor = colorMap[data.businessType] || '#3B82F6';
-
-    const newTenant: TenantStore = {
-      id: newTenantId,
-      name: data.storeName,
-      nameEn: data.storeName,
-      slug: cleanSlug,
-      description: `المتجر الرسمي لـ ${data.storeName} - تجربة تسوق استثنائية وسريعة.`,
-      descriptionEn: `Official store for ${data.storeName}.`,
-      businessType: data.businessType,
-      logo: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=200&auto=format&fit=crop&q=80',
-      logoIcon: 'Store',
-      slogan: 'الجودة والتميز دائماً',
-      currency: 'SAR',
-      currencySymbol: 'ر.س',
-      domain: `${cleanSlug}.commerceos.app`,
-      plan: 'pro',
-      status: 'active',
-      createdAt: new Date().toISOString(),
-      contact: {
-        email: data.email || 'support@' + cleanSlug + '.com',
-        phone: data.phone || '+966500000000',
-        whatsapp: data.phone || '+966500000000',
-        city: 'الرياض',
-        country: 'المملكة العربية السعودية'
-      },
-      social: {
-        instagram: 'https://instagram.com',
-        twitter: 'https://x.com',
-        tiktok: 'https://tiktok.com'
-      },
-      theme: {
-        style: 'modern',
-        layout: 'modern',
-        fontFamily: 'tajawal',
-        radius: 'md',
-        shadow: 'soft',
-        headerStyle: 'solid',
-        cardStyle: 'bordered',
-        darkMode: false,
-        tokens: generateDesignTokens(primaryColor, 'modern', false)
-      },
-      sections: [
-        { id: `sec-${Date.now()}-1`, type: 'hero', title: `أهلاً بكم في ${data.storeName}`, titleEn: `Welcome to ${data.storeName}`, subtitle: 'أفضل المنتجات بأعلى معايير الجودة والضمان', enabled: true, order: 1 },
-        { id: `sec-${Date.now()}-2`, type: 'featured_products', title: 'أحدث المنتجات المميزة', titleEn: 'Featured Products', enabled: true, order: 2 },
-        { id: `sec-${Date.now()}-3`, type: 'benefits', title: 'لماذا تختارنا؟', titleEn: 'Why Choose Us?', enabled: true, order: 3 },
-        { id: `sec-${Date.now()}-4`, type: 'faq', title: 'الأسئلة الشائعة', titleEn: 'FAQ', enabled: true, order: 4 }
-      ],
-      pwaConfig: {
-        appName: data.storeName,
-        shortName: data.storeName.substring(0, 12),
-        themeColor: primaryColor,
-        backgroundColor: '#FFFFFF',
-        enablePush: true
-      },
-      paymentGateways: {
-        mada: true,
-        applePay: true,
-        visa: true,
-        cod: true,
-        tamara: true,
-        bankTransfer: true
-      },
-      shippingMethods: [
-        { id: `ship-${Date.now()}-1`, name: 'توصيل قياسي سريع', nameEn: 'Standard Fast Delivery', cost: 25, estimatedDays: '2-3 أيام عمل', active: true },
-        { id: `ship-${Date.now()}-2`, name: 'شحن مجاني للطلبات فوق 200 ر.س', nameEn: 'Free Shipping (Over 200 SAR)', cost: 0, estimatedDays: '3-4 أيام عمل', active: true }
-      ],
-      taxConfig: {
-        enabled: true,
-        rate: 15,
-        taxIncludedInPrice: true
-      },
-      licensing: {
-        tier: 'white_label_single',
-        licenseKey: `COSLIC-WL-${cleanSlug.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
-        isWhiteLabel: true,
-        issuedAt: new Date().toISOString(),
-        verified: true,
-        customBranding: {
-          removeCommerceOSFooter: true,
-          customFooterText: `جميع الحقوق محفوظة لـ ${data.storeName} ${new Date().getFullYear()}`,
-          customPoweredBy: `${data.storeName} Enterprise Engine`,
-          hideWatermarkInExports: true
-        }
-      },
-      quotas: {
-        maxProducts: -1,
-        maxStaff: 15,
-        maxMonthlyBuilds: 100,
-        usedMonthlyBuilds: 0,
-        allowCustomDomain: true,
-        allowDockerSelfHost: true,
-        allowNativeIosAndroid: true,
-        storageQuotaMb: 5000,
-        usedStorageMb: 20
-      }
-    };
-
-    const initialStarterProducts: Product[] = data.cleanStore ? [] : [
-      {
-        id: `prod-${Date.now()}-1`,
-        tenantId: newTenantId,
-        name: `منتج البداية الفاخر 1`,
-        nameEn: 'Starter Premium Item 1',
-        description: 'هذا منتج توضيحي تأسيسي يمكنك تعديله أو حذفه بسهولة وإضافة منتجاتك وصورك الحقيقية.',
-        descriptionEn: 'Starter sample item. You can edit, replace, or delete this product.',
-        price: 149,
-        comparePrice: 199,
-        costPrice: 80,
-        sku: 'ST-001',
-        stock: 50,
-        lowStockAlert: 5,
-        categoryId: 'cat-general',
-        images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80'],
-        isFeatured: true,
-        isNew: true,
-        rating: 5,
-        reviewsCount: 1,
-        tags: ['جديد', 'مميز']
-      }
-    ];
-
-    await createTenant(newTenant, initialStarterProducts);
-
-    const ownerStaff: StaffMember = {
-      id: `staff-${Date.now()}`,
-      tenantId: newTenantId,
-      name: data.name,
-      email: data.email,
-      role: 'store_owner',
-      permissions: {
-        products: true,
-        orders: true,
-        customers: true,
-        inventory: true,
-        coupons: true,
-        theme: true,
-        staff: true,
-        settings: true,
-        reports: true
-      },
-      status: 'active',
-      createdAt: new Date().toISOString()
-    };
-
-    setStaff(prev => [ownerStaff, ...prev]);
-
-    const authUser: AuthUser = {
-      id: ownerStaff.id,
-      name: data.name,
-      email: data.email,
-      role: 'store_owner',
-      tenantId: newTenantId,
-      permissions: ownerStaff.permissions
-    };
-
-    setCurrentUser(authUser);
     try {
-      localStorage.setItem('commerceos_auth_user', JSON.stringify(authUser));
-    } catch {}
-
-    setCurrentStaffRole('store_owner');
-    setActiveTenantId(newTenantId);
-    setAuthModalOpen(false);
-    setCurrentView('merchant_dashboard');
-    showToast(`تم إنشاء متجر "${data.storeName}" وحسابك بنجاح! مرحباً بك في لوحة التحكم.`, 'success');
-    return true;
+      const res = await api.register(data.name, data.email, data.password);
+      if (res && res.success) {
+        showToast(language === 'ar' ? 'تم تسجيل الحساب بنجاح! بانتظار تفعيل البريد الإلكتروني.' : 'Account created successfully! Awaiting email verification.', 'success');
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      showToast(err.message || (language === 'ar' ? 'فشل تسجيل الحساب، يرجى المحاولة لاحقاً' : 'Registration failed, please try again'), 'error');
+      return false;
+    }
   };
 
   const logout = () => {
@@ -539,9 +352,9 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const handleSetCurrentView = (view: AppView) => {
-    const protectedViews: AppView[] = ['merchant_dashboard', 'builder_wizard', 'live_customizer', 'visual_ide', 'platform_admin'];
+    const protectedViews: AppView[] = ['merchant_dashboard', 'builder_wizard', 'live_customizer', 'visual_ide', 'platform_admin', 'personal_profile'];
     if (protectedViews.includes(view) && !currentUser) {
-      showToast('يرجى تسجيل الدخول أولاً للوصول إلى لوحة التحكم والمحرر الإداري', 'warning');
+      showToast('يرجى تسجيل الدخول أولاً للوصول إلى مساحة عملك الشخصية', 'warning');
       setCurrentView('auth_page');
       return;
     }
@@ -576,7 +389,11 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       ]);
 
       if (tenantsRes.status === 'fulfilled' && tenantsRes.value.tenants.length > 0) {
-        setTenants(tenantsRes.value.tenants);
+        const unique = new Map<string, TenantStore>();
+        tenantsRes.value.tenants.forEach(t => {
+          if (t && t.id) unique.set(t.id, t);
+        });
+        setTenants(Array.from(unique.values()));
       }
       if (prodsRes.status === 'fulfilled' && prodsRes.value.products.length > 0) {
         setProducts(prodsRes.value.products);
@@ -737,33 +554,110 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const clearCart = () => setCart([]);
 
   // Tenant Operations
-  const createTenant = async (newTenant: TenantStore, newProducts?: Product[], newCategories?: Category[]) => {
-    setTenants(prev => [newTenant, ...prev]);
+  const createTenant = async (newTenant: any, newProducts?: Product[], newCategories?: Category[]) => {
+    const tenantId = newTenant.id || `tenant-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const defaultColor = '#C9A45C'; // Our premium gold
+    const completeTenant: TenantStore = {
+      id: tenantId,
+      name: newTenant.name || 'متجر جديد',
+      nameEn: newTenant.nameEn || 'New Store',
+      slug: newTenant.slug || 'new-store',
+      description: newTenant.description || 'متجر جديد نظيف',
+      descriptionEn: newTenant.descriptionEn || 'Clean new store',
+      businessType: newTenant.businessType || 'general',
+      logo: newTenant.logo || '',
+      logoIcon: newTenant.logoIcon || 'Store',
+      slogan: newTenant.slogan || 'ابدأ متجرك الآن',
+      currency: newTenant.currency || 'SAR',
+      currencySymbol: newTenant.currencySymbol || 'ر.س',
+      domain: newTenant.domain || `${newTenant.slug || 'store'}.commerceos.app`,
+      plan: newTenant.plan || 'pro',
+      status: newTenant.status || 'active',
+      createdAt: newTenant.createdAt || new Date().toISOString(),
+      contact: {
+        email: newTenant.contact?.email || currentUser?.email || '',
+        phone: newTenant.contact?.phone || '',
+        city: newTenant.contact?.city || 'الرياض',
+        country: newTenant.contact?.country || 'المملكة العربية السعودية',
+        ...newTenant.contact
+      },
+      social: {
+        instagram: '',
+        twitter: '',
+        tiktok: '',
+        ...newTenant.social
+      },
+      theme: newTenant.theme || {
+        style: 'modern',
+        layout: 'modern',
+        fontFamily: 'tajawal',
+        radius: 'md',
+        shadow: 'soft',
+        headerStyle: 'solid',
+        cardStyle: 'bordered',
+        darkMode: false,
+        tokens: generateDesignTokens(defaultColor, 'modern', false)
+      },
+      sections: newTenant.sections || [
+        { id: `sec-${Date.now()}-1`, type: 'hero', title: `أهلاً بكم في ${newTenant.name || 'متجرنا'}`, titleEn: `Welcome to ${newTenant.nameEn || 'Our Store'}`, subtitle: 'أفضل المنتجات بأعلى معايير الجودة والضمان', enabled: true, order: 1 },
+        { id: `sec-${Date.now()}-2`, type: 'featured_products', title: 'أحدث المنتجات المميزة', titleEn: 'Featured Products', enabled: true, order: 2 }
+      ],
+      pwaConfig: {
+        appName: newTenant.name || 'متجر جديد',
+        shortName: (newTenant.name || 'متجر').substring(0, 12),
+        themeColor: defaultColor,
+        backgroundColor: '#FFFFFF',
+        enablePush: true,
+        ...newTenant.pwaConfig
+      },
+      paymentGateways: {
+        mada: true,
+        applePay: true,
+        visa: true,
+        cod: true,
+        tamara: true,
+        bankTransfer: true,
+        ...newTenant.paymentGateways
+      },
+      shippingMethods: newTenant.shippingMethods || [
+        { id: `ship-${Date.now()}-1`, name: 'توصيل قياسي سريع', nameEn: 'Standard Fast Delivery', cost: 25, estimatedDays: '2-3 أيام عمل', active: true },
+        { id: `ship-${Date.now()}-2`, name: 'شحن مجاني للطلبات فوق 200 ر.س', nameEn: 'Free Shipping (Over 200 SAR)', cost: 0, estimatedDays: '3-4 أيام عمل', active: true }
+      ]
+    };
+
+    setTenants(prev => {
+      const filtered = prev.filter(t => t.id !== completeTenant.id);
+      return [completeTenant, ...filtered];
+    });
     if (newProducts && newProducts.length > 0) {
-      setProducts(prev => [...newProducts, ...prev]);
+      const productsWithTenant = newProducts.map(p => ({ ...p, tenantId }));
+      setProducts(prev => [...productsWithTenant, ...prev]);
     }
     if (newCategories && newCategories.length > 0) {
-      setCategories(prev => [...newCategories, ...prev]);
+      const categoriesWithTenant = newCategories.map(c => ({ ...c, tenantId }));
+      setCategories(prev => [...categoriesWithTenant, ...prev]);
     }
-    setActiveTenantId(newTenant.id);
-    showToast(`تم تدشين متجر "${newTenant.name}" بنجاح!`, 'success');
+    setActiveTenantId(tenantId);
+    showToast(`تم تدشين متجر "${completeTenant.name}" بنجاح!`, 'success');
 
     // Sync with backend
     try {
-      await api.createTenant(newTenant);
+      await api.createTenant(completeTenant);
       if (newProducts) {
         for (const p of newProducts) {
-          await api.createProduct(p);
+          await api.createProduct({ ...p, tenantId });
         }
       }
       if (newCategories) {
         for (const c of newCategories) {
-          await api.createCategory(c);
+          await api.createCategory({ ...c, tenantId });
         }
       }
     } catch (err) {
       console.warn('Backend sync for createTenant:', err);
     }
+
+    return completeTenant;
   };
 
   const updateTenant = async (tenantId: string, updates: Partial<TenantStore>) => {

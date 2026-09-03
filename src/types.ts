@@ -52,15 +52,42 @@ export interface DesignTokens {
   danger: string;
 }
 
+export interface CustomFontConfig {
+  type: 'google' | 'upload' | 'preset';
+  name: string;
+  url?: string;
+  base64Data?: string;
+  cssFamily: string;
+  fileName?: string;
+}
+
 export interface StoreTheme {
   style: ThemeStyle;
   layout: ThemeLayout;
   fontFamily: FontFamily;
+  customFont?: CustomFontConfig;
   radius: RadiusPreset;
+  customRadiusPx?: number;
   shadow: 'none' | 'subtle' | 'soft' | 'dramatic';
   headerStyle: 'floating' | 'solid' | 'transparent' | 'centered_logo' | 'island_blur';
   heroStyle?: 'split' | 'cinematic' | 'story' | 'spotlight' | 'minimal';
   cardStyle: 'elevated' | 'bordered' | 'minimal' | 'glass';
+  buttonStyle?: 'solid' | 'gradient' | 'outline' | 'glow';
+  announcementBar?: {
+    enabled: boolean;
+    text: string;
+    textEn?: string;
+    bgColor?: string;
+    textColor?: string;
+    link?: string;
+  };
+  heroBannerImage?: string;
+  logoHeight?: number;
+  customCss?: string;
+  typographyScale?: {
+    headingWeight?: 'normal' | 'bold' | 'extrabold' | 'black';
+    baseSize?: 'sm' | 'md' | 'lg';
+  };
   tokens: DesignTokens;
   darkMode: boolean;
 }

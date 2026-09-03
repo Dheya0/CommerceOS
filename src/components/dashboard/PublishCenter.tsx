@@ -22,10 +22,12 @@ import {
   FolderArchive,
   Zap,
   Activity,
-  CheckCheck
+  CheckCheck,
+  Cloud
 } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
 import { exportZipPackage, downloadBlobFile } from '../../utils/exportEngine';
+import { CloudStorageHub } from './CloudStorageHub';
 
 interface ArtifactItem {
   id: string;
@@ -46,7 +48,7 @@ export const PublishCenter: React.FC = () => {
   const { activeTenant, showToast, language, authToken } = useCommerce();
   const isAr = language === 'ar';
 
-  const [activeTab, setActiveTab] = useState<'targets' | 'artifacts' | 'deploy_guides' | 'identity'>('targets');
+  const [activeTab, setActiveTab] = useState<'targets' | 'artifacts' | 'deploy_guides' | 'identity' | 'cloud_vault'>('targets');
 
   // App Identity Form State
   const [identityConfig, setIdentityConfig] = useState({
@@ -258,6 +260,7 @@ export const PublishCenter: React.FC = () => {
       <div className="flex items-center gap-2 border-b border-[#233247] pb-3 overflow-x-auto">
         {[
           { id: 'targets', label: isAr ? 'أهداف النشر والتصدير' : 'Delivery Targets', icon: Rocket },
+          { id: 'cloud_vault', label: isAr ? 'التخزين السحابي وحماية الإصدارات' : 'Cloud Storage & Versions', icon: Cloud },
           { id: 'artifacts', label: isAr ? `الحزم المولدة (${artifacts.length})` : `Artifacts (${artifacts.length})`, icon: FolderArchive },
           { id: 'deploy_guides', label: isAr ? 'أدلة النشر الذاتي (VPS / Docker)' : 'Deployment Guides', icon: Terminal },
           { id: 'identity', label: isAr ? 'هوية الحزم والإصدارات' : 'Identity & Versions', icon: Sliders }
@@ -752,6 +755,11 @@ sudo nginx -t && sudo systemctl reload nginx`}
             </button>
           </div>
         </div>
+      )}
+
+      {/* TAB 5: CLOUD STORAGE & VERSIONS */}
+      {activeTab === 'cloud_vault' && (
+        <CloudStorageHub />
       )}
 
     </div>

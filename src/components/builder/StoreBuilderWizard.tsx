@@ -58,8 +58,13 @@ export const StoreBuilderWizard: React.FC = () => {
 
       if (newTenant) {
         setActiveTenantId(newTenant.id);
-        showToast(isAr ? 'تم إنشاء متجرك بنجاح!' : 'Store created successfully!', 'success');
-        setCurrentView('merchant_dashboard');
+        showToast(
+          isAr 
+            ? 'تم إنشاء متجرك بنجاح! تم توجيهك الآن إلى مصنع الهوية والتصميم لتخصيص الألوان، الشعار، والخطوط لمتجرك الجديد.' 
+            : 'Store created successfully! You are now redirected to the Design & Branding customizer to configure your logo, colors, and layout.', 
+          'success'
+        );
+        setCurrentView('live_customizer');
       } else {
         throw new Error('Creation failed');
       }

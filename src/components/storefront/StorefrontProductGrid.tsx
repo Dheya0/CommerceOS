@@ -6,14 +6,17 @@ import { Product } from '../../types';
 interface StorefrontProductGridProps {
   products: Product[];
   onOpenProduct: (product: Product) => void;
+  overrideTenant?: import('../../types').TenantStore;
 }
 
-export const StorefrontProductGrid: React.FC<StorefrontProductGridProps> = ({ products, onOpenProduct }) => {
-  const { activeTenant, addToCart } = useCommerce();
+export const StorefrontProductGrid: React.FC<StorefrontProductGridProps> = ({ products, onOpenProduct, overrideTenant }) => {
+  const { activeTenant: ctxTenant, addToCart } = useCommerce();
+  const activeTenant = overrideTenant || ctxTenant;
   const theme = activeTenant.theme;
   const tokens = theme.tokens;
 
   const getCardRadiusClass = () => {
+    if (theme.customRadiusPx !== undefined) return '';
     switch (theme.radius) {
       case 'none': return 'rounded-none';
       case 'sm': return 'rounded-lg';
@@ -21,6 +24,50 @@ export const StorefrontProductGrid: React.FC<StorefrontProductGridProps> = ({ pr
       case 'lg': return 'rounded-3xl';
       default: return 'rounded-xl';
     }
+  };
+
+  const getCardStyle = () => {
+    const base: React.CSSProperties = {
+      backgroundColor: theme.cardStyle === 'glass' ? `${tokens.surface}cc` : tokens.surface,
+      borderColor: tokens.border,
+      borderRadius: theme.customRadiusPx !== undefined ? `${theme.customRadiusPx}px` : undefined,
+    };
+    if (theme.cardStyle === 'glass') {
+      base.backdropFilter = 'blur(12px)';
+    }
+    if (theme.cardStyle === 'elevated') {
+      base.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)';
+    }
+    return base;
+  };
+
+  const getAddBtnStyle = () => {
+    const rad = theme.customRadiusPx !== undefined ? `${Math.max(4, theme.customRadiusPx - 4)}px` : undefined;
+    if (theme.buttonStyle === 'gradient') {
+      return {
+        background: `linear-gradient(135deg, ${tokens.primary} 0%, ${tokens.primaryDark} 100%)`,
+        borderRadius: rad
+      };
+    }
+    if (theme.buttonStyle === 'glow') {
+      return {
+        backgroundColor: tokens.primary,
+        boxShadow: `0 0 15px ${tokens.primary}55`,
+        borderRadius: rad
+      };
+    }
+    if (theme.buttonStyle === 'outline') {
+      return {
+        backgroundColor: 'transparent',
+        border: `1.5px solid ${tokens.primary}`,
+        color: tokens.primary,
+        borderRadius: rad
+      };
+    }
+    return {
+      backgroundColor: tokens.primary,
+      borderRadius: rad
+    };
   };
 
   if (products.length === 0) {
@@ -61,10 +108,7 @@ export const StorefrontProductGrid: React.FC<StorefrontProductGridProps> = ({ pr
               <div
                 key={product.id}
                 className={`group relative flex flex-col justify-between border overflow-hidden transition-all duration-300 hover:shadow-xl ${getCardRadiusClass()}`}
-                style={{ 
-                  backgroundColor: tokens.surface, 
-                  borderColor: tokens.border 
-                }}
+                style={getCardStyle()}
               >
                 {/* Image & Badges */}
                 <div className="relative aspect-square overflow-hidden bg-slate-100 dark:bg-slate-900">
@@ -158,7 +202,7 @@ export const StorefrontProductGrid: React.FC<StorefrontProductGridProps> = ({ pr
                         }
                       }}
                       className="py-2 px-3 rounded-xl text-xs font-bold text-white flex items-center gap-1 shadow-md transition-all hover:opacity-90 active:scale-95"
-                      style={{ backgroundColor: tokens.primary }}
+                      style={getAddBtnStyle()}
                     >
                       <Plus className="w-3.5 h-3.5" />
                       <span>{hasVariants ? 'خيارات' : 'إضافة'}</span>

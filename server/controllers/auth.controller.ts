@@ -18,6 +18,16 @@ export class AuthController extends BaseController {
     }
   };
 
+  public register = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { name, email, password } = req.body;
+      const result = await this.authSvc.register({ name, email, password });
+      this.sendSuccess(res, result, 201, 'تم تسجيل الحساب بنجاح، بانتظار التحقق');
+    } catch (err) {
+      next(err);
+    }
+  };
+
   public logout = async (req: Request, res: Response, next: NextFunction) => {
     try {
       await this.authSvc.logout(req.user?.tokenId, req.user?.id);

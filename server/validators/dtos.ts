@@ -7,6 +7,12 @@ export const LoginSchema: ValidationSchema = {
   role: { type: 'enum', required: false, enumValues: Object.values(ROLES) }
 };
 
+export const RegisterSchema: ValidationSchema = {
+  name: { type: 'string', required: true, min: 2 },
+  email: { type: 'string', required: true },
+  password: { type: 'string', required: true, min: 6 }
+};
+
 export const SwitchRoleSchema: ValidationSchema = {
   role: { type: 'enum', required: true, enumValues: Object.values(ROLES) }
 };

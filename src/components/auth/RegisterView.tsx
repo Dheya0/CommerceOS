@@ -62,18 +62,16 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onRegistered }) => {
 
     setIsLoading(true);
     try {
-      // Register with default store info for subsequent onboarding
-      await register({
+      const success = await register({
         name,
         email,
-        password,
-        storeName: `${name}'s Store`,
-        storeSlug: email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-') + '-store',
-        businessType: 'general',
-        cleanStore: true
+        password
       });
-      showToast(isAr ? 'تم إنشاء الحساب بنجاح' : 'Account created successfully', 'success');
-      onRegistered(email);
+      if (success) {
+        onRegistered(email);
+      } else {
+        setErrorMessage(isAr ? 'تعذر إنشاء الحساب. البريد الإلكتروني مستخدم مسبقاً أو غير صالح.' : 'Registration failed. Email may already be in use.');
+      }
     } catch (err: any) {
       setErrorMessage(isAr ? 'تعذر إنشاء الحساب. البريد الإلكتروني مستخدم مسبقاً أو غير صالح.' : 'Registration failed. Email may already be in use.');
     } finally {

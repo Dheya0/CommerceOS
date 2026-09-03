@@ -9,6 +9,7 @@ import { VisualIDE } from './components/builder/VisualIDE';
 import { PricingPage } from './components/saas/PricingPage';
 import { PlatformAdminDashboard } from './components/admin/PlatformAdminDashboard';
 import { AuthPageView } from './components/auth/AuthPageView';
+import { PersonalProfileView } from './components/merchant/PersonalProfileView';
 import { DesignSystemPlayground } from './design-system/DesignSystemPlayground';
 import { TamperAlertModal } from './components/common/TamperAlertModal';
 import { AuthModal } from './components/auth/AuthModal';
@@ -39,6 +40,9 @@ const AppContent: React.FC = () => {
     switch (currentView) {
       case 'merchant_dashboard':
         return <MerchantAppShell onOpenCommandPalette={() => setCommandPaletteOpen(true)} />;
+
+      case 'personal_profile':
+        return <PersonalProfileView />;
 
       case 'auth_page':
         return <AuthPageView />;

@@ -44,7 +44,12 @@ export function hslToHex(h: number, s: number, l: number): string {
 }
 
 // Generate complete Design Token System from primary color & style
-export function generateDesignTokens(primaryHex: string, style: ThemeStyle = 'modern', isDark = false): DesignTokens {
+export function generateDesignTokens(
+  primaryHex: string, 
+  style: ThemeStyle = 'modern', 
+  isDark = false,
+  overrides?: Partial<DesignTokens>
+): DesignTokens {
   const { h, s, l } = hexToHSL(primaryHex);
 
   const primary = primaryHex;
@@ -60,8 +65,10 @@ export function generateDesignTokens(primaryHex: string, style: ThemeStyle = 'mo
   const secondaryH = (h + 180) % 360;
   const secondary = hslToHex(secondaryH, Math.max(15, s - 30), isDark ? 65 : 35);
 
+  let baseTokens: DesignTokens;
+
   if (isDark) {
-    return {
+    baseTokens = {
       primary,
       primaryHover,
       primaryLight,
@@ -78,48 +85,200 @@ export function generateDesignTokens(primaryHex: string, style: ThemeStyle = 'mo
       warning: '#f59e0b',
       danger: '#ef4444'
     };
+  } else {
+    // Light Mode variations based on style
+    let bg = '#ffffff';
+    let surface = '#f8fafc';
+    let surfaceMuted = '#f1f5f9';
+    let border = '#e2e8f0';
+
+    if (style === 'luxury') {
+      bg = '#faf9f6'; // Warm ivory luxury background
+      surface = '#ffffff';
+      surfaceMuted = '#f4f1ea';
+      border = '#e8e2d5';
+    } else if (style === 'organic') {
+      bg = '#faf8f5';
+      surface = '#ffffff';
+      surfaceMuted = '#f0ebe1';
+      border = '#e2dbcd';
+    } else if (style === 'minimal') {
+      bg = '#ffffff';
+      surface = '#fafafa';
+      surfaceMuted = '#f4f4f5';
+      border = '#ebebeb';
+    }
+
+    baseTokens = {
+      primary,
+      primaryHover,
+      primaryLight,
+      primaryDark,
+      secondary,
+      accent,
+      background: bg,
+      surface,
+      surfaceMuted,
+      text: '#0f172a',
+      textMuted: '#64748b',
+      border,
+      success: '#10b981',
+      warning: '#f59e0b',
+      danger: '#ef4444'
+    };
   }
 
-  // Light Mode variations based on style
-  let bg = '#ffffff';
-  let surface = '#f8fafc';
-  let surfaceMuted = '#f1f5f9';
-  let border = '#e2e8f0';
-
-  if (style === 'luxury') {
-    bg = '#faf9f6'; // Warm ivory luxury background
-    surface = '#ffffff';
-    surfaceMuted = '#f4f1ea';
-    border = '#e8e2d5';
-  } else if (style === 'organic') {
-    bg = '#faf8f5';
-    surface = '#ffffff';
-    surfaceMuted = '#f0ebe1';
-    border = '#e2dbcd';
-  } else if (style === 'minimal') {
-    bg = '#ffffff';
-    surface = '#fafafa';
-    surfaceMuted = '#f4f4f5';
-    border = '#ebebeb';
+  if (overrides) {
+    return { ...baseTokens, ...overrides };
   }
 
+  return baseTokens;
+}
+
+/**
+ * Derives a full harmonic palette based on an anchor color and mood
+ */
+export function generateHarmoniousPalette(baseHex: string, mood: 'vibrant' | 'luxury' | 'pastel' | 'monochrome' = 'luxury'): Partial<DesignTokens> {
+  const { h, s, l } = hexToHSL(baseHex);
+  
+  if (mood === 'monochrome') {
+    return {
+      primary: baseHex,
+      primaryHover: hslToHex(h, s, Math.max(10, l - 10)),
+      primaryLight: hslToHex(h, Math.max(5, s - 20), Math.min(96, l + 25)),
+      primaryDark: hslToHex(h, s, Math.max(5, l - 25)),
+      secondary: hslToHex(h, 15, 30),
+      accent: hslToHex(h, 25, 45),
+      surfaceMuted: hslToHex(h, 8, 95),
+      border: hslToHex(h, 10, 88)
+    };
+  }
+
+  if (mood === 'luxury') {
+    const goldAccentH = 43; // Rich warm champagne gold
+    return {
+      primary: baseHex,
+      primaryHover: hslToHex(h, s, Math.max(10, l - 8)),
+      primaryLight: hslToHex(h, s, Math.min(94, l + 28)),
+      primaryDark: hslToHex(h, s, Math.max(5, l - 22)),
+      secondary: hslToHex((h + 20) % 360, Math.min(70, s + 10), 25),
+      accent: hslToHex(goldAccentH, 85, 48),
+      background: '#faf9f6',
+      surface: '#ffffff',
+      surfaceMuted: '#f5f2eb',
+      border: '#e8e2d6'
+    };
+  }
+
+  if (mood === 'vibrant') {
+    return {
+      primary: baseHex,
+      primaryHover: hslToHex(h, Math.min(100, s + 10), Math.max(15, l - 10)),
+      primaryLight: hslToHex(h, 85, 92),
+      primaryDark: hslToHex(h, 95, 25),
+      secondary: hslToHex((h + 160) % 360, 85, 45),
+      accent: hslToHex((h + 60) % 360, 95, 50),
+      background: '#ffffff',
+      surface: '#ffffff',
+      surfaceMuted: '#f8fafc',
+      border: '#e2e8f0'
+    };
+  }
+
+  // pastel / calm
   return {
-    primary,
-    primaryHover,
-    primaryLight,
-    primaryDark,
-    secondary,
-    accent,
-    background: bg,
-    surface,
-    surfaceMuted,
-    text: '#0f172a',
-    textMuted: '#64748b',
-    border,
-    success: '#10b981',
-    warning: '#f59e0b',
-    danger: '#ef4444'
+    primary: baseHex,
+    primaryHover: hslToHex(h, Math.max(30, s - 10), Math.max(20, l - 10)),
+    primaryLight: hslToHex(h, 45, 93),
+    primaryDark: hslToHex(h, 55, 30),
+    secondary: hslToHex((h + 40) % 360, 45, 60),
+    accent: hslToHex((h + 180) % 360, 40, 65),
+    background: '#fdfcfb',
+    surface: '#ffffff',
+    surfaceMuted: '#f7f5f2',
+    border: '#ebe6df'
   };
+}
+
+/**
+ * Converts design tokens to readable CSS Variables block
+ */
+export function convertTokensToCSS(theme: StoreTheme): string {
+  const t = theme.tokens;
+  const radius = theme.customRadiusPx !== undefined ? `${theme.customRadiusPx}px` : 
+    theme.radius === 'none' ? '0px' :
+    theme.radius === 'sm' ? '8px' :
+    theme.radius === 'md' ? '16px' :
+    theme.radius === 'lg' ? '24px' : '9999px';
+
+  return `:root {
+  /* Brand Colors */
+  --color-primary: ${t.primary};
+  --color-primary-hover: ${t.primaryHover};
+  --color-primary-light: ${t.primaryLight};
+  --color-primary-dark: ${t.primaryDark};
+  --color-secondary: ${t.secondary};
+  --color-accent: ${t.accent};
+
+  /* Background & Surfaces */
+  --color-background: ${t.background};
+  --color-surface: ${t.surface};
+  --color-surface-muted: ${t.surfaceMuted};
+  --color-border: ${t.border};
+
+  /* Typography Colors */
+  --color-text: ${t.text};
+  --color-text-muted: ${t.textMuted};
+
+  /* Semantic Feedback */
+  --color-success: ${t.success};
+  --color-warning: ${t.warning};
+  --color-danger: ${t.danger};
+
+  /* Geometry & Layout */
+  --border-radius: ${radius};
+  --header-style: ${theme.headerStyle};
+  --card-style: ${theme.cardStyle};
+}`;
+}
+
+/**
+ * Parses user edited CSS variables into design token overrides
+ */
+export function parseCSSToTokens(cssString: string): Partial<DesignTokens> {
+  const result: Partial<DesignTokens> = {};
+  const mapping: Record<string, keyof DesignTokens> = {
+    '--color-primary': 'primary',
+    '--color-primary-hover': 'primaryHover',
+    '--color-primary-light': 'primaryLight',
+    '--color-primary-dark': 'primaryDark',
+    '--color-secondary': 'secondary',
+    '--color-accent': 'accent',
+    '--color-background': 'background',
+    '--color-surface': 'surface',
+    '--color-surface-muted': 'surfaceMuted',
+    '--color-border': 'border',
+    '--color-text': 'text',
+    '--color-text-muted': 'textMuted',
+    '--color-success': 'success',
+    '--color-warning': 'warning',
+    '--color-danger': 'danger',
+  };
+
+  const lines = cssString.split('\n');
+  for (const line of lines) {
+    const match = line.match(/(--[\w-]+)\s*:\s*([^;]+);/);
+    if (match) {
+      const varName = match[1].trim();
+      const value = match[2].trim();
+      const tokenKey = mapping[varName];
+      if (tokenKey && value.startsWith('#')) {
+        result[tokenKey] = value;
+      }
+    }
+  }
+
+  return result;
 }
 
 export const PRESET_COLOR_PALETTES = [

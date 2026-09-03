@@ -17,17 +17,19 @@ import { useCommerce } from '../../context/CommerceContext';
 interface StorefrontHeaderProps {
   onSearchChange: (query: string) => void;
   searchQuery: string;
+  overrideTenant?: import('../../types').TenantStore;
 }
 
-export const StorefrontHeader: React.FC<StorefrontHeaderProps> = ({ onSearchChange, searchQuery }) => {
+export const StorefrontHeader: React.FC<StorefrontHeaderProps> = ({ onSearchChange, searchQuery, overrideTenant }) => {
   const { 
-    activeTenant, 
+    activeTenant: contextTenant, 
     cart, 
     setCartOpen, 
     language, 
     showToast 
   } = useCommerce();
 
+  const activeTenant = overrideTenant || contextTenant;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [pwaInstalled, setPwaInstalled] = useState(false);
 
@@ -49,25 +51,30 @@ export const StorefrontHeader: React.FC<StorefrontHeaderProps> = ({ onSearchChan
       }}
     >
       {/* Top Announcement Bar */}
-      <div 
-        className="py-1.5 px-4 text-center text-xs font-bold text-white transition-colors"
-        style={{ backgroundColor: tokens.primary }}
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="hidden sm:flex items-center gap-1.5 text-[11px] opacity-90">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>فحص مخبري شامل مع كل شحنة | استرجاع مجاني</span>
-          </div>
+      {theme.announcementBar?.enabled !== false && (
+        <div 
+          className="py-1.5 px-4 text-center text-xs font-bold transition-colors"
+          style={{ 
+            backgroundColor: theme.announcementBar?.bgColor || tokens.primary,
+            color: theme.announcementBar?.textColor || '#ffffff'
+          }}
+        >
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] opacity-90">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>فحص مخبري شامل مع كل شحنة | استرجاع مجاني</span>
+            </div>
 
-          <div className="mx-auto sm:mx-0 text-[11px]">
-            ⚡ شحن مجاني لكافة مدن المملكة للطلبات فوق 300 {activeTenant.currencySymbol}
-          </div>
+            <div className="mx-auto sm:mx-0 text-[11px]">
+              {theme.announcementBar?.text || `⚡ شحن مجاني لكافة مدن المملكة للطلبات فوق 300 ${activeTenant.currencySymbol}`}
+            </div>
 
-          <div className="hidden sm:flex items-center gap-2 text-[11px]">
-            <span>خدمة العملاء: {activeTenant.contact.phone}</span>
+            <div className="hidden sm:flex items-center gap-2 text-[11px]">
+              <span>خدمة العملاء: {activeTenant.contact.phone}</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Main Navigation Bar */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -79,8 +86,13 @@ export const StorefrontHeader: React.FC<StorefrontHeaderProps> = ({ onSearchChan
               <img 
                 src={activeTenant.logo} 
                 alt={activeTenant.name} 
-                className="w-10 h-10 rounded-xl object-cover border shadow-sm"
-                style={{ borderColor: tokens.border }}
+                className="rounded-xl object-contain border shadow-sm"
+                style={{ 
+                  borderColor: tokens.border,
+                  height: theme.logoHeight ? `${theme.logoHeight}px` : '40px',
+                  width: 'auto',
+                  maxHeight: '64px'
+                }}
                 onError={(e) => {
                   (e.target as HTMLElement).style.display = 'none';
                 }}

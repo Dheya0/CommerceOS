@@ -15,18 +15,50 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
-import { Category, Product } from '../../types';
+import { Category, Product, TenantStore } from '../../types';
 
 interface StorefrontSectionsProps {
   onSelectCategory: (categoryId: string | null) => void;
   selectedCategory: string | null;
   onOpenProduct: (product: Product) => void;
+  overrideTenant?: TenantStore;
 }
 
-export const StorefrontHero: React.FC = () => {
-  const { activeTenant } = useCommerce();
+export const StorefrontHero: React.FC<{ overrideTenant?: TenantStore }> = ({ overrideTenant }) => {
+  const { activeTenant: ctxTenant } = useCommerce();
+  const activeTenant = overrideTenant || ctxTenant;
   const theme = activeTenant.theme;
   const tokens = theme.tokens;
+  const heroImage = theme.heroBannerImage || activeTenant.logo;
+
+  const getButtonStyle = () => {
+    const rad = theme.customRadiusPx !== undefined ? `${theme.customRadiusPx}px` : undefined;
+    if (theme.buttonStyle === 'gradient') {
+      return {
+        background: `linear-gradient(135deg, ${tokens.primary} 0%, ${tokens.primaryDark} 100%)`,
+        borderRadius: rad
+      };
+    }
+    if (theme.buttonStyle === 'glow') {
+      return {
+        backgroundColor: tokens.primary,
+        boxShadow: `0 0 25px ${tokens.primary}66`,
+        borderRadius: rad
+      };
+    }
+    if (theme.buttonStyle === 'outline') {
+      return {
+        backgroundColor: 'transparent',
+        border: `2px solid ${tokens.primary}`,
+        color: tokens.primary,
+        borderRadius: rad
+      };
+    }
+    return {
+      backgroundColor: tokens.primary,
+      borderRadius: rad
+    };
+  };
 
   return (
     <section 
@@ -70,13 +102,19 @@ export const StorefrontHero: React.FC = () => {
               <a
                 href="#products-section"
                 className="py-3 px-6 rounded-xl text-white font-black text-xs sm:text-sm shadow-xl hover:opacity-90 transition-all flex items-center gap-2"
-                style={{ backgroundColor: tokens.primary }}
+                style={getButtonStyle()}
               >
                 <span>تصفح المنتجات والعروض</span>
                 <ArrowLeft className="w-4 h-4" />
               </a>
 
-              <div className="flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold" style={{ borderColor: tokens.border }}>
+              <div 
+                className="flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold" 
+                style={{ 
+                  borderColor: tokens.border,
+                  borderRadius: theme.customRadiusPx !== undefined ? `${theme.customRadiusPx}px` : undefined 
+                }}
+              >
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
                 <span>ضمان ذهبي 100% ومفحوص مخبرياً</span>
               </div>
@@ -103,10 +141,13 @@ export const StorefrontHero: React.FC = () => {
           <div className="lg:col-span-5 relative">
             <div 
               className="relative aspect-4/3 rounded-2xl overflow-hidden shadow-2xl border transition-all duration-300 hover:scale-[1.02]"
-              style={{ borderColor: tokens.border }}
+              style={{ 
+                borderColor: tokens.border,
+                borderRadius: theme.customRadiusPx !== undefined ? `${theme.customRadiusPx}px` : undefined 
+              }}
             >
               <img 
-                src={activeTenant.logo} 
+                src={heroImage} 
                 alt={activeTenant.name} 
                 className="w-full h-full object-cover"
               />
@@ -128,8 +169,10 @@ export const StorefrontCategories: React.FC<{
   categories: Category[];
   selectedCategory: string | null;
   onSelectCategory: (id: string | null) => void;
-}> = ({ categories, selectedCategory, onSelectCategory }) => {
-  const { activeTenant } = useCommerce();
+  overrideTenant?: TenantStore;
+}> = ({ categories, selectedCategory, onSelectCategory, overrideTenant }) => {
+  const { activeTenant: ctxTenant } = useCommerce();
+  const activeTenant = overrideTenant || ctxTenant;
   const tokens = activeTenant.theme.tokens;
 
   return (
@@ -175,8 +218,9 @@ export const StorefrontCategories: React.FC<{
   );
 };
 
-export const StorefrontBenefits: React.FC = () => {
-  const { activeTenant } = useCommerce();
+export const StorefrontBenefits: React.FC<{ overrideTenant?: TenantStore }> = ({ overrideTenant }) => {
+  const { activeTenant: ctxTenant } = useCommerce();
+  const activeTenant = overrideTenant || ctxTenant;
   const tokens = activeTenant.theme.tokens;
 
   const benefits = [
@@ -222,8 +266,9 @@ export const StorefrontBenefits: React.FC = () => {
   );
 };
 
-export const StorefrontTestimonials: React.FC = () => {
-  const { activeTenant } = useCommerce();
+export const StorefrontTestimonials: React.FC<{ overrideTenant?: TenantStore }> = ({ overrideTenant }) => {
+  const { activeTenant: ctxTenant } = useCommerce();
+  const activeTenant = overrideTenant || ctxTenant;
   const tokens = activeTenant.theme.tokens;
 
   const reviews = [
@@ -281,8 +326,9 @@ export const StorefrontTestimonials: React.FC = () => {
   );
 };
 
-export const StorefrontFAQ: React.FC = () => {
-  const { activeTenant } = useCommerce();
+export const StorefrontFAQ: React.FC<{ overrideTenant?: TenantStore }> = ({ overrideTenant }) => {
+  const { activeTenant: ctxTenant } = useCommerce();
+  const activeTenant = overrideTenant || ctxTenant;
   const tokens = activeTenant.theme.tokens;
 
   const [openIndex, setOpenIndex] = useState<number | null>(0);
@@ -332,8 +378,9 @@ export const StorefrontFAQ: React.FC = () => {
   );
 };
 
-export const StorefrontFooter: React.FC = () => {
-  const { activeTenant } = useCommerce();
+export const StorefrontFooter: React.FC<{ overrideTenant?: TenantStore }> = ({ overrideTenant }) => {
+  const { activeTenant: ctxTenant } = useCommerce();
+  const activeTenant = overrideTenant || ctxTenant;
   const tokens = activeTenant.theme.tokens;
 
   return (

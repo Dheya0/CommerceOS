@@ -19,7 +19,8 @@ import {
   BarChart3,
   Rocket,
   Download,
-  Code2
+  Code2,
+  Cloud
 } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
 
@@ -53,7 +54,8 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
     {
       title: isAr ? 'مصنع الأكواد والبناء' : 'Code Factory',
       items: [
-        { id: 'publish', label: isAr ? 'البناء والتصدير' : 'Build & Export', icon: Rocket }
+        { id: 'publish', label: isAr ? 'البناء والتصدير' : 'Build & Export', icon: Rocket },
+        { id: 'cloud_storage', label: isAr ? 'التخزين السحابي والإصدارات' : 'Cloud Storage & Versions', icon: Cloud }
       ]
     },
     {

@@ -13,11 +13,16 @@ import { StorefrontProductGrid } from './StorefrontProductGrid';
 import { ProductDetailModal } from './ProductDetailModal';
 import { CartDrawer } from './CartDrawer';
 import { CheckoutModal } from './CheckoutModal';
-import { Product } from '../../types';
+import { Product, TenantStore } from '../../types';
+import { getEffectiveFontFamily } from '../../utils/fontManager';
 
-export const StorefrontView: React.FC = () => {
+interface StorefrontViewProps {
+  overrideTenant?: TenantStore;
+}
+
+export const StorefrontView: React.FC<StorefrontViewProps> = ({ overrideTenant }) => {
   const { 
-    activeTenant, 
+    activeTenant: contextTenant, 
     products, 
     categories, 
     previewDevice, 
@@ -25,10 +30,12 @@ export const StorefrontView: React.FC = () => {
     setProductModal 
   } = useCommerce();
 
+  const activeTenant = overrideTenant || contextTenant;
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const tokens = activeTenant.theme.tokens;
+  const effectiveFont = getEffectiveFontFamily(activeTenant.theme);
 
   // Filter products by category & search query
   const filteredProducts = products.filter(p => {
@@ -55,29 +62,29 @@ export const StorefrontView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center">
+      {/* Dynamic Injected Custom CSS if user defined */}
+      {activeTenant.theme.customCss && (
+        <style dangerouslySetInnerHTML={{ __html: activeTenant.theme.customCss }} />
+      )}
       
       {/* Viewport Frame for device simulation */}
       <div 
         className={`w-full transition-all duration-300 ${getDeviceFrameClass()}`}
         style={{ 
           backgroundColor: tokens.background,
-          fontFamily: activeTenant.theme.fontFamily === 'tajawal' 
-            ? 'Tajawal, sans-serif' 
-            : activeTenant.theme.fontFamily === 'alexandria'
-            ? 'Alexandria, sans-serif'
-            : activeTenant.theme.fontFamily === 'playfair'
-            ? 'Playfair Display, serif'
-            : 'Plus Jakarta Sans, sans-serif'
+          fontFamily: effectiveFont,
+          color: tokens.text
         }}
       >
         {/* Dynamic Header */}
         <StorefrontHeader 
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          overrideTenant={activeTenant}
         />
 
         {/* Hero Section */}
-        <StorefrontHero />
+        <StorefrontHero overrideTenant={activeTenant} />
 
         {/* Categories Bar */}
         {categories.length > 0 && (
@@ -85,6 +92,7 @@ export const StorefrontView: React.FC = () => {
             categories={categories}
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
+            overrideTenant={activeTenant}
           />
         )}
 
@@ -92,19 +100,20 @@ export const StorefrontView: React.FC = () => {
         <StorefrontProductGrid 
           products={filteredProducts}
           onOpenProduct={(prod: Product) => setProductModal(prod)}
+          overrideTenant={activeTenant}
         />
 
         {/* Benefits & Guarantees */}
-        <StorefrontBenefits />
+        <StorefrontBenefits overrideTenant={activeTenant} />
 
         {/* Testimonials */}
-        <StorefrontTestimonials />
+        <StorefrontTestimonials overrideTenant={activeTenant} />
 
         {/* FAQ */}
-        <StorefrontFAQ />
+        <StorefrontFAQ overrideTenant={activeTenant} />
 
         {/* Footer */}
-        <StorefrontFooter />
+        <StorefrontFooter overrideTenant={activeTenant} />
       </div>
 
       {/* Product Detail Modal */}

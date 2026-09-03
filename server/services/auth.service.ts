@@ -1,6 +1,6 @@
-import { StaffRole } from '../../src/types.ts';
+import { StaffRole, StaffMember } from '../../src/types.ts';
 import { ROLE_PERMISSIONS, AuthenticatedUser } from '../middleware/auth.ts';
-import { signAuthToken, verifyPassword, accountLockout, sessionRevocation } from '../utils/security.ts';
+import { signAuthToken, verifyPassword, accountLockout, sessionRevocation, hashPassword } from '../utils/security.ts';
 import { ValidationError, UnauthorizedError, ForbiddenError, TooManyRequestsError } from '../domain/errors.ts';
 import { db } from '../db.ts';
 
@@ -12,6 +12,58 @@ export interface LoginParams {
 }
 
 export class AuthService {
+  /**
+   * Register a new user/merchant.
+   * Creates a staff member in the database with role 'store_owner' and initially empty tenant.
+   */
+  public async register(data: { name: string; email: string; password?: string }) {
+    const { name, email, password } = data;
+    if (!name || !name.trim()) {
+      throw new ValidationError('الاسم الكامل مطلوب للتسجيل');
+    }
+    if (!email || !email.trim()) {
+      throw new ValidationError('البريد الإلكتروني مطلوب للتسجيل');
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Check if user already exists
+    const allStaff = db.getStaff();
+    const existing = allStaff.find(s => s.email.toLowerCase() === cleanEmail);
+    if (existing) {
+      throw new ValidationError('البريد الإلكتروني مسجل مسبقاً في النظام');
+    }
+
+    const id = `staff-${Date.now()}`;
+    const passwordHash = password ? hashPassword(password) : '';
+
+    const newStaff: StaffMember = {
+      id,
+      tenantId: '', // Empty initially - no default store
+      name: name.trim(),
+      email: cleanEmail,
+      role: 'store_owner',
+      permissions: ROLE_PERMISSIONS['store_owner'],
+      status: 'active',
+      avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80`,
+      createdAt: new Date().toISOString().split('T')[0],
+      passwordHash
+    };
+
+    db.createStaff(newStaff);
+
+    return {
+      success: true,
+      user: {
+        id,
+        name: newStaff.name,
+        email: newStaff.email,
+        role: newStaff.role,
+        tenantId: ''
+      }
+    };
+  }
+
   /**
    * Server-Side DB-Backed Authentication
    * Validates credentials against salted PBKDF2 hashes in database.
