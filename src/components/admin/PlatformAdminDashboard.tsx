@@ -454,11 +454,17 @@ export const PlatformAdminDashboard: React.FC = () => {
                         <tr key={tenant.id} className="hover:bg-slate-800/40 transition-colors">
                           <td className="py-4">
                             <div className="flex items-center gap-3">
-                              <img 
-                                src={tenant.logo} 
-                                alt="" 
-                                className="w-10 h-10 rounded-xl object-cover border border-slate-700 shrink-0" 
-                              />
+                              {tenant.logo ? (
+                                <img 
+                                  src={tenant.logo} 
+                                  alt="" 
+                                  className="w-10 h-10 rounded-xl object-cover border border-slate-700 shrink-0" 
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold shrink-0">
+                                  {tenant.name?.charAt(0) || 'S'}
+                                </div>
+                              )}
                               <div>
                                 <div className="font-bold text-white text-sm flex items-center gap-1.5">
                                   <span>{tenant.name}</span>
@@ -662,8 +668,8 @@ export const PlatformAdminDashboard: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                    {tenants.map((tenant) => (
-                      <tr key={tenant.id} className="hover:bg-white/[0.02] transition-colors">
+                    {tenants.map((tenant, idx) => (
+                      <tr key={`platform-tenant-${tenant.id}-${idx}`} className="hover:bg-white/[0.02] transition-colors">
                         <td className="py-4 pr-3">
                           <div className="font-bold text-white text-sm">{tenant.name}</div>
                           <div className="font-mono text-slate-500 text-[11px]" dir="ltr">{tenant.domain}</div>
@@ -1025,7 +1031,13 @@ export const PlatformAdminDashboard: React.FC = () => {
             
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div className="flex items-center gap-3">
-                <img src={selectedTenantForEdit.logo} alt="" className="w-10 h-10 rounded-xl object-cover" />
+                {selectedTenantForEdit.logo ? (
+                  <img src={selectedTenantForEdit.logo} alt="" className="w-10 h-10 rounded-xl object-cover" />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-white font-bold shrink-0">
+                    {selectedTenantForEdit.name?.charAt(0) || 'S'}
+                  </div>
+                )}
                 <div>
                   <h3 className="text-base font-black text-white">
                     تعديل حصص ومتطلبات المتجر (Tenant Quotas)

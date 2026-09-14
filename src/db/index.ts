@@ -16,12 +16,29 @@ export const createPool = (): Pool => {
       password: process.env.SQL_PASSWORD,
       database: process.env.SQL_DB_NAME,
       max: 10,
+      idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 15000,
+      allowExitOnIdle: true,
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 10000,
     });
 
     // Prevent unhandled pool-level errors from crashing the application
-    global._postgresPool.on('error', (err) => {
-      console.error('Unexpected error on idle SQL pool client:', err);
+    global._postgresPool.on('error', (err: any) => {
+      // Idle client disconnections by Cloud SQL Proxy / database are normal lifecycle events
+      // handled automatically by node-postgres discarding the dead socket.
+      const isIdleDisconnect =
+        err?.message?.includes('Connection terminated unexpectedly') ||
+        err?.message?.includes('connection closed') ||
+        err?.code === 'ECONNRESET' ||
+        err?.code === 'EPIPE' ||
+        err?.code === '57P01';
+
+      if (isIdleDisconnect) {
+        console.warn('[PostgreSQL Pool] Idle connection terminated and safely reclaimed by pool.');
+      } else {
+        console.error('[PostgreSQL Pool] Unexpected error on SQL client:', err);
+      }
     });
   }
   return global._postgresPool;

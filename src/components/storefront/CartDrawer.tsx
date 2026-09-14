@@ -155,12 +155,21 @@ export const CartDrawer: React.FC = () => {
                     style={{ backgroundColor: tokens.surface, borderColor: tokens.border }}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <img 
-                        src={item.product.images[0]} 
-                        alt={item.product.name} 
-                        className="w-14 h-14 rounded-lg object-cover border"
-                        style={{ borderColor: tokens.border }}
-                      />
+                      {item.product.images && item.product.images[0] ? (
+                        <img 
+                          src={item.product.images[0]} 
+                          alt={item.product.name} 
+                          className="w-14 h-14 rounded-lg object-cover border shrink-0"
+                          style={{ borderColor: tokens.border }}
+                        />
+                      ) : (
+                        <div 
+                          className="w-14 h-14 rounded-lg bg-slate-800/80 border flex items-center justify-center text-slate-500 shrink-0"
+                          style={{ borderColor: tokens.border }}
+                        >
+                          <ShoppingBag className="w-5 h-5" />
+                        </div>
+                      )}
                       <div className="min-w-0">
                         <h4 className="text-xs font-bold truncate mb-0.5" style={{ color: tokens.text }}>
                           {item.product.name}

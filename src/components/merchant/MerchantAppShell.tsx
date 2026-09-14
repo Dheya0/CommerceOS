@@ -13,6 +13,30 @@ import { LiveDesignStudio } from '../builder/LiveDesignStudio';
 import { SettingsView } from './SettingsView';
 import { PublishCenter } from '../dashboard/PublishCenter';
 import { CloudStorageHub } from '../dashboard/CloudStorageHub';
+import { NoCodeStudioView } from '../studio/NoCodeStudioView';
+import { POSView } from './POSView';
+import { DebtsView } from './DebtsView';
+import { ExpensesView } from './ExpensesView';
+import { CategoriesView } from './CategoriesView';
+import { CouponsView } from './CouponsView';
+import { BankingAndPaymentsHub } from './BankingAndPaymentsHub';
+import { CommercialHubView } from './CommercialHubView';
+import { FeatureManagerView } from './FeatureManagerView';
+import { SecurityCenterView } from './SecurityCenterView';
+import { HelpSupportView } from './HelpSupportView';
+import { CommerceKnowledgeAcademy } from './CommerceKnowledgeAcademy';
+import { ProjectsHubView } from './ProjectsHubView';
+import { PersonalProfileView } from './PersonalProfileView';
+import { UsageAndBillingHub } from '../saas/UsageAndBillingHub';
+import { LicensingManager } from '../dashboard/LicensingManager';
+import { AbandonedCartsManager } from '../dashboard/AbandonedCartsManager';
+import { NotificationsManager } from '../dashboard/NotificationsManager';
+import { MobileAppManager } from '../dashboard/MobileAppManager';
+import { DesktopPOSManager } from '../dashboard/DesktopPOSManager';
+import { DynamicRulesManager } from '../dashboard/DynamicRulesManager';
+import { EventDrivenCQRSManager } from '../dashboard/EventDrivenCQRSManager';
+import { WebhooksPluginsManager } from '../dashboard/WebhooksPluginsManager';
+import { BuildFarmMonitor } from '../dashboard/BuildFarmMonitor';
 import { useCommerce } from '../../context/CommerceContext';
 import { X, ArrowRight } from 'lucide-react';
 
@@ -21,7 +45,7 @@ interface MerchantAppShellProps {
 }
 
 export const MerchantAppShell: React.FC<MerchantAppShellProps> = ({ onOpenCommandPalette }) => {
-  const { language } = useCommerce();
+  const { language, activeTenant } = useCommerce();
   const isAr = language === 'ar';
 
   const [activeSection, setActiveSection] = useState<string>('overview');
@@ -32,13 +56,34 @@ export const MerchantAppShell: React.FC<MerchantAppShellProps> = ({ onOpenComman
   // Sub-navigation state for D3
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [productEditorId, setProductEditorId] = useState<string | 'new' | null>(null);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<string | undefined>(undefined);
 
   // Reset sub-states when switching main sections
-  const handleSectionChange = (section: string) => {
+  const handleSectionChange = (section: string, subParam?: string) => {
     setActiveSection(section);
     setSelectedOrderId(null);
-    setProductEditorId(null);
+    if (section === 'products' && subParam === 'new') {
+      setProductEditorId('new');
+    } else {
+      setProductEditorId(null);
+    }
+    if (section === 'settings' && subParam) {
+      setSettingsInitialTab(subParam);
+    } else if (section !== 'settings') {
+      setSettingsInitialTab(undefined);
+    }
   };
+
+  const KNOWN_SECTIONS = [
+    'overview', 'projects', 'orders', 'products', 'inventory', 'customers',
+    'design', 'theme', 'storefront', 'settings', 'features_manager', 'publish',
+    'publish_center', 'cloud_storage', 'no_code_studio', 'pos', 'debts',
+    'expenses', 'categories', 'coupons', 'banking_payments', 'commercial_hub',
+    'security_compliance', 'security_center', 'knowledge_academy', 'help',
+    'saas_billing', 'licensing', 'abandoned_carts', 'notifications',
+    'mobile_app', 'desktop_pos', 'dynamic_rules', 'event_cqrs',
+    'webhooks_plugins', 'build_farm', 'personal_profile', 'profile'
+  ];
 
   return (
     <div className="min-h-screen bg-[#050B14] text-[#F4F6F8] flex relative selection:bg-[#C9A45C] selection:text-[#050B14]">
@@ -103,6 +148,10 @@ export const MerchantAppShell: React.FC<MerchantAppShellProps> = ({ onOpenComman
             <MerchantDashboardView setActiveSection={handleSectionChange} />
           )}
 
+          {activeSection === 'projects' && (
+            <ProjectsHubView onNavigateSection={handleSectionChange} />
+          )}
+
           {activeSection === 'orders' && (
             selectedOrderId ? (
               <OrderDetailView orderId={selectedOrderId} onBack={() => setSelectedOrderId(null)} />
@@ -122,6 +171,34 @@ export const MerchantAppShell: React.FC<MerchantAppShellProps> = ({ onOpenComman
             )
           )}
 
+          {activeSection === 'pos' && (
+            <POSView />
+          )}
+
+          {activeSection === 'debts' && (
+            <DebtsView />
+          )}
+
+          {activeSection === 'expenses' && (
+            <ExpensesView />
+          )}
+
+          {activeSection === 'banking_payments' && (
+            <BankingAndPaymentsHub />
+          )}
+
+          {activeSection === 'commercial_hub' && (
+            <CommercialHubView />
+          )}
+
+          {activeSection === 'categories' && (
+            <CategoriesView />
+          )}
+
+          {activeSection === 'coupons' && (
+            <CouponsView />
+          )}
+
           {activeSection === 'inventory' && (
             <InventoryView />
           )}
@@ -131,10 +208,18 @@ export const MerchantAppShell: React.FC<MerchantAppShellProps> = ({ onOpenComman
           )}
 
           {activeSection === 'settings' && (
-            <SettingsView />
+            <SettingsView initialTab={settingsInitialTab} />
           )}
 
-          {activeSection === 'publish' && (
+          {activeSection === 'features_manager' && (
+            <FeatureManagerView />
+          )}
+
+          {activeSection === 'no_code_studio' && (
+            <NoCodeStudioView />
+          )}
+
+          {(activeSection === 'publish' || activeSection === 'publish_center') && (
             <PublishCenter />
           )}
 
@@ -142,27 +227,83 @@ export const MerchantAppShell: React.FC<MerchantAppShellProps> = ({ onOpenComman
             <CloudStorageHub />
           )}
 
-          {(activeSection === 'design' || activeSection === 'storefront') && (
+          {(activeSection === 'design' || activeSection === 'theme') && (
             <LiveDesignStudio />
           )}
 
-          {/* Fallback for other sections not yet in D3 */}
-          {!['overview', 'orders', 'products', 'inventory', 'customers', 'design', 'storefront', 'settings', 'publish', 'cloud_storage'].includes(activeSection) && (
-            <div className="py-12 px-6 bg-white/[0.02] border border-white/10 rounded-3xl text-center space-y-4 max-w-2xl mx-auto my-12 animate-in fade-in duration-300">
-              <div className="w-16 h-16 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 text-[#D4AF37] flex items-center justify-center mx-auto text-2xl font-bold">
+          {(activeSection === 'security_compliance' || activeSection === 'security_center') && (
+            <SecurityCenterView />
+          )}
+
+          {activeSection === 'knowledge_academy' && (
+            <CommerceKnowledgeAcademy />
+          )}
+
+          {activeSection === 'help' && (
+            <HelpSupportView />
+          )}
+
+          {activeSection === 'saas_billing' && (
+            <UsageAndBillingHub />
+          )}
+
+          {activeSection === 'licensing' && (
+            <LicensingManager />
+          )}
+
+          {activeSection === 'abandoned_carts' && (
+            <AbandonedCartsManager />
+          )}
+
+          {activeSection === 'notifications' && (
+            <NotificationsManager />
+          )}
+
+          {activeSection === 'mobile_app' && (
+            <MobileAppManager />
+          )}
+
+          {activeSection === 'desktop_pos' && (
+            <DesktopPOSManager tenant={activeTenant} />
+          )}
+
+          {activeSection === 'dynamic_rules' && (
+            <DynamicRulesManager tenant={activeTenant} />
+          )}
+
+          {activeSection === 'event_cqrs' && (
+            <EventDrivenCQRSManager tenant={activeTenant} />
+          )}
+
+          {activeSection === 'webhooks_plugins' && (
+            <WebhooksPluginsManager tenant={activeTenant} />
+          )}
+
+          {activeSection === 'build_farm' && (
+            <BuildFarmMonitor />
+          )}
+
+          {(activeSection === 'personal_profile' || activeSection === 'profile') && (
+            <PersonalProfileView />
+          )}
+
+          {/* Intelligent Fallback only for genuinely unrecognized routes */}
+          {!KNOWN_SECTIONS.includes(activeSection) && (
+            <div className="py-12 px-6 bg-[#0B1422] border border-[#233247] rounded-3xl text-center space-y-4 max-w-2xl mx-auto my-12 animate-in fade-in duration-300 shadow-xl">
+              <div className="w-16 h-16 rounded-2xl bg-[#C9A45C]/15 border border-[#C9A45C]/30 text-[#C9A45C] flex items-center justify-center mx-auto text-2xl font-bold">
                 {activeSection?.charAt(0)?.toUpperCase() || 'M'}
               </div>
               <h2 className="text-xl font-bold text-white capitalize">
-                {activeSection} {isAr ? 'قيد التطوير في المراحل اللاحقة' : 'Module Roadmap'}
+                {activeSection}
               </h2>
-              <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+              <p className="text-xs text-[#97A4B5] max-w-md mx-auto leading-relaxed">
                 {isAr 
-                  ? 'هذا القسم مخصص للعمليات المتقدمة وسيتم تفعيله بالتتابع وفق خطة التطوير.'
-                  : 'This module is scheduled for upcoming implementation phases.'}
+                  ? 'تم تسجيل هذه النافذة في معمارية النظام السيادي.'
+                  : 'This module is registered in the sovereign platform architecture.'}
               </p>
               <button
                 onClick={() => handleSectionChange('overview')}
-                className="px-5 py-2.5 bg-[#D4AF37] hover:bg-[#C59B27] text-[#07111F] rounded-xl text-xs font-bold transition-all shadow-lg inline-flex items-center gap-2"
+                className="px-5 py-2.5 bg-gradient-to-r from-[#C9A45C] to-[#9A7B26] text-[#050B14] rounded-xl text-xs font-black transition-all shadow-lg inline-flex items-center gap-2"
               >
                 <span>{isAr ? 'العودة إلى لوحة القيادة' : 'Return to Dashboard'}</span>
                 <ArrowRight className="w-4 h-4 rtl:rotate-180" />

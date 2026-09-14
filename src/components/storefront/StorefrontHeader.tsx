@@ -44,7 +44,7 @@ export const StorefrontHeader: React.FC<StorefrontHeaderProps> = ({ onSearchChan
 
   return (
     <header 
-      className="sticky top-16 z-40 border-b shadow-sm transition-colors duration-300"
+      className="sticky top-0 z-30 border-b shadow-sm transition-colors duration-300"
       style={{ 
         backgroundColor: tokens.background, 
         borderColor: tokens.border 
@@ -83,20 +83,29 @@ export const StorefrontHeader: React.FC<StorefrontHeaderProps> = ({ onSearchChan
           {/* Logo & Store Identity */}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2.5">
-              <img 
-                src={activeTenant.logo} 
-                alt={activeTenant.name} 
-                className="rounded-xl object-contain border shadow-sm"
-                style={{ 
-                  borderColor: tokens.border,
-                  height: theme.logoHeight ? `${theme.logoHeight}px` : '40px',
-                  width: 'auto',
-                  maxHeight: '64px'
-                }}
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
+              {activeTenant.logo ? (
+                <img 
+                  src={activeTenant.logo} 
+                  alt={activeTenant.name} 
+                  className="rounded-xl object-contain border shadow-sm"
+                  style={{ 
+                    borderColor: tokens.border,
+                    height: theme.logoHeight ? `${theme.logoHeight}px` : '40px',
+                    width: 'auto',
+                    maxHeight: '64px'
+                  }}
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
+              ) : (
+                <div 
+                  className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-sm shrink-0"
+                  style={{ backgroundColor: tokens.primary }}
+                >
+                  {activeTenant.name?.charAt(0) || 'S'}
+                </div>
+              )}
               <div className="text-right">
                 <h1 className="text-base sm:text-lg font-black tracking-tight leading-tight" style={{ color: tokens.text }}>
                   {language === 'ar' ? activeTenant.name : activeTenant.nameEn}

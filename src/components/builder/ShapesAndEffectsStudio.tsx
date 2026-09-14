@@ -98,19 +98,21 @@ export const ShapesAndEffectsStudio: React.FC<ShapesAndEffectsStudioProps> = ({ 
 
       {/* 2. Button Styling Options */}
       <div className="space-y-3">
-        <label className="block text-xs font-bold text-slate-300">طراز وتأثير الأزرار التفاعلية (Button Styling)</label>
-        <div className="grid grid-cols-2 gap-2">
+        <label className="block text-xs font-bold text-slate-300">طراز وتأثير الأزرار التفاعلية (Button System)</label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {[
-            { id: 'solid', label: 'مصمت كلاسيكي (Solid)', desc: 'لون موحد واضح ومقروء' },
-            { id: 'gradient', label: 'تدرج لوني انسيابي (Gradient)', desc: 'تدرج فخم من درجات علامتك' },
-            { id: 'glow', label: 'توهج نيون مشع (Glow)', desc: 'إضاءة محيطية ساحرة للأزرار' },
-            { id: 'outline', label: 'إطار أنيق مفرغ (Outline)', desc: 'خلفية شفافة مع خط محيطي ملون' },
+            { id: 'solid' as const, label: 'مصمت (Solid)', desc: 'لون موحد واضح ومقروء' },
+            { id: 'gradient' as const, label: 'تدرج (Gradient)', desc: 'تدرج فخم من درجات علامتك' },
+            { id: 'glow' as const, label: 'توهج نيون (Glow)', desc: 'إضاءة محيطية ساحرة للأزرار' },
+            { id: 'outline' as const, label: 'إطار مفرغ (Outline)', desc: 'خلفية شفافة مع خط محيطي ملون' },
+            { id: 'glass' as const, label: 'بلوري (Glass)', desc: 'شفافية عصرية مع Backdrop Blur' },
+            { id: 'luxury_gold' as const, label: 'ذهبي ملكي (Gold)', desc: 'لمعان شامبانيا فاخر عالي التباين' },
           ].map(btn => {
             const isSelected = (draftTheme.buttonStyle || 'solid') === btn.id;
             return (
               <button
                 key={btn.id}
-                onClick={() => onThemeChange(prev => ({ ...prev, buttonStyle: btn.id as any }))}
+                onClick={() => onThemeChange(prev => ({ ...prev, buttonStyle: btn.id }))}
                 className={`p-3 rounded-xl border text-right transition-all flex flex-col justify-between ${
                   isSelected
                     ? 'border-amber-500 bg-amber-500/15 text-white font-bold shadow-sm'
@@ -130,21 +132,24 @@ export const ShapesAndEffectsStudio: React.FC<ShapesAndEffectsStudioProps> = ({ 
 
       {/* 3. Card Styling Options */}
       <div className="space-y-3">
-        <label className="block text-xs font-bold text-slate-300">مظهر بطاقات المنتجات (Card Elevation & Material)</label>
-        <div className="grid grid-cols-3 gap-2">
+        <label className="block text-xs font-bold text-slate-300">مظهر بطاقات المنتجات والأقسام (Card System)</label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {[
-            { id: 'flat', label: 'مسطح بإطار', desc: 'بسيط وهادئ' },
-            { id: 'elevated', label: 'ظلال ثلاثية', desc: 'عمق وارتفاع' },
-            { id: 'glass', label: 'زجاجي Blur', desc: 'شفافية بلورية' },
+            { id: 'elevated' as const, label: 'مرتفعة (Elevated)', desc: 'ظلال ثلاثية الأبعاد' },
+            { id: 'bordered' as const, label: 'محددة (Bordered)', desc: 'إطار صريح ونقي' },
+            { id: 'glass' as const, label: 'زجاجي (Glass)', desc: 'شفافية بلورية Blur' },
+            { id: 'luxurious_gold' as const, label: 'إطار ذهبي (Gold)', desc: 'لمسات ذهبية راقية' },
+            { id: 'minimal' as const, label: 'مينيمال (Minimal)', desc: 'مسطح بدون ظلال' },
+            { id: 'inset_subtle' as const, label: 'غائر (Inset)', desc: 'عمق داخلي ناعم' },
           ].map(card => {
-            const isSelected = (draftTheme.cardStyle || 'flat') === card.id;
+            const isSelected = (draftTheme.cardStyle || 'elevated') === card.id;
             return (
               <button
                 key={card.id}
-                onClick={() => onThemeChange(prev => ({ ...prev, cardStyle: card.id as any }))}
+                onClick={() => onThemeChange(prev => ({ ...prev, cardStyle: card.id }))}
                 className={`p-3 rounded-xl border text-right transition-all ${
                   isSelected
-                    ? 'border-amber-500 bg-amber-500/15 text-white font-bold'
+                    ? 'border-amber-500 bg-amber-500/15 text-white font-bold shadow-sm'
                     : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
                 }`}
               >

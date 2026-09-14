@@ -418,7 +418,7 @@ export const LicensingManager: React.FC = () => {
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span>نطاق CNAME مخصص:</span>
+                <span>تصدير الكود البرمجي المستقل:</span>
                 <span className={`font-bold ${quotas.allowCustomDomain ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {quotas.allowCustomDomain ? 'مفعل ✓' : 'غير مفعل ✗'}
                 </span>

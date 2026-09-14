@@ -32,6 +32,7 @@ import { CustomColorStudio } from './CustomColorStudio';
 import { ShapesAndEffectsStudio } from './ShapesAndEffectsStudio';
 import { BrandingAssetsStudio } from './BrandingAssetsStudio';
 import { LiveCodeSyncStudio } from './LiveCodeSyncStudio';
+import { DynamicThemeEngineStudio } from './DynamicThemeEngineStudio';
 import { StorefrontHeader } from '../storefront/StorefrontHeader';
 import { 
   StorefrontHero, 
@@ -74,7 +75,7 @@ export const LiveDesignStudio: React.FC = () => {
   const [logoUrl, setLogoUrl] = useState(activeTenant.logo || '');
   
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
-  const [activeTab, setActiveTab] = useState<'colors' | 'typography' | 'shapes' | 'branding' | 'sections' | 'code'>('colors');
+  const [activeTab, setActiveTab] = useState<'dynamic_engine' | 'colors' | 'typography' | 'shapes' | 'branding' | 'sections' | 'code'>('dynamic_engine');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Construct draft tenant for 100% reactive preview
@@ -103,6 +104,26 @@ export const LiveDesignStudio: React.FC = () => {
       banner: 'https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=1400&q=80'
     },
     {
+      id: 'oud_perfumes',
+      name: 'عود وعطور شرقية فاخرة',
+      color: '#C9A45C',
+      style: 'luxury' as ThemeStyle,
+      font: 'tajawal' as FontFamily,
+      radius: 20,
+      btn: 'glow' as const,
+      banner: 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=1400&q=80'
+    },
+    {
+      id: 'emerald_jewels',
+      name: 'مجوهرات وألماس زمردي',
+      color: '#059669',
+      style: 'luxury' as ThemeStyle,
+      font: 'playfair' as FontFamily,
+      radius: 14,
+      btn: 'gradient' as const,
+      banner: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=1400&q=80'
+    },
+    {
       id: 'espresso_dark',
       name: 'محمصة بن مختصة',
       color: '#78350F',
@@ -123,18 +144,8 @@ export const LiveDesignStudio: React.FC = () => {
       banner: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1400&q=80'
     },
     {
-      id: 'oud_perfumes',
-      name: 'عود وعطور شرقية',
-      color: '#7C3AED',
-      style: 'luxury' as ThemeStyle,
-      font: 'tajawal' as FontFamily,
-      radius: 20,
-      btn: 'glow' as const,
-      banner: 'https://images.unsplash.com/photo-1523293182086-7651a899d37f?auto=format&fit=crop&w=1400&q=80'
-    },
-    {
       id: 'tech_gadgets',
-      name: 'تقنية وإلكترونيات',
+      name: 'تقنية وإلكترونيات وسيرفرات',
       color: '#0284C7',
       style: 'bold' as ThemeStyle,
       font: 'jakarta' as FontFamily,
@@ -144,13 +155,23 @@ export const LiveDesignStudio: React.FC = () => {
     },
     {
       id: 'organic_farm',
-      name: 'طبيعي وأغذية عضوية',
+      name: 'طبيعي وأغذية عضوية وتمور',
       color: '#15803D',
       style: 'organic' as ThemeStyle,
       font: 'alexandria' as FontFamily,
       radius: 16,
       btn: 'solid' as const,
       banner: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1400&q=80'
+    },
+    {
+      id: 'cyberpunk_neon',
+      name: 'سايبر وجيمينج فائق السرعة',
+      color: '#A855F7',
+      style: 'bold' as ThemeStyle,
+      font: 'jakarta' as FontFamily,
+      radius: 10,
+      btn: 'glow' as const,
+      banner: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=1400&q=80'
     }
   ];
 
@@ -258,6 +279,13 @@ export const LiveDesignStudio: React.FC = () => {
 
             <div className="flex items-center gap-1.5">
               <button
+                onClick={() => setCurrentView('merchant_dashboard')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all border border-slate-700/80 active:scale-95"
+                title={isAr ? 'العودة إلى لوحة تحكم التاجر' : 'Back to Merchant Dashboard'}
+              >
+                <span>{isAr ? 'لوحة التحكم' : 'Dashboard'}</span>
+              </button>
+              <button
                 onClick={handleReset}
                 className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-colors"
                 title="إلغاء التعديلات واستعادة التصميم الأصلي"
@@ -295,13 +323,14 @@ export const LiveDesignStudio: React.FC = () => {
           </div>
 
           {/* Sub Navigation Tabs */}
-          <div className="grid grid-cols-6 gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800 text-[10px] font-bold text-center">
+          <div className="flex items-center gap-1 p-1 bg-slate-950 rounded-xl border border-slate-800 text-[11px] font-bold overflow-x-auto scrollbar-none">
             {[
-              { id: 'colors' as const, label: 'الألوان', icon: Palette },
-              { id: 'typography' as const, label: 'الخطوط', icon: Type },
-              { id: 'shapes' as const, label: 'الزوايا', icon: Shapes },
-              { id: 'branding' as const, label: 'الهوية', icon: Sparkles },
-              { id: 'sections' as const, label: 'الأقسام', icon: Layout },
+              { id: 'dynamic_engine' as const, label: 'محرك الثيم الذكي', icon: Wand2, isPro: true },
+              { id: 'colors' as const, label: 'الألوان والتناغم', icon: Palette },
+              { id: 'typography' as const, label: 'الخطوط والطباعة', icon: Type },
+              { id: 'shapes' as const, label: 'الزوايا والأزرار', icon: Shapes },
+              { id: 'branding' as const, label: 'الهوية والشعارات', icon: Sparkles },
+              { id: 'sections' as const, label: 'أقسام المتجر', icon: Layout },
               { id: 'code' as const, label: 'CSS Code', icon: Code },
             ].map(tab => {
               const Icon = tab.icon;
@@ -310,12 +339,21 @@ export const LiveDesignStudio: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`py-1.5 rounded-lg transition-all flex flex-col items-center justify-center gap-1 ${
-                    isActive ? 'bg-amber-500 text-slate-950 shadow-sm font-black' : 'text-slate-400 hover:text-slate-200'
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg whitespace-nowrap transition-all ${
+                    isActive 
+                      ? 'bg-amber-500 text-slate-950 shadow-md font-black' 
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
                   <span>{tab.label}</span>
+                  {tab.isPro && (
+                    <span className={`text-[8px] px-1 py-0.2 rounded font-black ${
+                      isActive ? 'bg-slate-950 text-amber-400' : 'bg-amber-500/20 text-amber-300'
+                    }`}>
+                      AI
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -325,6 +363,15 @@ export const LiveDesignStudio: React.FC = () => {
         {/* Panel Body Content */}
         <div className="p-4 sm:p-5 space-y-6">
           
+          {/* TAB 0: DYNAMIC THEME & DESIGN SYSTEM ENGINE */}
+          {activeTab === 'dynamic_engine' && (
+            <DynamicThemeEngineStudio
+              draftTheme={draftTheme}
+              onThemeChange={setDraftTheme}
+              showToast={showToast}
+            />
+          )}
+
           {/* TAB 1: COLORS & HARMONY */}
           {activeTab === 'colors' && (
             <CustomColorStudio

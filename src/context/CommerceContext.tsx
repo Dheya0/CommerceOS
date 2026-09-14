@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   CartItem,
   Category,
@@ -15,7 +15,11 @@ import {
   TenantQuotas,
   TamperEventLog,
   AuthUser,
-  BusinessType
+  BusinessType,
+  DebtRecord,
+  DebtTransaction,
+  ExpenseRecord,
+  POSReceipt
 } from '../types';
 import {
   INITIAL_CATEGORIES,
@@ -24,13 +28,15 @@ import {
   INITIAL_ORDERS,
   INITIAL_PRODUCTS,
   INITIAL_STAFF,
-  INITIAL_TENANTS
+  INITIAL_TENANTS,
+  INITIAL_DEBTS,
+  INITIAL_EXPENSES
 } from '../data/initialData';
 import { api } from '../api/client';
 import { DEFAULT_PLATFORM_CONFIG, validateLicenseKey, generateLicenseKey } from '../utils/licensingEngine';
 import { generateDesignTokens } from '../utils/themeEngine';
 
-export type AppView = 'home' | 'storefront' | 'merchant_dashboard' | 'builder_wizard' | 'platform_admin' | 'live_customizer' | 'visual_ide' | 'auth_page' | 'pricing' | 'design_system' | 'personal_profile';
+export type AppView = 'home' | 'storefront' | 'merchant_dashboard' | 'builder_wizard' | 'platform_admin' | 'live_customizer' | 'visual_ide' | 'auth_page' | 'pricing' | 'design_system' | 'personal_profile' | 'no_code_studio';
 export type PreviewDevice = 'desktop' | 'tablet' | 'mobile';
 
 interface ToastInfo {
@@ -88,6 +94,8 @@ interface CommerceContextType {
   customers: Customer[];
   coupons: Coupon[];
   staff: StaffMember[];
+  debts: DebtRecord[];
+  expenses: ExpenseRecord[];
 
   // Cart & Commerce Flow
   cart: CartItem[];
@@ -108,6 +116,7 @@ interface CommerceContextType {
 
   // Actions
   createTenant: (newTenant: any, initialProducts?: Product[], initialCategories?: Category[]) => Promise<TenantStore>;
+  cloneTenant: (tenantId: string) => Promise<TenantStore>;
   updateTenant: (tenantId: string, updates: Partial<TenantStore>) => void;
   deleteTenant: (tenantId: string) => void;
   updateTheme: (tenantId: string, theme: StoreTheme) => void;
@@ -116,13 +125,25 @@ interface CommerceContextType {
   updateProduct: (productId: string, updates: Partial<Product>) => void;
   deleteProduct: (productId: string) => void;
 
+  addCategory: (category: Omit<Category, 'id'>) => void;
+  updateCategory: (categoryId: string, updates: Partial<Category>) => void;
+  deleteCategory: (categoryId: string) => void;
+
   addOrder: (orderData: Omit<Order, 'id' | 'orderNumber' | 'createdAt' | 'timeline'>) => Promise<Order>;
   updateOrderStatus: (orderId: string, status: Order['status'], note?: string) => void;
   updateOrderPaymentStatus: (orderId: string, paymentStatus: Order['paymentStatus'], note?: string) => void;
 
   addCustomer: (customer: Omit<Customer, 'id'>) => void;
   addCoupon: (coupon: Omit<Coupon, 'id'>) => void;
+  updateCoupon: (couponId: string, updates: Partial<Coupon>) => void;
   deleteCoupon: (couponId: string) => void;
+
+  addDebt: (debt: Omit<DebtRecord, 'id' | 'createdAt' | 'transactions' | 'status' | 'remainingAmount'>) => void;
+  recordDebtPayment: (debtId: string, amount: number, paymentMethod: DebtTransaction['paymentMethod'], note?: string) => void;
+  deleteDebt: (debtId: string) => void;
+
+  addExpense: (expense: Omit<ExpenseRecord, 'id'>) => void;
+  deleteExpense: (expenseId: string) => void;
 
   addStaff: (staff: Omit<StaffMember, 'id' | 'createdAt'>) => void;
   updateStaff: (staffId: string, updates: Partial<StaffMember>) => void;
@@ -157,85 +178,151 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const savedUser = localStorage.getItem('commerceos_auth_user');
       if (savedUser) {
-        return 'personal_profile';
+        return 'merchant_dashboard';
       }
     } catch {}
-    return 'home';
+    return 'merchant_dashboard';
   });
   const [previewDevice, setPreviewDevice] = useState<PreviewDevice>('desktop');
   const [language, setLanguage] = useState<'ar' | 'en'>('ar');
   const [activeTenantId, setActiveTenantId] = useState<string>(() => {
     try {
       const saved = localStorage.getItem('commerceos_active_tenant_id');
-      return saved || '';
+      return saved || 'store-royal-honey-oud';
     } catch {
-      return '';
+      return 'store-royal-honey-oud';
     }
   });
   const [currentStaffRole, setCurrentStaffRole] = useState<StaffRole>('store_owner');
   const [isServerSyncing, setIsServerSyncing] = useState<boolean>(false);
 
-  // Initialize with clean production state (empty arrays by default)
+  // Initialize with rich luxury Arab commerce datasets by default
   const [tenants, setTenants] = useState<TenantStore[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_tenants');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const uniqueMap = new Map<string, TenantStore>();
+          parsed.forEach((t: any, idx: number) => {
+            if (t) {
+              const id = t.id || `tenant-${idx}`;
+              if (!uniqueMap.has(id)) {
+                uniqueMap.set(id, { ...t, id });
+              }
+            }
+          });
+          const list = Array.from(uniqueMap.values());
+          if (list.length > 0) return list;
+        }
+      }
+      return INITIAL_TENANTS;
     } catch {
-      return [];
+      return INITIAL_TENANTS;
     }
   });
 
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_products');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_PRODUCTS;
     } catch {
-      return [];
+      return INITIAL_PRODUCTS;
     }
   });
 
   const [categories, setCategories] = useState<Category[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_categories');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_CATEGORIES;
     } catch {
-      return [];
+      return INITIAL_CATEGORIES;
     }
   });
 
   const [orders, setOrders] = useState<Order[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_orders');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_ORDERS;
     } catch {
-      return [];
+      return INITIAL_ORDERS;
     }
   });
 
   const [customers, setCustomers] = useState<Customer[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_customers');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_CUSTOMERS;
     } catch {
-      return [];
+      return INITIAL_CUSTOMERS;
     }
   });
 
   const [coupons, setCoupons] = useState<Coupon[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_coupons');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_COUPONS;
     } catch {
-      return [];
+      return INITIAL_COUPONS;
     }
   });
 
   const [staff, setStaff] = useState<StaffMember[]>(() => {
     try {
       const saved = localStorage.getItem('commerceos_staff');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_STAFF;
     } catch {
-      return [];
+      return INITIAL_STAFF;
+    }
+  });
+
+  const [debts, setDebts] = useState<DebtRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('commerceos_debts');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_DEBTS;
+    } catch {
+      return INITIAL_DEBTS;
+    }
+  });
+
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('commerceos_expenses');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+      return INITIAL_EXPENSES;
+    } catch {
+      return INITIAL_EXPENSES;
     }
   });
 
@@ -421,36 +508,54 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     refreshFromBackend();
   }, [refreshFromBackend]);
 
-  // Sync to localStorage
+  // High-performance debounced storage persistence to prevent main-thread lag
+  const debouncedStorageRef = React.useRef<Record<string, any>>({});
+  const saveToStorageDebounced = useCallback((key: string, data: any, delay = 200) => {
+    if (typeof window === 'undefined') return;
+    if (debouncedStorageRef.current[key]) {
+      clearTimeout(debouncedStorageRef.current[key]);
+    }
+    debouncedStorageRef.current[key] = setTimeout(() => {
+      try {
+        localStorage.setItem(key, JSON.stringify(data));
+      } catch (e) {
+        console.warn(`[Storage] Failed to persist ${key}:`, e);
+      }
+    }, delay);
+  }, []);
+
+  // Sync to localStorage asynchronously
   useEffect(() => {
-    try {
-      localStorage.setItem('commerceos_tenants', JSON.stringify(tenants));
-    } catch (e) { console.error(e); }
-  }, [tenants]);
+    saveToStorageDebounced('commerceos_tenants', tenants);
+  }, [tenants, saveToStorageDebounced]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('commerceos_products', JSON.stringify(products));
-    } catch (e) { console.error(e); }
-  }, [products]);
+    saveToStorageDebounced('commerceos_products', products);
+  }, [products, saveToStorageDebounced]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('commerceos_orders', JSON.stringify(orders));
-    } catch (e) { console.error(e); }
-  }, [orders]);
+    saveToStorageDebounced('commerceos_orders', orders);
+  }, [orders, saveToStorageDebounced]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('commerceos_coupons', JSON.stringify(coupons));
-    } catch (e) { console.error(e); }
-  }, [coupons]);
+    saveToStorageDebounced('commerceos_coupons', coupons);
+  }, [coupons, saveToStorageDebounced]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('commerceos_staff', JSON.stringify(staff));
-    } catch (e) { console.error(e); }
-  }, [staff]);
+    saveToStorageDebounced('commerceos_categories', categories);
+  }, [categories, saveToStorageDebounced]);
+
+  useEffect(() => {
+    saveToStorageDebounced('commerceos_customers', customers);
+  }, [customers, saveToStorageDebounced]);
+
+  useEffect(() => {
+    saveToStorageDebounced('commerceos_debts', debts);
+  }, [debts, saveToStorageDebounced]);
+
+  useEffect(() => {
+    saveToStorageDebounced('commerceos_expenses', expenses);
+  }, [expenses, saveToStorageDebounced]);
 
   const showToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
     const id = Date.now().toString() + Math.random().toString(36).substring(2, 5);
@@ -660,6 +765,63 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return completeTenant;
   };
 
+  const cloneTenant = async (sourceTenantId: string): Promise<TenantStore> => {
+    const source = tenants.find(t => t.id === sourceTenantId) || activeTenant;
+    const newId = `tenant-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const newSlug = `${source.slug}-copy-${Math.floor(Math.random() * 1000)}`;
+    const clonedTenant: TenantStore = {
+      ...source,
+      id: newId,
+      name: `${source.name} (نسخة)`,
+      nameEn: `${source.nameEn || source.name} (Copy)`,
+      slug: newSlug,
+      domain: `${newSlug}.commerceos.app`,
+      status: 'active',
+      createdAt: new Date().toISOString()
+    };
+
+    // Duplicate products for this tenant
+    const sourceProducts = products.filter(p => p.tenantId === source.id);
+    const clonedProducts: Product[] = sourceProducts.map(p => ({
+      ...p,
+      id: `prod-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      tenantId: newId
+    }));
+
+    // Duplicate categories for this tenant
+    const sourceCategories = categories.filter(c => c.tenantId === source.id);
+    const clonedCategories: Category[] = sourceCategories.map(c => ({
+      ...c,
+      id: `cat-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      tenantId: newId
+    }));
+
+    setTenants(prev => [clonedTenant, ...prev]);
+    if (clonedProducts.length > 0) {
+      setProducts(prev => [...clonedProducts, ...prev]);
+    }
+    if (clonedCategories.length > 0) {
+      setCategories(prev => [...clonedCategories, ...prev]);
+    }
+
+    setActiveTenantId(newId);
+    showToast(`تم استنساخ المشروع "${clonedTenant.name}" بنجاح!`, 'success');
+
+    try {
+      await api.createTenant(clonedTenant);
+      for (const p of clonedProducts) {
+        await api.createProduct(p);
+      }
+      for (const c of clonedCategories) {
+        await api.createCategory(c);
+      }
+    } catch (err) {
+      console.warn('Backend sync for cloneTenant:', err);
+    }
+
+    return clonedTenant;
+  };
+
   const updateTenant = async (tenantId: string, updates: Partial<TenantStore>) => {
     setTenants(prev => prev.map(t => (t.id === tenantId ? { ...t, ...updates } : t)));
     showToast('تم حفظ إعدادات المتجر بنجاح', 'success');
@@ -731,6 +893,24 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch (err) {
       console.warn('Backend sync for deleteProduct:', err);
     }
+  };
+
+  // Category Operations
+  const addCategory = (catData: Omit<Category, 'id'>) => {
+    const id = `cat-${Date.now()}`;
+    const newCategory: Category = { ...catData, id };
+    setCategories(prev => [newCategory, ...prev]);
+    showToast(`تمت إضافة التصنيف "${catData.name}" بنجاح`, 'success');
+  };
+
+  const updateCategory = (categoryId: string, updates: Partial<Category>) => {
+    setCategories(prev => prev.map(c => (c.id === categoryId ? { ...c, ...updates } : c)));
+    showToast('تم تحديث بيانات التصنيف', 'success');
+  };
+
+  const deleteCategory = (categoryId: string) => {
+    setCategories(prev => prev.filter(c => c.id !== categoryId));
+    showToast('تم حذف التصنيف', 'info');
   };
 
   // Orders Operations with Atomic Server Reservation
@@ -848,6 +1028,11 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const updateCoupon = (couponId: string, updates: Partial<Coupon>) => {
+    setCoupons(prev => prev.map(c => (c.id === couponId ? { ...c, ...updates } : c)));
+    showToast('تم تحديث بيانات الكوبون بنجاح', 'success');
+  };
+
   const deleteCoupon = async (couponId: string) => {
     setCoupons(prev => prev.filter(c => c.id !== couponId));
     showToast('تم حذف الكوبون', 'info');
@@ -857,6 +1042,81 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch (err) {
       console.warn('Backend sync for deleteCoupon:', err);
     }
+  };
+
+  // Debt (آجل / ديون) Operations
+  const addDebt = (debtData: Omit<DebtRecord, 'id' | 'createdAt' | 'transactions' | 'status' | 'remainingAmount'>) => {
+    const id = `debt-${Date.now()}`;
+    const now = new Date().toISOString();
+    const paidAmount = debtData.paidAmount || 0;
+    const remainingAmount = Math.max(0, debtData.totalAmount - paidAmount);
+    const newDebt: DebtRecord = {
+      ...debtData,
+      id,
+      paidAmount,
+      remainingAmount,
+      status: paidAmount >= debtData.totalAmount ? 'settled' : paidAmount > 0 ? 'partially_paid' : 'pending',
+      createdAt: now,
+      transactions: paidAmount > 0 ? [
+        {
+          id: `tx-${Date.now()}`,
+          date: now.split('T')[0],
+          amount: paidAmount,
+          paymentMethod: 'cash',
+          note: 'دفعة أولى عند تسجيل الدين'
+        }
+      ] : []
+    };
+    setDebts(prev => [newDebt, ...prev]);
+    showToast(`تم تسجيل حساب آجل جديد للطرف "${debtData.personName}"`, 'success');
+  };
+
+  const recordDebtPayment = (debtId: string, amount: number, paymentMethod: DebtTransaction['paymentMethod'], note?: string) => {
+    const now = new Date().toISOString();
+    setDebts(prev => prev.map(d => {
+      if (d.id === debtId) {
+        const newPaid = d.paidAmount + amount;
+        const remainingAmount = Math.max(0, d.totalAmount - newPaid);
+        const newStatus = newPaid >= d.totalAmount ? 'settled' : 'partially_paid';
+        const newTx: DebtTransaction = {
+          id: `tx-${Date.now()}`,
+          date: now.split('T')[0],
+          amount,
+          paymentMethod,
+          note: note || 'دفعة سداد دين'
+        };
+        return {
+          ...d,
+          paidAmount: newPaid,
+          remainingAmount,
+          status: newStatus,
+          transactions: [...d.transactions, newTx]
+        };
+      }
+      return d;
+    }));
+    showToast(`تم تسجيل سداد بقيمة ${amount} ر.س بنجاح`, 'success');
+  };
+
+  const deleteDebt = (debtId: string) => {
+    setDebts(prev => prev.filter(d => d.id !== debtId));
+    showToast('تم حذف سجل الدين بنجاح', 'info');
+  };
+
+  // Expense (مصروفات) Operations
+  const addExpense = (expData: Omit<ExpenseRecord, 'id'>) => {
+    const id = `exp-${Date.now()}`;
+    const newExpense: ExpenseRecord = {
+      ...expData,
+      id
+    };
+    setExpenses(prev => [newExpense, ...prev]);
+    showToast(`تم تسجيل المصروف "${expData.title}" بقيمة ${expData.amount} ر.س`, 'success');
+  };
+
+  const deleteExpense = (expenseId: string) => {
+    setExpenses(prev => prev.filter(e => e.id !== expenseId));
+    showToast('تم حذف سجل المصروف', 'info');
   };
 
   const addStaff = async (staffData: Omit<StaffMember, 'id' | 'createdAt'>) => {
@@ -1021,92 +1281,191 @@ export const CommerceProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   };
 
-  // Filtered lists for active tenant
-  const tenantProducts = products.filter(p => p.tenantId === activeTenantId);
-  const tenantCategories = categories.filter(c => c.tenantId === activeTenantId);
-  const tenantOrders = orders.filter(o => o.tenantId === activeTenantId);
-  const tenantCustomers = customers.filter(c => c.tenantId === activeTenantId);
-  const tenantCoupons = coupons.filter(c => c.tenantId === activeTenantId);
-  const tenantStaff = staff.filter(s => s.tenantId === activeTenantId);
+  // Filtered lists for active tenant memoized for optimal re-render performance
+  const tenantProducts = useMemo(() => products.filter(p => p.tenantId === activeTenantId), [products, activeTenantId]);
+  const tenantCategories = useMemo(() => categories.filter(c => c.tenantId === activeTenantId), [categories, activeTenantId]);
+  const tenantOrders = useMemo(() => orders.filter(o => o.tenantId === activeTenantId), [orders, activeTenantId]);
+  const tenantCustomers = useMemo(() => customers.filter(c => c.tenantId === activeTenantId), [customers, activeTenantId]);
+  const tenantCoupons = useMemo(() => coupons.filter(c => c.tenantId === activeTenantId), [coupons, activeTenantId]);
+  const tenantStaff = useMemo(() => staff.filter(s => s.tenantId === activeTenantId), [staff, activeTenantId]);
+  const tenantDebts = useMemo(() => debts.filter(d => d.tenantId === activeTenantId), [debts, activeTenantId]);
+  const tenantExpenses = useMemo(() => expenses.filter(e => e.tenantId === activeTenantId), [expenses, activeTenantId]);
+
+  const contextValue = useMemo(() => ({
+    currentView,
+    setCurrentView: handleSetCurrentView,
+    previewDevice,
+    setPreviewDevice,
+    language,
+    setLanguage,
+    activeTenantId,
+    setActiveTenantId,
+    activeTenant,
+    tenants,
+    currentUser,
+    isAuthenticated: !!currentUser,
+    login,
+    register,
+    logout,
+    authModalOpen,
+    setAuthModalOpen,
+    authModalMode,
+    setAuthModalMode,
+    openAuthModal,
+    resetToCleanStore,
+    currentStaffRole,
+    setCurrentStaffRole,
+    activeStaffPermissions,
+    products: tenantProducts,
+    categories: tenantCategories,
+    orders: tenantOrders,
+    customers: tenantCustomers,
+    coupons: tenantCoupons,
+    staff: tenantStaff,
+    debts: tenantDebts,
+    expenses: tenantExpenses,
+    cart,
+    addToCart,
+    removeFromCart,
+    updateCartQuantity,
+    clearCart,
+    cartOpen,
+    setCartOpen,
+    checkoutOpen,
+    setCheckoutOpen,
+    productModal,
+    setProductModal,
+    isServerSyncing,
+    refreshFromBackend,
+    createTenant,
+    cloneTenant,
+    updateTenant,
+    deleteTenant,
+    updateTheme,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    addOrder,
+    updateOrderStatus,
+    updateOrderPaymentStatus,
+    addCustomer,
+    addCoupon,
+    updateCoupon,
+    deleteCoupon,
+    addDebt,
+    recordDebtPayment,
+    deleteDebt,
+    addExpense,
+    deleteExpense,
+    addStaff,
+    updateStaff,
+    deleteStaff,
+    toasts,
+    showToast,
+    dismissToast,
+    platformConfig,
+    updatePlatformConfig,
+    applyLicenseToTenant,
+    toggleWhiteLabel,
+    updateTenantStatus,
+    updateTenantQuotas,
+    logTamperEvent,
+    tamperAlertModalOpen,
+    setTamperAlertModalOpen,
+    tamperModalData,
+    setTamperModalData
+  }), [
+    currentView,
+    handleSetCurrentView,
+    previewDevice,
+    setPreviewDevice,
+    language,
+    setLanguage,
+    activeTenantId,
+    setActiveTenantId,
+    activeTenant,
+    tenants,
+    currentUser,
+    login,
+    register,
+    logout,
+    authModalOpen,
+    setAuthModalOpen,
+    authModalMode,
+    setAuthModalMode,
+    openAuthModal,
+    resetToCleanStore,
+    currentStaffRole,
+    setCurrentStaffRole,
+    activeStaffPermissions,
+    tenantProducts,
+    tenantCategories,
+    tenantOrders,
+    tenantCustomers,
+    tenantCoupons,
+    tenantStaff,
+    tenantDebts,
+    tenantExpenses,
+    cart,
+    addToCart,
+    removeFromCart,
+    updateCartQuantity,
+    clearCart,
+    cartOpen,
+    setCartOpen,
+    checkoutOpen,
+    setCheckoutOpen,
+    productModal,
+    setProductModal,
+    isServerSyncing,
+    refreshFromBackend,
+    createTenant,
+    cloneTenant,
+    updateTenant,
+    deleteTenant,
+    updateTheme,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    addOrder,
+    updateOrderStatus,
+    updateOrderPaymentStatus,
+    addCustomer,
+    addCoupon,
+    updateCoupon,
+    deleteCoupon,
+    addDebt,
+    recordDebtPayment,
+    deleteDebt,
+    addExpense,
+    deleteExpense,
+    addStaff,
+    updateStaff,
+    deleteStaff,
+    toasts,
+    showToast,
+    dismissToast,
+    platformConfig,
+    updatePlatformConfig,
+    applyLicenseToTenant,
+    toggleWhiteLabel,
+    updateTenantStatus,
+    updateTenantQuotas,
+    logTamperEvent,
+    tamperAlertModalOpen,
+    setTamperAlertModalOpen,
+    tamperModalData,
+    setTamperModalData
+  ]);
 
   return (
-    <CommerceContext.Provider
-      value={{
-        currentView,
-        setCurrentView: handleSetCurrentView,
-        previewDevice,
-        setPreviewDevice,
-        language,
-        setLanguage,
-        activeTenantId,
-        setActiveTenantId,
-        activeTenant,
-        tenants,
-        currentUser,
-        isAuthenticated: !!currentUser,
-        login,
-        register,
-        logout,
-        authModalOpen,
-        setAuthModalOpen,
-        authModalMode,
-        setAuthModalMode,
-        openAuthModal,
-        resetToCleanStore,
-        currentStaffRole,
-        setCurrentStaffRole,
-        activeStaffPermissions,
-        products: tenantProducts,
-        categories: tenantCategories,
-        orders: tenantOrders,
-        customers: tenantCustomers,
-        coupons: tenantCoupons,
-        staff: tenantStaff,
-        cart,
-        addToCart,
-        removeFromCart,
-        updateCartQuantity,
-        clearCart,
-        cartOpen,
-        setCartOpen,
-        checkoutOpen,
-        setCheckoutOpen,
-        productModal,
-        setProductModal,
-        isServerSyncing,
-        refreshFromBackend,
-        createTenant,
-        updateTenant,
-        deleteTenant,
-        updateTheme,
-        addProduct,
-        updateProduct,
-        deleteProduct,
-        addOrder,
-        updateOrderStatus,
-        updateOrderPaymentStatus,
-        addCustomer,
-        addCoupon,
-        deleteCoupon,
-        addStaff,
-        updateStaff,
-        deleteStaff,
-        toasts,
-        showToast,
-        dismissToast,
-        platformConfig,
-        updatePlatformConfig,
-        applyLicenseToTenant,
-        toggleWhiteLabel,
-        updateTenantStatus,
-        updateTenantQuotas,
-        logTamperEvent,
-        tamperAlertModalOpen,
-        setTamperAlertModalOpen,
-        tamperModalData,
-        setTamperModalData
-      }}
-    >
+    <CommerceContext.Provider value={contextValue}>
       {children}
     </CommerceContext.Provider>
   );

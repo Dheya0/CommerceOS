@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import { AppIdentityConfig, DeliveryTarget, TenantStore } from '../types';
+import { SecurityEngine } from './securityEngine';
 
 /**
  * Generates capacitor.config.json content for Android / iOS targets
@@ -124,12 +125,15 @@ public class MainActivity extends BridgeActivity {
  * Generates Android strings.xml
  */
 export function generateAndroidStrings(tenant: TenantStore, identity: AppIdentityConfig): string {
+  const appName = SecurityEngine.escapeXml(identity.appName || tenant.name);
+  const pkgName = SecurityEngine.escapeXml(identity.packageName || `sa.${tenant.slug}.app`);
+  const slug = SecurityEngine.escapeXml(tenant.slug);
   return `<?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">${identity.appName || tenant.name}</string>
-    <string name="title_activity_main">${identity.appName || tenant.name}</string>
-    <string name="package_name">${identity.packageName || `sa.${tenant.slug}.app`}</string>
-    <string name="custom_url_scheme">${tenant.slug}</string>
+    <string name="app_name">${appName}</string>
+    <string name="title_activity_main">${appName}</string>
+    <string name="package_name">${pkgName}</string>
+    <string name="custom_url_scheme">${slug}</string>
 </resources>
 `;
 }
@@ -138,9 +142,14 @@ export function generateAndroidStrings(tenant: TenantStore, identity: AppIdentit
  * Generates AndroidManifest.xml template
  */
 export function generateAndroidManifest(tenant: TenantStore, identity: AppIdentityConfig): string {
+  const pkgName = SecurityEngine.escapeXml(identity.packageName || `sa.${tenant.slug}.app`);
+  const appName = SecurityEngine.escapeXml(identity.appName || tenant.name);
+  const domain = SecurityEngine.escapeXml(tenant.domain);
+  const slug = SecurityEngine.escapeXml(tenant.slug);
+
   return `<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="${identity.packageName || `sa.${tenant.slug}.app`}">
+    package="${pkgName}">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -149,19 +158,19 @@ export function generateAndroidManifest(tenant: TenantStore, identity: AppIdenti
     ${identity.enablePush ? '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.VIBRATE" />' : ''}
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="${identity.appName || tenant.name}"
+        android:label="${appName}"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         android:hardwareAccelerated="true">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="${identity.appName || tenant.name}"
+            android:label="${appName}"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode">
@@ -176,8 +185,8 @@ export function generateAndroidManifest(tenant: TenantStore, identity: AppIdenti
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="${tenant.domain}" />
-                <data android:scheme="${tenant.slug}" />
+                <data android:scheme="https" android:host="${domain}" />
+                <data android:scheme="${slug}" />
             </intent-filter>
         </activity>
     </application>
@@ -633,6 +642,10 @@ export function generatePWAIndexHtml(tenant: TenantStore, identity: AppIdentityC
  * Generates Docker Compose configuration for Self-Hosted package
  */
 export function generateDockerCompose(tenant: TenantStore): string {
+  const slug = SecurityEngine.escapeXml(tenant.slug);
+  const name = SecurityEngine.escapeXml(tenant.name);
+  const domain = SecurityEngine.escapeXml(tenant.domain);
+
   return `version: '3.8'
 
 services:
@@ -640,16 +653,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: commerceos-${tenant.slug}
+    container_name: commerceos-${slug}
     restart: always
     environment:
       - NODE_ENV=production
       - PORT=3000
       - TENANT_ID=${tenant.id}
-      - TENANT_SLUG=${tenant.slug}
-      - STORE_NAME=${tenant.name}
-      - DOMAIN=${tenant.domain}
-      - JWT_SECRET=sovereign_secret_${tenant.slug}_2026
+      - TENANT_SLUG=${slug}
+      - STORE_NAME=${name}
+      - DOMAIN=${domain}
+      - JWT_SECRET=\${JWT_SECRET:-enterprise_sec_${Date.now()}_clean}
     volumes:
       - ./data:/app/data
       - ./uploads:/app/uploads
@@ -663,7 +676,7 @@ services:
 
   nginx-proxy:
     image: nginx:alpine
-    container_name: nginx-${tenant.slug}
+    container_name: nginx-${slug}
     restart: always
     ports:
       - "80:80"
@@ -817,13 +830,17 @@ app.listen(PORT, '0.0.0.0', () => {
  * Generates deploy.sh for one-click VPS deployment
  */
 export function generateDeployScript(tenant: TenantStore): string {
+  const safeName = SecurityEngine.escapeBashArg(tenant.name);
+  const safeSlug = SecurityEngine.escapeBashArg(tenant.slug);
+  const safeDomain = SecurityEngine.escapeBashArg(tenant.domain);
+
   return `#!/bin/bash
 # ==========================================================
 # CommerceOS Sovereign 1-Click Deployment for ${tenant.name}
 # ==========================================================
 set -e
 
-echo "🚀 Starting deployment for ${tenant.name} (${tenant.slug})..."
+echo "🚀 Starting secure deployment for ${tenant.name} (${tenant.slug})..."
 
 # Check Docker & Docker Compose installation
 if ! command -v docker &> /dev/null; then
@@ -851,14 +868,195 @@ docker compose ps
 }
 
 /**
+ * Generates package.json for Windows Desktop Electron App
+ */
+export function generateWindowsPackageJson(tenant: TenantStore, identity: AppIdentityConfig): string {
+  const pkg = {
+    name: `${tenant.slug}-desktop`,
+    version: identity.version || '1.0.0',
+    description: `Windows Desktop Application for ${tenant.name}`,
+    main: 'main.js',
+    scripts: {
+      start: 'electron .',
+      build: 'electron-builder --win'
+    },
+    build: {
+      appId: `sa.${tenant.slug}.desktop`,
+      productName: tenant.name,
+      win: {
+        target: ['nsis', 'portable']
+      },
+      nsis: {
+        oneClick: false,
+        allowToChangeInstallationDirectory: true,
+        createDesktopShortcut: true
+      }
+    },
+    devDependencies: {
+      electron: '^28.2.0',
+      'electron-builder': '^24.9.1'
+    }
+  };
+  return JSON.stringify(pkg, null, 2);
+}
+
+/**
+ * Generates main.js for Windows Desktop Electron Process
+ */
+export function generateWindowsMainJs(tenant: TenantStore, identity: AppIdentityConfig): string {
+  return `// ==========================================================
+// CommerceOS Windows Desktop Native Shell for ${tenant.name}
+// ==========================================================
+const { app, BrowserWindow, shell } = require('electron');
+const path = require('path');
+
+let mainWindow;
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    minWidth: 960,
+    minHeight: 600,
+    title: '${tenant.name}',
+    backgroundColor: '#050B14',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      preload: path.join(__dirname, 'preload.js')
+    }
+  });
+
+  const targetUrl = process.env.APP_URL || 'https://${tenant.domain}';
+  mainWindow.loadURL(targetUrl);
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+`;
+}
+
+/**
+ * Generates preload.js for Windows Electron
+ */
+export function generateWindowsPreloadJs(tenant: TenantStore): string {
+  return `const { contextBridge } = require('electron');
+
+contextBridge.exposeInMainWorld('desktopEnvironment', {
+  platform: 'windows',
+  storeName: '${tenant.name}',
+  storeSlug: '${tenant.slug}',
+  isOfflineCapable: true
+});
+`;
+}
+
+/**
+ * Generates README for Windows Desktop Target
+ */
+export function generateWindowsReadme(tenant: TenantStore): string {
+  return `# ${tenant.name} - Windows Desktop Application
+
+This package contains the complete Windows desktop source code and configuration.
+
+## Prerequisites
+- Node.js 18+ (LTS)
+- npm or yarn
+
+## Development
+\`\`\`bash
+npm install
+npm start
+\`\`\`
+
+## Compile Standalone Windows Installer (.EXE)
+\`\`\`bash
+npm run build
+\`\`\`
+
+The compiled installer and portable executable will be generated inside the \`dist/\` folder.
+`;
+}
+
+/**
+ * Generates package.json for Web SPA Target
+ */
+export function generateWebPackageJson(tenant: TenantStore, identity: AppIdentityConfig): string {
+  const pkg = {
+    name: `${tenant.slug}-web`,
+    private: true,
+    version: identity.version || '1.0.0',
+    type: 'module',
+    scripts: {
+      dev: 'vite',
+      build: 'vite build',
+      preview: 'vite preview'
+    },
+    dependencies: {
+      react: '^18.3.1',
+      'react-dom': '^18.3.1',
+      'lucide-react': '^0.344.0'
+    },
+    devDependencies: {
+      '@vitejs/plugin-react': '^4.2.1',
+      vite: '^5.1.4',
+      tailwindcss: '^3.4.1'
+    }
+  };
+  return JSON.stringify(pkg, null, 2);
+}
+
+/**
+ * Generates README for Web SPA Target
+ */
+export function generateWebReadme(tenant: TenantStore): string {
+  return `# ${tenant.name} - Production Web Application
+
+This package is a modern, responsive Single Page Application (SPA).
+
+## Quick Start
+\`\`\`bash
+npm install
+npm run dev
+\`\`\`
+
+## Production Build
+\`\`\`bash
+npm run build
+\`\`\`
+
+Upload the generated \`dist/\` directory to any static hosting provider (Cloudflare Pages, Netlify, Vercel, S3, Nginx).
+`;
+}
+
+/**
  * Generates a complete downloadable JSZip package for a specific delivery target
  */
 export async function exportZipPackage(
-  target: 'android' | 'ios' | 'pwa' | 'self_hosted' | 'capacitor_all',
+  target: 'android' | 'ios' | 'pwa' | 'self_hosted' | 'capacitor_all' | 'windows' | 'web' | 'full_stack',
   tenant: TenantStore,
   identity: AppIdentityConfig
 ): Promise<Blob> {
   const zip = new JSZip();
+  const virtualFiles: Record<string, string> = {};
 
   if (target === 'android' || target === 'capacitor_all') {
     const androidFolder = zip.folder('android');
@@ -866,19 +1064,32 @@ export async function exportZipPackage(
     const mainFolder = appFolder?.folder('src')?.folder('main');
     
     // Android config & scripts
-    zip.file('capacitor.config.json', generateCapacitorConfig(tenant, identity));
-    zip.file('package.json', generateCapacitorPackageJson(tenant, identity));
+    const capCfg = generateCapacitorConfig(tenant, identity);
+    const capPkg = generateCapacitorPackageJson(tenant, identity);
+    const grad = generateAndroidGradle(tenant, identity);
+    const manf = generateAndroidManifest(tenant, identity);
+    const strXml = generateAndroidStrings(tenant, identity);
+
+    zip.file('capacitor.config.json', capCfg);
+    zip.file('package.json', capPkg);
+    virtualFiles['capacitor.config.json'] = capCfg;
+    virtualFiles['package.json'] = capPkg;
     
-    appFolder?.file('build.gradle', generateAndroidGradle(tenant, identity));
-    mainFolder?.file('AndroidManifest.xml', generateAndroidManifest(tenant, identity));
+    appFolder?.file('build.gradle', grad);
+    mainFolder?.file('AndroidManifest.xml', manf);
+    virtualFiles['android/app/build.gradle'] = grad;
+    virtualFiles['android/app/src/main/AndroidManifest.xml'] = manf;
     
     const javaPath = (identity.packageName || `sa.${tenant.slug}.app`).replace(/\./g, '/');
-    mainFolder?.folder('java')?.folder(javaPath)?.file('MainActivity.java', generateMainActivityJava(tenant, identity));
+    const javaCode = generateMainActivityJava(tenant, identity);
+    mainFolder?.folder('java')?.folder(javaPath)?.file('MainActivity.java', javaCode);
+    virtualFiles[`android/app/src/main/java/${javaPath}/MainActivity.java`] = javaCode;
     
     const resValues = mainFolder?.folder('res')?.folder('values');
-    resValues?.file('strings.xml', generateAndroidStrings(tenant, identity));
+    resValues?.file('strings.xml', strXml);
+    virtualFiles['android/app/src/main/res/values/strings.xml'] = strXml;
     
-    zip.file('README-ANDROID.md', `# ${tenant.name} - Android Studio Project
+    const readmeAndroid = `# ${tenant.name} - Android Studio Project
 
 ## Quick Start
 1. Install dependencies:
@@ -889,21 +1100,34 @@ export async function exportZipPackage(
    \`npx cap open android\`
 4. Build Release APK:
    \`cd android && ./gradlew assembleRelease\`
-`);
+`;
+    zip.file('README-ANDROID.md', readmeAndroid);
+    virtualFiles['README-ANDROID.md'] = readmeAndroid;
   }
 
   if (target === 'ios' || target === 'capacitor_all') {
     const iosFolder = zip.folder('ios');
     const appFolder = iosFolder?.folder('App');
     
-    zip.file('capacitor.config.json', generateCapacitorConfig(tenant, identity));
-    zip.file('package.json', generateCapacitorPackageJson(tenant, identity));
+    const capCfg = generateCapacitorConfig(tenant, identity);
+    const capPkg = generateCapacitorPackageJson(tenant, identity);
+    const pod = generateIOSPodfile(tenant);
+    const plist = generateIOSInfoPlist(tenant, identity);
+    const appDel = generateIOSAppDelegate(tenant);
+
+    zip.file('capacitor.config.json', capCfg);
+    zip.file('package.json', capPkg);
+    virtualFiles['capacitor.config.json'] = capCfg;
+    virtualFiles['package.json'] = capPkg;
     
-    iosFolder?.file('Podfile', generateIOSPodfile(tenant));
-    appFolder?.folder('App')?.file('Info.plist', generateIOSInfoPlist(tenant, identity));
-    appFolder?.folder('App')?.file('AppDelegate.swift', generateIOSAppDelegate(tenant));
+    iosFolder?.file('Podfile', pod);
+    appFolder?.folder('App')?.file('Info.plist', plist);
+    appFolder?.folder('App')?.file('AppDelegate.swift', appDel);
+    virtualFiles['ios/Podfile'] = pod;
+    virtualFiles['ios/App/App/Info.plist'] = plist;
+    virtualFiles['ios/App/App/AppDelegate.swift'] = appDel;
     
-    zip.file('README-IOS.md', `# ${tenant.name} - iOS Xcode Project
+    const readmeIos = `# ${tenant.name} - iOS Xcode Project
 
 ## Quick Start
 1. Install dependencies:
@@ -913,16 +1137,29 @@ export async function exportZipPackage(
 3. Open Xcode Workspace:
    \`npx cap open ios\`
 4. Archive and Upload to App Store Connect via Xcode Product > Archive.
-`);
+`;
+    zip.file('README-IOS.md', readmeIos);
+    virtualFiles['README-IOS.md'] = readmeIos;
   }
 
   if (target === 'pwa') {
-    zip.file('manifest.json', generatePWAManifest(tenant, identity));
-    zip.file('sw.js', generateServiceWorker(tenant));
-    zip.file('offline.html', generateOfflineHtml(tenant));
-    zip.file('index.html', generatePWAIndexHtml(tenant, identity));
+    const pwaMan = generatePWAManifest(tenant, identity);
+    const pwaSw = generateServiceWorker(tenant);
+    const pwaOff = generateOfflineHtml(tenant);
+    const pwaIdx = generatePWAIndexHtml(tenant, identity);
+
+    zip.file('manifest.json', pwaMan);
+    zip.file('sw.js', pwaSw);
+    zip.file('offline.html', pwaOff);
+    zip.file('index.html', pwaIdx);
     zip.file('robots.txt', `User-agent: *\nAllow: /\nSitemap: https://${tenant.domain}/sitemap.xml\n`);
-    zip.file('README.md', `# ${tenant.name} - PWA & Static Web Bundle
+
+    virtualFiles['manifest.json'] = pwaMan;
+    virtualFiles['sw.js'] = pwaSw;
+    virtualFiles['offline.html'] = pwaOff;
+    virtualFiles['index.html'] = pwaIdx;
+    
+    const readmePwa = `# ${tenant.name} - PWA & Static Web Bundle
 
 This package is a standalone Progressive Web App bundle ready to upload to any static hosting:
 - Cloudflare Pages
@@ -931,24 +1168,50 @@ This package is a standalone Progressive Web App bundle ready to upload to any s
 - GitHub Pages / AWS S3
 
 Includes full offline caching, Add to Home Screen (A2HS) support, and fullscreen mobile experience.
-`);
+`;
+    zip.file('README.md', readmePwa);
+    virtualFiles['README.md'] = readmePwa;
   }
 
   if (target === 'self_hosted') {
-    zip.file('docker-compose.yml', generateDockerCompose(tenant));
-    zip.file('Dockerfile', generateDockerfile(tenant));
-    zip.file('nginx.conf', generateNginxConf(tenant));
-    zip.file('server.js', generateSelfHostedServerJs(tenant));
-    zip.file('deploy.sh', generateDeployScript(tenant));
-    zip.file('.env.production', `NODE_ENV=production\nPORT=3000\nSTORE_SLUG=${tenant.slug}\nSTORE_DOMAIN=${tenant.domain}\n`);
+    const dComp = generateDockerCompose(tenant);
+    const dFile = generateDockerfile(tenant);
+    const nConf = generateNginxConf(tenant);
+    const sJs = generateSelfHostedServerJs(tenant);
+    const depSh = generateDeployScript(tenant);
+    const envProd = `NODE_ENV=production\nPORT=3000\nSTORE_SLUG=${tenant.slug}\nSTORE_DOMAIN=${tenant.domain}\n`;
+
+    zip.file('docker-compose.yml', dComp);
+    zip.file('Dockerfile', dFile);
+    zip.file('nginx.conf', nConf);
+    zip.file('server.js', sJs);
+    zip.file('deploy.sh', depSh);
+    zip.file('.env.production', envProd);
+
+    virtualFiles['docker-compose.yml'] = dComp;
+    virtualFiles['Dockerfile'] = dFile;
+    virtualFiles['nginx.conf'] = nConf;
+    virtualFiles['server.js'] = sJs;
+    virtualFiles['deploy.sh'] = depSh;
+    virtualFiles['.env.production'] = envProd;
     
     const publicFolder = zip.folder('public');
-    publicFolder?.file('index.html', generatePWAIndexHtml(tenant, identity));
-    publicFolder?.file('manifest.json', generatePWAManifest(tenant, identity));
-    publicFolder?.file('sw.js', generateServiceWorker(tenant));
-    publicFolder?.file('offline.html', generateOfflineHtml(tenant));
+    const pwaIdx = generatePWAIndexHtml(tenant, identity);
+    const pwaMan = generatePWAManifest(tenant, identity);
+    const pwaSw = generateServiceWorker(tenant);
+    const pwaOff = generateOfflineHtml(tenant);
 
-    zip.file('README.md', `# ${tenant.name} - Sovereign Self-Hosted Docker Package
+    publicFolder?.file('index.html', pwaIdx);
+    publicFolder?.file('manifest.json', pwaMan);
+    publicFolder?.file('sw.js', pwaSw);
+    publicFolder?.file('offline.html', pwaOff);
+
+    virtualFiles['public/index.html'] = pwaIdx;
+    virtualFiles['public/manifest.json'] = pwaMan;
+    virtualFiles['public/sw.js'] = pwaSw;
+    virtualFiles['public/offline.html'] = pwaOff;
+
+    const readmeDocker = `# ${tenant.name} - Sovereign Self-Hosted Docker Package
 
 ## 1-Click Launch:
 \`\`\`bash
@@ -962,8 +1225,133 @@ docker compose up -d --build
 \`\`\`
 
 Your store will be active on port 80/443 via the automated Nginx reverse proxy!
-`);
+`;
+    zip.file('README.md', readmeDocker);
+    virtualFiles['README.md'] = readmeDocker;
   }
+
+  if (target === 'windows' || target === 'full_stack') {
+    const winPkg = generateWindowsPackageJson(tenant, identity);
+    const winMain = generateWindowsMainJs(tenant, identity);
+    const winPreload = generateWindowsPreloadJs(tenant);
+    const winReadme = generateWindowsReadme(tenant);
+    const winGitIgnore = 'node_modules/\ndist/\nrelease/\n*.exe\n.env\n';
+
+    if (target === 'full_stack') {
+      const winFolder = zip.folder('windows');
+      winFolder?.file('package.json', winPkg);
+      winFolder?.file('main.js', winMain);
+      winFolder?.file('preload.js', winPreload);
+      winFolder?.file('README.md', winReadme);
+      winFolder?.file('.gitignore', winGitIgnore);
+      virtualFiles['windows/package.json'] = winPkg;
+      virtualFiles['windows/main.js'] = winMain;
+      virtualFiles['windows/preload.js'] = winPreload;
+      virtualFiles['windows/README.md'] = winReadme;
+      virtualFiles['windows/.gitignore'] = winGitIgnore;
+    } else {
+      zip.file('package.json', winPkg);
+      zip.file('main.js', winMain);
+      zip.file('preload.js', winPreload);
+      zip.file('README.md', winReadme);
+      zip.file('.gitignore', winGitIgnore);
+      virtualFiles['package.json'] = winPkg;
+      virtualFiles['main.js'] = winMain;
+      virtualFiles['preload.js'] = winPreload;
+      virtualFiles['README.md'] = winReadme;
+      virtualFiles['.gitignore'] = winGitIgnore;
+    }
+  }
+
+  if (target === 'web' || target === 'full_stack') {
+    const webPkg = generateWebPackageJson(tenant, identity);
+    const webReadme = generateWebReadme(tenant);
+    const pwaIdx = generatePWAIndexHtml(tenant, identity);
+    const pwaMan = generatePWAManifest(tenant, identity);
+    const nConf = generateNginxConf(tenant);
+    const webGitIgnore = 'node_modules/\ndist/\n.env\n.env.local\n';
+
+    if (target === 'full_stack') {
+      const frontendFolder = zip.folder('frontend');
+      frontendFolder?.file('package.json', webPkg);
+      frontendFolder?.file('index.html', pwaIdx);
+      frontendFolder?.file('manifest.json', pwaMan);
+      frontendFolder?.file('nginx.conf', nConf);
+      frontendFolder?.file('README.md', webReadme);
+      frontendFolder?.file('.gitignore', webGitIgnore);
+      virtualFiles['frontend/package.json'] = webPkg;
+      virtualFiles['frontend/index.html'] = pwaIdx;
+      virtualFiles['frontend/manifest.json'] = pwaMan;
+      virtualFiles['frontend/nginx.conf'] = nConf;
+      virtualFiles['frontend/README.md'] = webReadme;
+      virtualFiles['frontend/.gitignore'] = webGitIgnore;
+    } else {
+      zip.file('package.json', webPkg);
+      zip.file('index.html', pwaIdx);
+      zip.file('manifest.json', pwaMan);
+      zip.file('nginx.conf', nConf);
+      zip.file('README.md', webReadme);
+      zip.file('.gitignore', webGitIgnore);
+      virtualFiles['package.json'] = webPkg;
+      virtualFiles['index.html'] = pwaIdx;
+      virtualFiles['manifest.json'] = pwaMan;
+      virtualFiles['nginx.conf'] = nConf;
+      virtualFiles['README.md'] = webReadme;
+      virtualFiles['.gitignore'] = webGitIgnore;
+    }
+  }
+
+  if (target === 'full_stack') {
+    const sJs = generateSelfHostedServerJs(tenant);
+    const dComp = generateDockerCompose(tenant);
+    const dFile = generateDockerfile(tenant);
+    const depSh = generateDeployScript(tenant);
+    const envExample = `NODE_ENV=production\nPORT=3000\nSTORE_SLUG=${tenant.slug}\nSTORE_DOMAIN=${tenant.domain}\nJWT_SECRET=generate_with_openssl_rand_hex_32\n`;
+
+    const backendFolder = zip.folder('backend');
+    backendFolder?.file('server.js', sJs);
+    virtualFiles['backend/server.js'] = sJs;
+
+    zip.file('docker-compose.yml', dComp);
+    zip.file('Dockerfile', dFile);
+    zip.file('deploy.sh', depSh);
+    zip.file('.env.example', envExample);
+    virtualFiles['docker-compose.yml'] = dComp;
+    virtualFiles['Dockerfile'] = dFile;
+    virtualFiles['deploy.sh'] = depSh;
+    virtualFiles['.env.example'] = envExample;
+
+    const rootReadme = `# ${tenant.name} - Full-Stack Sovereign Commerce Stack
+
+> Generated by **CommerceOS Code Factory**
+> You own 100% of the source code. No vendor lock-in.
+
+### Structure
+- \`frontend/\` — React 18 SPA web storefront
+- \`backend/\` — Express API server and checkout engine
+- \`windows/\` — Native Electron desktop application
+- \`docker-compose.yml\` — Production multi-container orchestration
+- \`deploy.sh\` — 1-Click VPS deployment script
+
+## Quick Start
+\`\`\`bash
+chmod +x deploy.sh
+./deploy.sh
+\`\`\`
+`;
+    zip.file('README.md', rootReadme);
+    virtualFiles['README.md'] = rootReadme;
+  }
+
+  // Always bundle security audit report & SHA-256 integrity manifest
+  const auditReport = await SecurityEngine.auditProjectPackage(virtualFiles);
+  const securityMarkdown = SecurityEngine.generateSecurityMarkdownReport(auditReport, tenant.name);
+  zip.file('SECURITY-AUDIT-CERTIFICATE.md', securityMarkdown);
+
+  const sha256List = Object.entries(auditReport.sha256Manifest)
+    .map(([file, hash]) => `${hash}  ${file}`)
+    .join('\n');
+  zip.file('SHA256SUMS.txt', sha256List + '\n');
 
   return await zip.generateAsync({ type: 'blob' });
 }

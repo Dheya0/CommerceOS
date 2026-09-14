@@ -42,7 +42,7 @@ import { api } from '../../api/client';
 
 export const UsageAndBillingHub: React.FC = () => {
   const { activeTenant, showToast, refreshFromBackend, setCurrentView } = useCommerce();
-  const [activeSubTab, setActiveSubTab] = useState<'quotas' | 'subscription' | 'domains' | 'developers' | 'company_tax'>('quotas');
+  const [activeSubTab, setActiveSubTab] = useState<'quotas' | 'subscription' | 'developers' | 'company_tax'>('quotas');
   
   // Data States
   const [loading, setLoading] = useState(true);
@@ -50,7 +50,6 @@ export const UsageAndBillingHub: React.FC = () => {
   const [plan, setPlan] = useState<SaaSPlan | null>(null);
   const [usage, setUsage] = useState<any>(null);
   const [invoices, setInvoices] = useState<SaaSInvoice[]>([]);
-  const [domains, setDomains] = useState<DomainRecord[]>([]);
   const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>([]);
   const [webhooks, setWebhooks] = useState<MerchantWebhookEndpoint[]>([]);
   const [deliveries, setDeliveries] = useState<MerchantWebhookDelivery[]>([]);
@@ -58,9 +57,6 @@ export const UsageAndBillingHub: React.FC = () => {
 
   // Modals & Form States
   const [selectedInvoiceForModal, setSelectedInvoiceForModal] = useState<SaaSInvoice | null>(null);
-  const [newDomainHostname, setNewDomainHostname] = useState('');
-  const [addingDomain, setAddingDomain] = useState(false);
-  const [verifyingDomainId, setVerifyingDomainId] = useState<string | null>(null);
 
   // API Key Form State
   const [newKeyName, setNewKeyName] = useState('');
@@ -89,10 +85,9 @@ export const UsageAndBillingHub: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [subRes, invRes, domRes, keyRes, whRes] = await Promise.all([
+      const [subRes, invRes, keyRes, whRes] = await Promise.all([
         api.getSaaSSubscription(activeTenant.id).catch(() => null),
         api.getSaaSInvoices(activeTenant.id).catch(() => ({ data: { invoices: [] } })),
-        api.getDomains().catch(() => ({ data: { domains: [] } })),
         api.getApiKeys().catch(() => ({ data: { apiKeys: [] } })),
         api.getWebhooks().catch(() => ({ data: { webhooks: [], deliveries: [] } }))
       ]);
@@ -114,7 +109,6 @@ export const UsageAndBillingHub: React.FC = () => {
       }
 
       if (invRes?.data?.invoices) setInvoices(invRes.data.invoices);
-      if (domRes?.data?.domains) setDomains(domRes.data.domains);
       if (keyRes?.data?.apiKeys) setApiKeys(keyRes.data.apiKeys);
       if (whRes?.data) {
         setWebhooks(whRes.data.webhooks || []);
@@ -136,57 +130,6 @@ export const UsageAndBillingHub: React.FC = () => {
     setCopiedText(label);
     showToast(`تم نسخ ${label} إلى الحافظة`, 'info');
     setTimeout(() => setCopiedText(null), 2000);
-  };
-
-  // --- Domain Actions ---
-  const handleAddDomain = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newDomainHostname.trim()) return;
-    try {
-      setAddingDomain(true);
-      const res = await api.addCustomDomain(newDomainHostname);
-      showToast(res.message || 'تمت إضافة النطاق بنجاح', 'success');
-      setNewDomainHostname('');
-      fetchData();
-    } catch (err: any) {
-      showToast(err.message || 'فشلت إضافة النطاق', 'error');
-    } finally {
-      setAddingDomain(false);
-    }
-  };
-
-  const handleVerifyDomain = async (domainId: string) => {
-    try {
-      setVerifyingDomainId(domainId);
-      const res = await api.verifyDomain(domainId);
-      showToast(res.message || 'تم التحقق من النطاق وتفعيل SSL بنجاح!', 'success');
-      fetchData();
-    } catch (err: any) {
-      showToast(err.message || 'فشل التحقق من النطاق', 'error');
-    } finally {
-      setVerifyingDomainId(null);
-    }
-  };
-
-  const handleSetPrimaryDomain = async (domainId: string) => {
-    try {
-      const res = await api.setPrimaryDomain(domainId);
-      showToast(res.message || 'تم تعيين النطاق كنطاق رئيسي', 'success');
-      fetchData();
-    } catch (err: any) {
-      showToast(err.message || 'فشل تعيين النطاق', 'error');
-    }
-  };
-
-  const handleDeleteDomain = async (domainId: string) => {
-    if (!confirm('هل أنت متأكد من رغبتك في حذف هذا النطاق؟')) return;
-    try {
-      await api.deleteDomain(domainId);
-      showToast('تم حذف النطاق', 'info');
-      fetchData();
-    } catch (err: any) {
-      showToast(err.message || 'فشل حذف النطاق', 'error');
-    }
   };
 
   // --- API Key Actions ---
@@ -292,7 +235,7 @@ export const UsageAndBillingHub: React.FC = () => {
             )}
           </div>
           <p className="text-xs text-zinc-400">
-            تحكم باستهلاك الموارد، ترقية الخطة، إدارة النطاقات المخصصة، الفواتير الضريبية، ومفاتيح الربط البرمجي (API).
+            تحكم باستهلاك الموارد، حزم التراخيص، الفواتير الضريبية، ومفاتيح الربط البرمجي (API).
           </p>
         </div>
 
@@ -340,18 +283,6 @@ export const UsageAndBillingHub: React.FC = () => {
         >
           <CreditCard className="w-4 h-4" />
           <span>الاشتراك والفواتير الضريبية ({invoices.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('domains')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 ${
-            activeSubTab === 'domains'
-              ? 'bg-blue-600/10 text-blue-400 border border-blue-500/30'
-              : 'text-zinc-400 hover:text-zinc-200'
-          }`}
-        >
-          <Globe className="w-4 h-4" />
-          <span>النطاقات المخصصة ({domains.length})</span>
         </button>
 
         <button
@@ -591,150 +522,7 @@ export const UsageAndBillingHub: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 3: Custom Domains */}
-      {activeSubTab === 'domains' && (
-        <div className="space-y-6 animate-in fade-in-50 duration-200">
-          
-          {/* Add Domain Form */}
-          <div className="bg-zinc-900/60 border border-zinc-800 rounded-3xl p-6 space-y-4">
-            <h3 className="text-base font-bold text-white">ربط نطاق مخصص جديد (Custom Domain)</h3>
-            <p className="text-xs text-zinc-400">
-              قم بإدخال اسم النطاق الخاص بك (مثل: <code className="text-blue-400">www.mystore.sa</code>) مع توجيه سجل CNAME إلى خوادم CommerceOS.
-            </p>
-
-            <form onSubmit={handleAddDomain} className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="text"
-                placeholder="مثال: www.royalhoney.sa"
-                value={newDomainHostname}
-                onChange={(e) => setNewDomainHostname(e.target.value)}
-                className="flex-1 px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-blue-500 font-mono"
-                dir="ltr"
-              />
-              <button
-                type="submit"
-                disabled={addingDomain || !newDomainHostname.trim()}
-                className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-black shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>{addingDomain ? 'جاري الإضافة...' : 'إضافة النطاق'}</span>
-              </button>
-            </form>
-          </div>
-
-          {/* Domains Table */}
-          <div className="bg-zinc-900/60 border border-zinc-800 rounded-3xl p-6 space-y-4">
-            <h3 className="text-base font-bold text-white">النطاقات المسجلة للمتجر</h3>
-
-            <div className="space-y-3">
-              {/* Default Subdomain */}
-              <div className="bg-zinc-950/80 border border-zinc-800/80 rounded-2xl p-4 flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                    <Globe className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-bold text-white" dir="ltr">{activeTenant.domain}</span>
-                      <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-bold">
-                        نطاق افتراضي سحابي
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-zinc-400">نطاق المنصة السحابي المضمن مجاناً</p>
-                  </div>
-                </div>
-                <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>SSL نشط</span>
-                </span>
-              </div>
-
-              {/* Custom Domains */}
-              {domains.map((dom) => (
-                <div key={dom.id} className="bg-zinc-950/80 border border-zinc-800/80 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                      <Globe className="w-4 h-4" />
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-white" dir="ltr">{dom.hostname}</span>
-                        {dom.isPrimary && (
-                          <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold">
-                            النطاق الرئيسي
-                          </span>
-                        )}
-                        {dom.status === 'verified' ? (
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                            مفحوص وموثق
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-bold">
-                            بانتظار توجيه DNS
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-zinc-400 font-mono" dir="ltr">
-                        CNAME → <strong className="text-zinc-200">{dom.cnameTarget}</strong>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-                    {dom.status !== 'verified' && (
-                      <button
-                        type="button"
-                        disabled={verifyingDomainId === dom.id}
-                        onClick={() => handleVerifyDomain(dom.id)}
-                        className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-md"
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 ${verifyingDomainId === dom.id ? 'animate-spin' : ''}`} />
-                        <span>فحص سجلات DNS الآن</span>
-                      </button>
-                    )}
-
-                    {dom.status === 'verified' && !dom.isPrimary && (
-                      <button
-                        type="button"
-                        onClick={() => handleSetPrimaryDomain(dom.id)}
-                        className="px-3.5 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold border border-zinc-700"
-                      >
-                        تعيين كرئيسي
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteDomain(dom.id)}
-                      className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all"
-                      title="حذف النطاق"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* DNS Instructions Card */}
-            <div className="bg-blue-950/20 border border-blue-500/20 rounded-2xl p-4 text-xs space-y-2">
-              <p className="font-bold text-blue-300 flex items-center gap-1.5">
-                <Sliders className="w-4 h-4" />
-                <span>تعليمات ضبط سجلات الـ DNS لدى مزود النطاق الخاص بك:</span>
-              </p>
-              <ul className="list-disc list-inside space-y-1 text-zinc-300 pr-2">
-                <li>أنشئ سجل من نوع <code className="font-mono text-white">CNAME</code> باسم <code className="font-mono text-white">www</code> ووجهه إلى <code className="font-mono text-white">stores.commerceos.app</code></li>
-                <li>أنشئ سجل من نوع <code className="font-mono text-white">A</code> للنطاق الجذري (<code className="font-mono text-white">@</code>) يوجه إلى عنوان IP السحابي للمنصة</li>
-                <li>يتم تفعيل شهادة الأمان SSL تلقائياً بمجرد التحقق من صحة السجلات.</li>
-              </ul>
-            </div>
-
-          </div>
-
-        </div>
-      )}
-
-      {/* Tab 4: Developers, API & Webhooks */}
+      {/* Tab 3: Developers, API & Webhooks */}
       {activeSubTab === 'developers' && (
         <div className="space-y-6 animate-in fade-in-50 duration-200">
           

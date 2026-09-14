@@ -13,14 +13,32 @@ import {
   Settings, 
   HelpCircle, 
   ChevronLeft, 
-  ChevronRight,
-  ChevronDown,
-  Sparkles,
-  BarChart3,
-  Rocket,
-  Download,
-  Code2,
-  Cloud
+  ChevronRight, 
+  ChevronDown, 
+  Sparkles, 
+  BarChart3, 
+  Rocket, 
+  Download, 
+  Code2, 
+  Cloud, 
+  Wallet, 
+  TrendingDown, 
+  Calculator, 
+  Gift, 
+  CreditCard, 
+  Building2,
+  Sliders,
+  ShieldCheck,
+  GraduationCap,
+  FolderKanban,
+  Monitor,
+  Smartphone,
+  Bell,
+  Key,
+  Cpu,
+  Network,
+  Webhook,
+  Server
 } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
 
@@ -30,6 +48,8 @@ interface MerchantSidebarProps {
   collapsed: boolean;
   setCollapsed: (collapsed: boolean) => void;
   onOpenWorkspaceSwitcher: () => void;
+  className?: string;
+  isMobile?: boolean;
 }
 
 export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
@@ -37,57 +57,106 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
   setActiveSection,
   collapsed,
   setCollapsed,
-  onOpenWorkspaceSwitcher
+  onOpenWorkspaceSwitcher,
+  className = '',
+  isMobile = false
 }) => {
-  const { activeTenant, language, currentStaffRole, orders } = useCommerce();
+  const { activeTenant, language, currentStaffRole, orders, debts, setCurrentView, tenants } = useCommerce();
   const isAr = language === 'ar';
 
   const pendingOrdersCount = orders.filter(o => o.status === 'new' || o.status === 'processing').length;
+  const activeDebtsCount = debts.filter(d => d.remainingAmount > 0).length;
+
+  const handleNavClick = (itemId: string) => {
+    if (itemId === 'storefront') {
+      setCurrentView('storefront');
+      return;
+    }
+    if (itemId === 'no_code_studio') {
+      setCurrentView('no_code_studio');
+      return;
+    }
+    setActiveSection(itemId);
+  };
 
   const navGroups = [
     {
-      title: isAr ? 'نظرة عامة' : 'Overview',
+      title: isAr ? 'المشاريع والاستوديو' : 'Projects & Studio',
       items: [
-        { id: 'overview', label: isAr ? 'لوحة القيادة' : 'Overview', icon: LayoutDashboard }
+        { id: 'overview', label: isAr ? 'لوحة القيادة' : 'Overview', icon: LayoutDashboard },
+        { 
+          id: 'projects', 
+          label: isAr ? 'إدارة المشاريع والمتاجر' : 'Projects & Stores', 
+          icon: FolderKanban,
+          badge: tenants.length > 0 ? String(tenants.length) : undefined
+        },
+        { id: 'features_manager', label: isAr ? 'مركز الميزات والوحدات' : 'App & Features Hub', icon: Sliders, badge: isAr ? 'تخصيص' : 'Hub' },
+        { id: 'no_code_studio', label: isAr ? 'استوديو التطبيقات والمواقع' : 'No-Code App Studio', icon: Sparkles }
       ]
     },
     {
-      title: isAr ? 'مصنع الأكواد والبناء' : 'Code Factory',
+      title: isAr ? 'المبيعات ونقاط البيع' : 'Sales & POS',
       items: [
-        { id: 'publish', label: isAr ? 'البناء والتصدير' : 'Build & Export', icon: Rocket },
-        { id: 'cloud_storage', label: isAr ? 'التخزين السحابي والإصدارات' : 'Cloud Storage & Versions', icon: Cloud }
-      ]
-    },
-    {
-      title: isAr ? 'الكتالوج والمخزون' : 'Catalog',
-      items: [
-        { id: 'products', label: isAr ? 'المنتجات' : 'Products', icon: Package },
-        { id: 'categories', label: isAr ? 'التصنيفات' : 'Categories', icon: Tag },
-        { id: 'inventory', label: isAr ? 'المخزون' : 'Inventory', icon: Warehouse }
-      ]
-    },
-    {
-      title: isAr ? 'المبيعات والعملاء' : 'Sales',
-      items: [
+        { id: 'pos', label: isAr ? 'نقطة البيع (الكاشير)' : 'Point of Sale (POS)', icon: Calculator },
+        { id: 'desktop_pos', label: isAr ? 'الكاشير المكتبي والعتاد' : 'Desktop POS & Hardware', icon: Monitor, badge: 'PRO' },
         { 
           id: 'orders', 
           label: isAr ? 'الطلبات' : 'Orders', 
           icon: ShoppingBag, 
           badge: pendingOrdersCount > 0 ? String(pendingOrdersCount) : undefined 
         },
-        { id: 'customers', label: isAr ? 'العملاء' : 'Customers', icon: Users }
+        { id: 'abandoned_carts', label: isAr ? 'السلات المتروكة' : 'Abandoned Carts', icon: ShoppingBag, badge: 'Recovery' },
+        { id: 'customers', label: isAr ? 'العملاء' : 'Customers', icon: Users },
+        { id: 'coupons', label: isAr ? 'كوبونات الخصم' : 'Coupons', icon: Gift }
       ]
     },
     {
-      title: isAr ? 'الواجهة والهوية' : 'Storefront & Design',
+      title: isAr ? 'المالية والحسابات والبنوك' : 'Finance & Banking',
       items: [
-        { id: 'storefront', label: isAr ? 'المعاينة الحية' : 'Live Preview', icon: Store },
-        { id: 'design', label: isAr ? 'التصميم والهوية' : 'Design Tokens', icon: Palette }
+        { 
+          id: 'debts', 
+          label: isAr ? 'الحسابات الآجلة والديون' : 'Debts & Receivables', 
+          icon: Wallet,
+          badge: activeDebtsCount > 0 ? String(activeDebtsCount) : undefined
+        },
+        { id: 'expenses', label: isAr ? 'المصروفات التشغيلية' : 'Operating Expenses', icon: TrendingDown },
+        { id: 'banking_payments', label: isAr ? 'المدفوعات والربط البنكي' : 'Payments & Banks', icon: CreditCard },
+        { id: 'saas_billing', label: isAr ? 'بيانات التراخيص والمفاتيح' : 'Licenses & API Keys', icon: Key }
+      ]
+    },
+    {
+      title: isAr ? 'الكتالوج والقطاعات التجارية' : 'Catalog & Sectors',
+      items: [
+        { id: 'commercial_hub', label: isAr ? 'حلول القطاعات (جملة/تجزئة)' : 'Commercial Sectors', icon: Building2 },
+        { id: 'products', label: isAr ? 'المنتجات' : 'Products', icon: Package },
+        { id: 'categories', label: isAr ? 'التصنيفات' : 'Categories', icon: Tag },
+        { id: 'inventory', label: isAr ? 'المخزون' : 'Inventory', icon: Warehouse }
+      ]
+    },
+    {
+      title: isAr ? 'التطبيقات والتصدير المستقل' : 'Apps & Standalone Export',
+      items: [
+        { id: 'storefront', label: isAr ? 'المعاينة الحية المحلية' : 'Local Preview', icon: Store },
+        { id: 'mobile_app', label: isAr ? 'حزم الجوال و PWA' : 'Mobile & PWA Packages', icon: Smartphone, badge: 'APK' },
+        { id: 'design', label: isAr ? 'التصميم والهوية' : 'Design Tokens', icon: Palette },
+        { id: 'publish', label: isAr ? 'تصدير الكود والحزم (ZIP)' : 'Export Code & Packages', icon: Download }
+      ]
+    },
+    {
+      title: isAr ? 'المحركات والربط المتقدم' : 'Engines & Integration',
+      items: [
+        { id: 'notifications', label: isAr ? 'إشعارات واتساب والرسائل' : 'WhatsApp & Alerts', icon: Bell },
+        { id: 'licensing', label: isAr ? 'التراخيص والوايت ليبل' : 'Licensing & White-label', icon: Key },
+        { id: 'dynamic_rules', label: isAr ? 'محرك الخصومات الذكي (AST)' : 'Dynamic AST Rules', icon: Cpu },
+        { id: 'webhooks_plugins', label: isAr ? 'الإضافات وخطافات الويب' : 'Webhooks & Plugins', icon: Webhook },
+        { id: 'event_cqrs', label: isAr ? 'سجل الأحداث (CQRS)' : 'Event Stream CQRS', icon: Network }
       ]
     }
   ];
 
   const systemItems = [
+    { id: 'knowledge_academy', label: isAr ? 'أكاديمية المعرفة والتصميم' : 'Knowledge & Design Academy', icon: GraduationCap, badge: 'INTEL' },
+    { id: 'security_compliance', label: isAr ? 'الأمان والامتثال السيبراني' : 'Security & Compliance', icon: ShieldCheck, badge: 'PRO' },
     { id: 'settings', label: isAr ? 'الإعدادات' : 'Settings', icon: Settings },
     { id: 'help', label: isAr ? 'المساعدة والدعم' : 'Help & Support', icon: HelpCircle }
   ];
@@ -176,7 +245,7 @@ export const MerchantSidebar: React.FC<MerchantSidebarProps> = ({
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveSection(item.id)}
+                    onClick={() => handleNavClick(item.id)}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all group relative ${
                       isActive 
                         ? 'bg-[#C9A45C]/15 text-[#C9A45C] border border-[#C9A45C]/30 shadow-sm' 

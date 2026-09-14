@@ -65,6 +65,7 @@ import { DynamicRulesManager } from './DynamicRulesManager';
 import { EventDrivenCQRSManager } from './EventDrivenCQRSManager';
 import { WebhooksPluginsManager } from './WebhooksPluginsManager';
 import { UsageAndBillingHub } from '../saas/UsageAndBillingHub';
+import { ShippingManager } from '../merchant/ShippingManager';
 import { Rocket, MessageSquare, ShieldAlert, ArrowUpRight, CheckCircle, RotateCcw, AlertCircle } from 'lucide-react';
 import { ConfirmActionDialog, RefundDetails } from '../common/ConfirmActionDialog';
 
@@ -105,7 +106,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
   const [activeTab, setActiveTab] = useState<string>('overview');
 
   // Settings Sub-tab for progressive disclosure
-  const [settingsSubTab, setSettingsSubTab] = useState<'basic' | 'payments' | 'developer'>('basic');
+  const [settingsSubTab, setSettingsSubTab] = useState<'basic' | 'payments' | 'shipping' | 'developer'>('basic');
 
   // Modals
   const [productModalOpen, setProductModalOpen] = useState(false);
@@ -123,14 +124,34 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
   const [quickRestockProduct, setQuickRestockProduct] = useState<Product | null>(null);
   const [restockAmount, setRestockAmount] = useState<number>(10);
 
-  // Store Readiness Checklist State
-  const [readinessTasks, setReadinessTasks] = useState<Record<string, boolean>>({
-    branding: true,
-    products: products.length > 0,
-    payments: (activeTenant.bankAccounts && activeTenant.bankAccounts.length > 0) || true,
-    domain: Boolean(activeTenant.customDomain),
-    publishing: false
-  });
+  // Store Readiness Automated Checklist (dynamic detection)
+  const isBrandingDone = Boolean(activeTenant.logo || activeTenant.theme);
+  const isProductsDone = products.length > 0;
+  const isPaymentsDone = Boolean(
+    (activeTenant.bankAccounts && activeTenant.bankAccounts.length > 0) ||
+    (activeTenant.paymentGateways && (
+      activeTenant.paymentGateways.mada || 
+      activeTenant.paymentGateways.applePay || 
+      activeTenant.paymentGateways.bankTransfer ||
+      activeTenant.paymentGateways.visa
+    ))
+  );
+  const isShippingDone = Boolean(
+    activeTenant.shippingMethods && 
+    activeTenant.shippingMethods.length > 0 && 
+    activeTenant.shippingMethods.some(s => s.active)
+  );
+  const isInventoryDone = Boolean(products && products.length > 0 && products.some(p => p.stock > 0));
+  const isPublishingDone = activeTenant.status === 'live';
+
+  const readinessTasks: Record<string, boolean> = {
+    branding: isBrandingDone,
+    products: isProductsDone,
+    shipping: isShippingDone,
+    payments: isPaymentsDone,
+    inventory: isInventoryDone,
+    publishing: isPublishingDone
+  };
 
   // Bank Form State
   const [bankName, setBankName] = useState('');
@@ -325,11 +346,17 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
           <div className="relative group p-3.5 bg-zinc-950/80 rounded-2xl border border-white/10 hover:border-blue-500/40 transition-all duration-300 flex items-center justify-between overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
             <div className="flex items-center gap-3 min-w-0 relative z-10">
-              <img 
-                src={activeTenant.logo} 
-                alt="" 
-                className="w-10 h-10 rounded-xl object-cover border border-white/15 shadow-md shrink-0" 
-              />
+              {activeTenant.logo ? (
+                <img 
+                  src={activeTenant.logo} 
+                  alt="" 
+                  className="w-10 h-10 rounded-xl object-cover border border-white/15 shadow-md shrink-0" 
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold shrink-0">
+                  {activeTenant.name?.charAt(0) || 'M'}
+                </div>
+              )}
               <div className="min-w-0">
                 <div className="text-xs font-bold text-white truncate font-heading">{activeTenant.name}</div>
                 <div className="text-[10px] text-zinc-400 font-mono mt-0.5 flex items-center gap-1.5">
@@ -641,21 +668,24 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
               </div>
 
               {/* Checklist Items */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 pt-2">
                 {[
-                  { id: 'branding', title: 'هوية وشعار المتجر', tab: 'theme', desc: 'تم ضبط الألوان واللوغو' },
-                  { id: 'products', title: 'إضافة المنتجات والأسعار', tab: 'products', desc: `${products.length} منتجات نشطة` },
-                  { id: 'payments', title: 'الحسابات وبوابات الدفع', tab: 'settings', desc: 'مدى والتحويل البنكي' },
-                  { id: 'domain', title: 'ربط النطاق المخصص', tab: 'settings', desc: activeTenant.customDomain || 'اضغط للربط' },
-                  { id: 'publishing', title: 'تصدير ونشر التطبيق', tab: 'publish_center', desc: 'توليد PWA وMobile' }
+                  { id: 'branding', title: 'هوية وشعار المتجر', tab: 'theme', desc: isBrandingDone ? 'تم ضبط الشعار والألوان' : 'اضغط للتخصيص' },
+                  { id: 'products', title: 'إضافة المنتجات', tab: 'products', desc: `${products.length} منتجات نشطة` },
+                  { id: 'shipping', title: 'الشحن والتوصيل', tab: 'settings', subTab: 'shipping', desc: isShippingDone ? 'خيارات التوصيل مفعّلة' : 'حدد شركات الشحن' },
+                  { id: 'payments', title: 'بوابات الدفع والبنك', tab: 'settings', subTab: 'payments', desc: isPaymentsDone ? 'مدى وأبل باي وبنك' : 'يلزم تفعيل الدفع' },
+                  { id: 'inventory', title: 'المخزون والمستودع', tab: 'inventory', desc: isInventoryDone ? 'مستويات المخزون مضبوطة' : 'اضغط لإدارة المخزون' },
+                  { id: 'publishing', title: 'تصدير ونشر التطبيق', tab: 'publish_center', desc: isPublishingDone ? 'المتجر مباشر (Live)' : 'توليد PWA وMobile' }
                 ].map(task => {
                   const isDone = readinessTasks[task.id];
                   return (
                     <div 
                       key={task.id}
                       onClick={() => {
-                        setReadinessTasks(prev => ({ ...prev, [task.id]: !prev[task.id] }));
-                        if (!isDone) setActiveTab(task.tab);
+                        setActiveTab(task.tab);
+                        if (task.subTab) {
+                          setSettingsSubTab(task.subTab as any);
+                        }
                       }}
                       className={`p-3 rounded-2xl border transition-all cursor-pointer select-none ${
                         isDone 
@@ -1069,7 +1099,13 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
                       .map(prod => (
                         <tr key={prod.id} className="hover:bg-slate-800/40">
                           <td className="py-3 flex items-center gap-3">
-                            <img src={prod.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover border border-slate-800" />
+                            {prod.images && prod.images[0] ? (
+                              <img src={prod.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover border border-slate-800" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-500">
+                                <Package className="w-5 h-5" />
+                              </div>
+                            )}
                             <div>
                               <div className="font-bold text-white">{prod.name}</div>
                               <div className="text-[10px] text-slate-400">{prod.weight || 'حجم قياسي'}</div>
@@ -1363,7 +1399,13 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
                         return (
                           <tr key={prod.id} className="hover:bg-slate-800/40 transition-colors">
                             <td className="py-3 flex items-center gap-3">
-                              <img src={prod.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover border border-slate-800" />
+                              {prod.images && prod.images[0] ? (
+                                <img src={prod.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover border border-slate-800" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-lg bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-500">
+                                  <Package className="w-5 h-5" />
+                                </div>
+                              )}
                               <div>
                                 <div className="font-bold text-white">{prod.name}</div>
                                 <div className="text-[10px] text-slate-400">{prod.price} {activeTenant.currencySymbol}</div>
@@ -1869,11 +1911,12 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
             </div>
 
             {/* Progressive Disclosure Sub-Tabs */}
-            <div className="flex gap-2 border-b border-slate-800 pb-3">
+            <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
               {[
                 { id: 'basic', label: 'الإعدادات الأساسية والهوية' },
+                { id: 'shipping', label: 'خيارات الشحن والتوصيل' },
                 { id: 'payments', label: 'بوابات الدفع والحسابات البنكية' },
-                { id: 'developer', label: 'المطورين والنطاق المخصص (DNS & API)' }
+                { id: 'developer', label: 'المطورين والربط البرمجي (API & Webhooks)' }
               ].map(sub => (
                 <button
                   key={sub.id}
@@ -1945,11 +1988,31 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
                 <div className="lg:col-span-4 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-3">
                   <h3 className="text-sm font-bold text-white">معاينة الهوية</h3>
                   <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 text-center space-y-2">
-                    <img src={activeTenant.logo} alt="" className="w-16 h-16 rounded-xl mx-auto object-cover border border-slate-700" />
+                    {activeTenant.logo ? (
+                      <img src={activeTenant.logo} alt="" className="w-16 h-16 rounded-xl mx-auto object-cover border border-slate-700" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-xl mx-auto bg-slate-800 border border-slate-700 flex items-center justify-center text-white font-bold text-lg">
+                        {activeTenant.name?.charAt(0) || 'M'}
+                      </div>
+                    )}
                     <div className="font-bold text-white text-sm">{activeTenant.name}</div>
                     <div className="text-[11px] text-slate-400 font-mono">stores.commerceos.app/{activeTenant.slug}</div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Sub-Tab: Shipping & Delivery Management */}
+            {settingsSubTab === 'shipping' && (
+              <div className="animate-in fade-in">
+                <ShippingManager
+                  shippingMethods={activeTenant.shippingMethods || []}
+                  onChange={(updated) => updateTenant(activeTenant.id, { shippingMethods: updated })}
+                  onSave={() => showToast('تم حفظ إعدادات خيارات الشحن بنجاح! 🚚', 'success')}
+                  isSaving={false}
+                  currency={activeTenant.currency || 'SAR'}
+                  isAr={true}
+                />
               </div>
             )}
 
@@ -2020,39 +2083,28 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({ onOpenComm
               </div>
             )}
 
-            {/* Sub-Tab 3: Developer, Domain & Webhooks */}
+            {/* Sub-Tab 3: Developer, Local Engine & Webhooks */}
             {settingsSubTab === 'developer' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in">
-                {/* Custom Domain */}
+                {/* Standalone Engine Info */}
                 <div className="lg:col-span-6 bg-slate-900 p-6 rounded-2xl border border-slate-800 space-y-4">
-                  <div className="flex items-center gap-2 text-blue-400 font-bold text-sm">
-                    <Globe className="w-4 h-4" />
-                    <span>ربط النطاق المخصص (Custom Domain DNS)</span>
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>محرك التشغيل المستقل (Standalone Engine)</span>
                   </div>
                   
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">الدومين الخاص بك</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        defaultValue={activeTenant.customDomain || `www.${activeTenant.slug}.sa`}
-                        className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white font-mono"
-                      />
-                      <button
-                        onClick={() => showToast('تم التحقق من سجلات DNS وشهادة SSL بنجاح! 🔒', 'success')}
-                        className="px-3 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs"
-                      >
-                        تحقق من DNS
-                      </button>
-                    </div>
-                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    المنصة مبنية للتشغيل الذاتي والتصدير المستقل لحزم الكود وتطبيقات سطح المكتب ونقاط البيع، دون الحاجة لحجز أو ربط نطاقات سحابية خارجية.
+                  </p>
 
-                  <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] text-slate-400 space-y-1">
-                    <div className="font-bold text-slate-200 mb-1">سجلات DNS المطلوبة:</div>
-                    <div className="flex justify-between font-mono">
-                      <span>Type: CNAME</span>
-                      <span>Host: www</span>
-                      <span className="text-amber-400">Target: stores.commerceos.app</span>
+                  <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] text-slate-400 space-y-1 font-mono">
+                    <div className="flex justify-between">
+                      <span>معرّف المتجر المحلي:</span>
+                      <span className="text-emerald-400">{activeTenant.id}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>النمط التشغيلي:</span>
+                      <span className="text-blue-400">Self-Contained Offline/Local-First</span>
                     </div>
                   </div>
                 </div>

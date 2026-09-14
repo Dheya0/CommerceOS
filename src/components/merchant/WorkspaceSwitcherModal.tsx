@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Store, Check, Plus, Globe, Shield, X, ArrowRight } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
 
@@ -8,8 +8,22 @@ interface WorkspaceSwitcherModalProps {
 }
 
 export const WorkspaceSwitcherModal: React.FC<WorkspaceSwitcherModalProps> = ({ isOpen, onClose }) => {
-  const { tenants, activeTenantId, setActiveTenantId, activeTenant, showToast, language } = useCommerce();
+  const { tenants, activeTenantId, setActiveTenantId, activeTenant, showToast, language, setCurrentView } = useCommerce();
   const isAr = language === 'ar';
+
+  // Ensure unique list of tenants by ID to guarantee unique React keys
+  const uniqueTenants = useMemo(() => {
+    const seen = new Set<string>();
+    const list: typeof tenants = [];
+    (tenants || []).forEach((tenant, idx) => {
+      const id = tenant?.id || `tenant-${idx}`;
+      if (!seen.has(id)) {
+        seen.add(id);
+        list.push({ ...tenant, id });
+      }
+    });
+    return list;
+  }, [tenants]);
 
   if (!isOpen) return null;
 
@@ -43,12 +57,16 @@ export const WorkspaceSwitcherModal: React.FC<WorkspaceSwitcherModalProps> = ({ 
 
         {/* Tenant Stores List */}
         <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-          {tenants.map(tenant => {
+          {uniqueTenants.map((tenant, index) => {
             const isActive = tenant.id === activeTenantId;
+            const storeTitle = tenant.name || (tenant as any).storeName || (isAr ? 'متجر' : 'Store');
+            const storeSlug = tenant.slug || (tenant as any).storeSlug || 'store';
+            const status = (tenant as any).status || 'active';
+
             return (
               <div
-                key={tenant.id}
-                onClick={() => !isActive && handleSwitch(tenant.id, tenant.storeName)}
+                key={`workspace-tenant-${tenant.id}-${index}`}
+                onClick={() => !isActive && handleSwitch(tenant.id, storeTitle)}
                 className={`p-4 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
                   isActive 
                     ? 'bg-[#D4AF37]/10 border-[#D4AF37]/40 shadow-lg' 
@@ -59,21 +77,22 @@ export const WorkspaceSwitcherModal: React.FC<WorkspaceSwitcherModalProps> = ({ 
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm ${
                     isActive ? 'bg-[#D4AF37] text-[#07111F]' : 'bg-white/10 text-white'
                   }`}>
-                    {tenant.storeName?.charAt(0) || 'S'}
+                    {storeTitle.charAt(0) || 'S'}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h4 className="text-sm font-bold text-white truncate">{tenant.storeName}</h4>
+                      <h4 className="text-sm font-bold text-white truncate">{storeTitle}</h4>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        tenant.status === 'live' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' :
-                        'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+                        status === 'live' || status === 'active' 
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' 
+                          : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
                       }`}>
-                        {tenant.status}
+                        {status}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
-                      <Globe className="w-3 h-3" />
-                      <span className="truncate">{tenant.customDomain || `${tenant.storeSlug}.commerceos.shop`}</span>
+                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-1 font-mono">
+                      <Store className="w-3 h-3 text-[#D4AF37]" />
+                      <span className="truncate">workspace/{storeSlug}</span>
                     </div>
                   </div>
                 </div>
@@ -93,12 +112,12 @@ export const WorkspaceSwitcherModal: React.FC<WorkspaceSwitcherModalProps> = ({ 
           <button
             onClick={() => {
               onClose();
-              // Trigger create store or onboarding flow if desired
+              setCurrentView('builder_wizard');
             }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-semibold text-slate-200 transition-all w-full justify-center"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-semibold text-slate-200 transition-all w-full justify-center active:scale-95"
           >
             <Plus className="w-4 h-4 text-[#D4AF37]" />
-            <span>{isAr ? 'إنشاء متجر جديد' : 'Create New Store'}</span>
+            <span>{isAr ? 'إنشاء متجر جديد (معالج البناء)' : 'Create New Store (Builder Wizard)'}</span>
           </button>
         </div>
       </div>

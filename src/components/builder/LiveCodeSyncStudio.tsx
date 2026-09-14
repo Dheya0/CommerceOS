@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Code, Copy, Check, Sparkles, RefreshCw, Terminal, Download, Play } from 'lucide-react';
+import { Code, Copy, Check, Sparkles, RefreshCw, Terminal, Download, Play, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { StoreTheme } from '../../types';
 import { convertTokensToCSS, parseCSSToTokens } from '../../utils/themeEngine';
+import { SecurityEngine } from '../../utils/securityEngine';
 
 interface LiveCodeSyncStudioProps {
   draftTheme: StoreTheme;
@@ -51,24 +52,32 @@ export const LiveCodeSyncStudio: React.FC<LiveCodeSyncStudioProps> = ({
     }
   };
 
-  // Save custom CSS rules into theme
+  // Save custom CSS rules into theme with security sanitization
   const handleSaveCustomCss = () => {
+    const { cleanCss, warnings, isClean } = SecurityEngine.sanitizeCustomCss(customCssCode);
+    setCustomCssCode(cleanCss);
     onThemeChange(prev => ({
       ...prev,
-      customCss: customCssCode
+      customCss: cleanCss
     }));
-    showToast('تم حفظ وحقن كود CSS المخصص في المتجر! ✨', 'success');
+
+    if (!isClean) {
+      showToast(`تم تطهير الكود وإزالة الأنماط غير الآمنة: ${warnings[0]} 🛡️`, 'info');
+    } else {
+      showToast('تم فحص وتطهير وحفظ كود CSS المخصص بأمان تام! ✨', 'success');
+    }
   };
 
   // Preset CSS snippets
   const insertCssSnippet = (snippet: string, title: string) => {
-    const updated = (customCssCode ? customCssCode + '\n\n' : '') + `/* ${title} */\n` + snippet;
-    setCustomCssCode(updated);
+    const raw = (customCssCode ? customCssCode + '\n\n' : '') + `/* ${title} */\n` + snippet;
+    const { cleanCss } = SecurityEngine.sanitizeCustomCss(raw);
+    setCustomCssCode(cleanCss);
     onThemeChange(prev => ({
       ...prev,
-      customCss: updated
+      customCss: cleanCss
     }));
-    showToast(`تم إدراج كود: ${title}`, 'success');
+    showToast(`تم إدراج كود آمن: ${title}`, 'success');
   };
 
   const handleDownloadThemeJson = () => {

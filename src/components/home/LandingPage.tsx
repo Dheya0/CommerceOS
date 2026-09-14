@@ -58,16 +58,16 @@ export const LandingPage: React.FC = () => {
 
         <p className="mt-6 text-base sm:text-lg text-[#97A4B5] max-w-2xl mx-auto font-normal leading-relaxed">
           {isAr 
-            ? 'CommerceOS ليست مجرد منصة استضافة مغلقة. صمّم مشروعك التجاري، عاينه تفاعلياً، ثم قم بتوليد وتنزيل كود Full-Stack حقيقي (Frontend, Backend, Database, Android, iOS, Docker) بملكية سيادية 100% دون أي قيود أو عمولات خفية.'
-            : 'CommerceOS is not a closed hosted silo. Design your commerce project, preview it interactively, then generate and download genuine production Full-Stack source code (Frontend, Backend, Database, Android, iOS, Docker) with 100% sovereign ownership.'}
+            ? 'المنصة المتكاملة لتصميم المواقع والتطبيقات بدون كود. صمّم متجرك، دفتر المصروفات ودائن ومدين، أو تطبيق الدفع والكاشير، وخصص الواجهات والخانات والخطوط بالعملات العربية، واحصل على الكود النظيف الجاهز فورياً لأي نظام (ويندوز، أندرويد، آيفون، ويب).'
+            : 'The universal no-code app & website design studio. Design stores, debt/credit ledgers, expense trackers, or payment terminals with full Arab currencies & APIs, and export clean native code for Web, Android, iOS, and Windows.'}
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           <button
-            onClick={() => setCurrentView('auth_page')}
+            onClick={() => setCurrentView('no_code_studio')}
             className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-[#C9A45C] to-[#9A7B26] text-[#050B14] font-black text-sm hover:opacity-95 shadow-xl shadow-[#C9A45C]/20 transition-all flex items-center justify-center gap-3"
           >
-            <span>{isAr ? 'ابدأ بناء مشروعك مجاناً' : 'Start Building Your Project'}</span>
+            <span>{isAr ? '🚀 استوديو التصميم بدون كود (ابدأ الآن)' : 'Launch No-Code Studio'}</span>
             <ArrowRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />
           </button>
 
@@ -75,7 +75,7 @@ export const LandingPage: React.FC = () => {
             onClick={() => setCurrentView('auth_page')}
             className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-[#0B1422] hover:bg-[#101B2C] border border-[#233247] text-white font-bold text-sm transition-all flex items-center justify-center gap-2"
           >
-            <span>{isAr ? 'تسجيل الدخول' : 'Sign In'}</span>
+            <span>{isAr ? 'لوحة التحكم والتاجر' : 'Merchant Dashboard'}</span>
           </button>
         </div>
 

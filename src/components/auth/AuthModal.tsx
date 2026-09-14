@@ -176,8 +176,8 @@ export const AuthModal: React.FC = () => {
                       onChange={e => setSelectedTenantId(e.target.value)}
                       className="w-full pr-10 pl-4 py-2.5 bg-[#050B14] border border-[#233247] rounded-xl text-xs font-medium text-white focus:outline-none focus:border-[#C9A45C] transition-colors"
                     >
-                      {tenants.map(t => (
-                        <option key={t.id} value={t.id}>
+                      {tenants.map((t, idx) => (
+                        <option key={`auth-tenant-${t.id}-${idx}`} value={t.id}>
                           {t.name} ({t.slug}.commerceos.app)
                         </option>
                       ))}
@@ -304,7 +304,7 @@ export const AuthModal: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-[#F4F6F8] mb-1.5">
-                    النطاق الفرعي المطلوب
+                    معرّف مساحة العمل (Store ID)
                   </label>
                   <div className="relative">
                     <input
@@ -317,7 +317,7 @@ export const AuthModal: React.FC = () => {
                       dir="ltr"
                     />
                     <span className="text-[10px] text-[#97A4B5] font-mono mt-1 block text-left" dir="ltr">
-                      .{regStoreSlug || 'store'}.commerceos.app
+                      store_id: {regStoreSlug || 'store'}
                     </span>
                   </div>
                 </div>

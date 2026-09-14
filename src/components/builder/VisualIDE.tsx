@@ -30,7 +30,8 @@ import {
   Mail,
   ShieldCheck,
   Percent,
-  Play
+  Play,
+  Package
 } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
 import { VisualBlock, VisualBlockType, FontFamily, ThemeStyle } from '../../types';
@@ -767,8 +768,12 @@ export const VisualIDE: React.FC = () => {
                       }`}>
                         {products.slice(0, 6).map(p => (
                           <div key={p.id} className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-2 group">
-                            <div className="aspect-square rounded-xl overflow-hidden bg-slate-950 relative">
-                              <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                            <div className="aspect-square rounded-xl overflow-hidden bg-slate-950 relative flex items-center justify-center">
+                              {p.images && p.images[0] ? (
+                                <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                              ) : (
+                                <Package className="w-8 h-8 text-slate-700" />
+                              )}
                               <span className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 text-[10px] font-black">
                                 خصم خاص
                               </span>
@@ -873,7 +878,9 @@ export const VisualIDE: React.FC = () => {
                               <div className="mt-2 space-y-1 w-full">
                                 {msg.products.map(p => (
                                   <div key={p.id} className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2">
-                                    <img src={p.images[0]} alt={p.name} className="w-8 h-8 rounded-lg object-cover" />
+                                    {p.images && p.images[0] ? (
+                                      <img src={p.images[0]} alt={p.name} className="w-8 h-8 rounded-lg object-cover shrink-0" />
+                                    ) : null}
                                     <div className="flex-1 text-[11px] text-white line-clamp-1">{p.name}</div>
                                     <div className="text-[11px] font-bold text-amber-400">{p.price} ر.س</div>
                                   </div>

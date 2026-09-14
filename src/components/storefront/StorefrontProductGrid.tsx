@@ -2,6 +2,7 @@ import React from 'react';
 import { ShoppingBag, Star, Plus, Eye, Check, Sparkles } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
 import { Product } from '../../types';
+import { getTenantFeatures } from '../../utils/defaultFeatures';
 
 interface StorefrontProductGridProps {
   products: Product[];
@@ -14,6 +15,7 @@ export const StorefrontProductGrid: React.FC<StorefrontProductGridProps> = ({ pr
   const activeTenant = overrideTenant || ctxTenant;
   const theme = activeTenant.theme;
   const tokens = theme.tokens;
+  const features = getTenantFeatures(activeTenant.featuresConfig);
 
   const getCardRadiusClass = () => {
     if (theme.customRadiusPx !== undefined) return '';
@@ -111,12 +113,18 @@ export const StorefrontProductGrid: React.FC<StorefrontProductGridProps> = ({ pr
                 style={getCardStyle()}
               >
                 {/* Image & Badges */}
-                <div className="relative aspect-square overflow-hidden bg-slate-100 dark:bg-slate-900">
-                  <img
-                    src={product.images[0]}
-                    alt={product.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
+                <div className="relative aspect-square overflow-hidden bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
+                  {product.images && product.images[0] ? (
+                    <img
+                      src={product.images[0]}
+                      alt={product.name}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-500">
+                      <span className="text-2xl font-bold">{product.name?.charAt(0) || 'P'}</span>
+                    </div>
+                  )}
                   
                   {/* Badges */}
                   <div className="absolute top-3 right-3 flex flex-col gap-1 items-end z-10">
@@ -134,6 +142,21 @@ export const StorefrontProductGrid: React.FC<StorefrontProductGridProps> = ({ pr
                         style={{ backgroundColor: tokens.danger }}
                       >
                         خصم {Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)}%
+                      </span>
+                    )}
+                    {features.wholesaleB2BTiers && activeTenant.businessType === 'wholesale' && (
+                      <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-blue-600 text-white shadow">
+                        سعر جملة متاح
+                      </span>
+                    )}
+                    {features.electronicsWarranty && activeTenant.businessType === 'electronics' && (
+                      <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-purple-600 text-white shadow">
+                        ضمان سنتين
+                      </span>
+                    )}
+                    {features.fragrancePyramidSFDA && activeTenant.businessType === 'beauty' && (
+                      <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow">
+                        مرخص SFDA
                       </span>
                     )}
                   </div>
@@ -154,17 +177,19 @@ export const StorefrontProductGrid: React.FC<StorefrontProductGridProps> = ({ pr
                 <div className="p-4 flex-1 flex flex-col justify-between text-right">
                   <div>
                     {/* Rating */}
-                    <div className="flex items-center gap-1 mb-1 text-amber-500">
-                      <Star className="w-3.5 h-3.5 fill-current" />
-                      <span className="text-[11px] font-bold text-slate-500">
-                        {product.rating} ({product.reviewsCount})
-                      </span>
-                      {product.weight && (
-                        <span className="text-[10px] text-slate-400 mr-auto font-mono">
-                          {product.weight}
+                    {features.customerReviewsSystem && (
+                      <div className="flex items-center gap-1 mb-1 text-amber-500">
+                        <Star className="w-3.5 h-3.5 fill-current" />
+                        <span className="text-[11px] font-bold text-slate-500">
+                          {product.rating} ({product.reviewsCount})
                         </span>
-                      )}
-                    </div>
+                        {product.weight && (
+                          <span className="text-[10px] text-slate-400 mr-auto font-mono">
+                            {product.weight}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {/* Title */}
                     <h3 
@@ -186,11 +211,15 @@ export const StorefrontProductGrid: React.FC<StorefrontProductGridProps> = ({ pr
                       <div className="text-base font-black font-mono" style={{ color: tokens.primary }}>
                         {displayPrice} {activeTenant.currencySymbol}
                       </div>
-                      {product.comparePrice && (
+                      {product.comparePrice ? (
                         <div className="text-[11px] line-through text-slate-400 font-mono">
                           {product.comparePrice} {activeTenant.currencySymbol}
                         </div>
-                      )}
+                      ) : features.installmentsCalculator ? (
+                        <div className="text-[9px] text-slate-400 font-mono">
+                          أو {(displayPrice / 4).toFixed(0)} ر.س / 4 أشهر
+                        </div>
+                      ) : null}
                     </div>
 
                     <button

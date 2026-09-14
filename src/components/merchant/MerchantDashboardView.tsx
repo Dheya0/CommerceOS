@@ -19,7 +19,13 @@ import {
   Info,
   Sliders,
   Check,
-  Layers
+  Layers,
+  Truck,
+  CreditCard,
+  Palette,
+  Globe,
+  Calculator,
+  ArrowLeft
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -33,7 +39,7 @@ import {
 import { useCommerce } from '../../context/CommerceContext';
 
 interface MerchantDashboardViewProps {
-  setActiveSection: (section: string) => void;
+  setActiveSection: (section: string, subParam?: string) => void;
 }
 
 export const MerchantDashboardView: React.FC<MerchantDashboardViewProps> = ({ setActiveSection }) => {
@@ -53,17 +59,140 @@ export const MerchantDashboardView: React.FC<MerchantDashboardViewProps> = ({ se
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Store Readiness checklist tasks
-  const [readinessTasks, setReadinessTasks] = useState({
-    products: products.length > 0,
-    payments: true,
-    shipping: false,
-    customization: true,
-    publishing: activeTenant.status === 'live'
-  });
+  // Real Automatic Detection of Store Readiness
+  const hasProducts = Boolean(products && products.length > 0);
+  
+  const activeGatewaysList: string[] = [];
+  if (activeTenant.paymentGateways?.mada) activeGatewaysList.push('مدى');
+  if (activeTenant.paymentGateways?.applePay) activeGatewaysList.push('Apple Pay');
+  if (activeTenant.paymentGateways?.visa) activeGatewaysList.push('Visa');
+  if (activeTenant.paymentGateways?.tamara) activeGatewaysList.push('تمارا');
+  if (activeTenant.paymentGateways?.tabby) activeGatewaysList.push('تابي');
+  if (activeTenant.paymentGateways?.bankTransfer) activeGatewaysList.push('التحويل البنكي');
+  if (activeTenant.paymentGateways?.cod) activeGatewaysList.push('الدفع عند الاستلام');
 
-  const completedTasksCount = Object.values(readinessTasks).filter(Boolean).length;
-  const readinessPercentage = Math.round((completedTasksCount / Object.keys(readinessTasks).length) * 100);
+  const hasBankAccounts = Boolean(
+    activeTenant.bankAccounts && 
+    activeTenant.bankAccounts.length > 0 && 
+    activeTenant.bankAccounts.some(b => b.iban && b.iban.trim() !== '')
+  );
+
+  const hasPayments = activeGatewaysList.length > 0 || hasBankAccounts;
+
+  const activeShippingCount = activeTenant.shippingMethods?.filter(s => s.active).length || 0;
+  const hasShipping = activeShippingCount > 0;
+
+  const hasCustomLogo = Boolean(activeTenant.logo && activeTenant.logo.trim() !== '');
+  const hasSlogan = Boolean(activeTenant.slogan && activeTenant.slogan.trim() !== '');
+  const hasCustomization = Boolean(
+    hasCustomLogo ||
+    hasSlogan ||
+    activeTenant.logoIcon ||
+    (activeTenant.theme && (activeTenant.theme.primaryColor || activeTenant.theme.style || activeTenant.theme.heroBannerImage))
+  );
+
+  const hasPosReady = true;
+
+  const isPublished = Boolean(
+    activeTenant.status === 'live' ||
+    activeTenant.storeOperationalStatus === 'live'
+  );
+
+  const readinessTasks = [
+    {
+      key: 'products',
+      title: isAr ? 'إضافة المنتجات' : 'Add Products',
+      icon: Package,
+      done: hasProducts,
+      desc: hasProducts 
+        ? (isAr ? `${products.length} منتجات مضافة ونشطة` : `${products.length} active products`)
+        : (isAr ? 'لم تتم إضافة أي منتج بعد' : 'No products added yet'),
+      actionText: hasProducts 
+        ? (isAr ? 'إدارة المنتجات' : 'Manage Products')
+        : (isAr ? 'إضافة منتج الآن' : 'Add Product Now'),
+      onAction: () => {
+        if (!hasProducts) {
+          setActiveSection('products', 'new');
+        } else {
+          setActiveSection('products');
+        }
+      }
+    },
+    {
+      key: 'shipping',
+      title: isAr ? 'خيارات الشحن' : 'Setup Shipping',
+      icon: Truck,
+      done: hasShipping,
+      desc: hasShipping
+        ? (isAr ? `${activeShippingCount} خيارات شحن وتوصيل مفعّلة` : `${activeShippingCount} shipping carriers active`)
+        : (isAr ? 'حدد شركات وأسعار وأوزان الشحن' : 'Configure delivery carriers & weights'),
+      actionText: hasShipping
+        ? (isAr ? 'تعديل خيارات الشحن' : 'Edit Shipping')
+        : (isAr ? 'تجهيز الشحن الآن' : 'Setup Shipping Now'),
+      onAction: () => {
+        setActiveSection('settings', 'shipping');
+      }
+    },
+    {
+      key: 'payments',
+      title: isAr ? 'المدفوعات والبنوك' : 'Configure Payments',
+      icon: CreditCard,
+      done: hasPayments,
+      desc: hasPayments
+        ? (isAr ? (activeGatewaysList.length > 0 ? `مفعّل: ${activeGatewaysList.slice(0, 3).join('، ')}` : 'حساب بنكي مسجل للتحويل') : 'Payment gateways active')
+        : (isAr ? 'يلزم تفعيل بوابات الدفع أو ربط الآيبان' : 'Enable Mada, Apple Pay, Bank IBAN'),
+      actionText: hasPayments
+        ? (isAr ? 'إدارة المدفوعات' : 'Manage Payments')
+        : (isAr ? 'تهيئة الدفع الآن' : 'Setup Payments Now'),
+      onAction: () => {
+        setActiveSection('settings', 'payments');
+      }
+    },
+    {
+      key: 'customization',
+      title: isAr ? 'تخصيص الهوية' : 'Customize Brand',
+      icon: Palette,
+      done: hasCustomization,
+      desc: hasCustomization
+        ? (isAr ? 'الهوية والشعار معتمدة ومخصصة' : 'Branding & logo customized')
+        : (isAr ? 'اختر الشعار، الألوان، والسلوجان' : 'Select logo, slogan & brand styling'),
+      actionText: hasCustomization
+        ? (isAr ? 'استوديو التصميم' : 'Design Studio')
+        : (isAr ? 'تخصيص الهوية الآن' : 'Customize Brand Now'),
+      onAction: () => {
+        setActiveSection('design');
+      }
+    },
+    {
+      key: 'pos_cashier',
+      title: isAr ? 'نقطة البيع والكاشير المكتبي' : 'Point of Sale (POS)',
+      icon: Calculator,
+      done: hasPosReady,
+      desc: isAr ? 'شاشة الكاشير والبيع السريع وطباعة الإيصالات مهيأة' : 'Quick register and receipt printing ready',
+      actionText: isAr ? 'فتح الكاشير' : 'Open Register',
+      onAction: () => {
+        setActiveSection('pos');
+      }
+    },
+    {
+      key: 'publishing',
+      title: isAr ? 'تصدير حزم النظام المستقلة' : 'Export Standalone Packages',
+      icon: ExternalLink,
+      done: isPublished,
+      desc: isPublished
+        ? (isAr ? 'جاهز لتصدير الكود وحزم التطبيق للتشغيل الذاتي' : 'Ready to export source code & standalone bundle')
+        : (isAr ? 'تصدير الكود وحزم سطح المكتب والأندرويد' : 'Export code and desktop/android bundles'),
+      actionText: isPublished
+        ? (isAr ? 'مركز التصدير' : 'Export Center')
+        : (isAr ? 'تصدير الحزم الآن' : 'Export Now'),
+      onAction: () => {
+        setActiveSection('publish');
+      }
+    }
+  ];
+
+  const completedTasksCount = readinessTasks.filter(t => t.done).length;
+  const readinessPercentage = Math.round((completedTasksCount / readinessTasks.length) * 100);
 
   // Sales chart data mock based on date range
   const salesChartData = dateRange === '7d' ? [
@@ -87,10 +216,6 @@ export const MerchantDashboardView: React.FC<MerchantDashboardViewProps> = ({ se
       setIsRefreshing(false);
       showToast(isAr ? 'تم تحديث لوحة التحكم بنجاح' : 'Dashboard updated successfully', 'success');
     }, 600);
-  };
-
-  const toggleTask = (key: keyof typeof readinessTasks) => {
-    setReadinessTasks(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   return (
@@ -152,63 +277,100 @@ export const MerchantDashboardView: React.FC<MerchantDashboardViewProps> = ({ se
         </div>
       </div>
 
-      {/* Store Readiness Checklist (if not 100% live) */}
-      {readinessPercentage < 100 && (
-        <div className="bg-gradient-to-br from-[#0B1422] to-[#050B14] border border-[#C9A45C]/30 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 end-0 w-96 h-96 bg-[#C9A45C]/5 rounded-full blur-3xl pointer-events-none" />
-          
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
-            <div>
-              <div className="flex items-center gap-2 text-[#C9A45C] text-xs font-bold uppercase tracking-wider mb-1">
-                <Store className="w-4 h-4" />
-                <span>{isAr ? 'جاهزية المتجر' : 'Store Readiness'}</span>
-              </div>
-              <h3 className="text-lg font-bold text-[#F4F6F8]">
-                {isAr ? 'أكمل إعداد متجرك لإطلاقه للجمهور' : 'Complete your store setup to launch'}
-              </h3>
+      {/* Store Readiness Automated Checklist */}
+      <div className="bg-gradient-to-br from-[#0B1422] to-[#050B14] border border-[#C9A45C]/30 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 end-0 w-96 h-96 bg-[#C9A45C]/5 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
+          <div>
+            <div className="flex items-center gap-2 text-[#C9A45C] text-xs font-bold uppercase tracking-wider mb-1">
+              <Store className="w-4 h-4" />
+              <span>{isAr ? 'جاهزية المتجر' : 'Store Readiness'}</span>
+              <span className="text-[11px] text-[#97A4B5] font-medium lowercase tracking-normal">
+                ({isAr ? 'فحص تلقائي للمتطلبات' : 'Automated Status Check'})
+              </span>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="text-end">
-                <div className="text-2xl font-black text-[#C9A45C]">{readinessPercentage}%</div>
-                <div className="text-[11px] text-[#97A4B5]">{isAr ? 'مكتمل' : 'Completed'}</div>
-              </div>
-              <div className="w-32 h-3 bg-[#101B2C] rounded-full overflow-hidden border border-[#233247]">
-                <div 
-                  className="h-full bg-gradient-to-r from-[#C9A45C] to-[#E0C078] transition-all duration-500"
-                  style={{ width: `${readinessPercentage}%` }}
-                />
-              </div>
-            </div>
+            <h3 className="text-lg font-bold text-[#F4F6F8]">
+              {readinessPercentage === 100 
+                ? (isAr ? 'تهانينا! متجرك مكتمل وجاهز للبيع بنسبة 100%' : 'Your store is 100% ready for commerce!')
+                : (isAr ? 'أكمل إعداد متجرك لإطلاقه واستقبال الطلبات' : 'Complete your store setup to launch and accept orders')}
+            </h3>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {[
-              { key: 'products', label: isAr ? 'إضافة منتجات' : 'Add Products', done: readinessTasks.products },
-              { key: 'payments', label: isAr ? 'إعداد المدفوعات' : 'Configure Payments', done: readinessTasks.payments },
-              { key: 'shipping', label: isAr ? 'إعداد الشحن' : 'Setup Shipping', done: readinessTasks.shipping },
-              { key: 'customization', label: isAr ? 'تخصيص الهوية' : 'Customize Store', done: readinessTasks.customization },
-              { key: 'publishing', label: isAr ? 'نشر المتجر' : 'Publish Store', done: readinessTasks.publishing }
-            ].map(task => (
-              <button
-                key={task.key}
-                onClick={() => toggleTask(task.key as any)}
-                className={`p-3.5 rounded-2xl border text-start transition-all flex items-center justify-between gap-2 ${
-                  task.done 
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' 
-                    : 'bg-[#0B1422] border-[#233247] text-[#97A4B5] hover:bg-[#101B2C]'
-                }`}
-              >
-                <span className="text-xs font-semibold">{task.label}</span>
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                  task.done ? 'bg-emerald-500 text-[#050B14]' : 'border border-[#233247]'
-                }`}>
-                  {task.done && <Check className="w-3 h-3 stroke-[3]" />}
-                </div>
-              </button>
-            ))}
+          <div className="flex items-center gap-4">
+            <div className="text-end">
+              <div className="text-2xl font-black text-[#C9A45C]">{readinessPercentage}%</div>
+              <div className="text-[11px] text-[#97A4B5]">
+                {completedTasksCount} / {readinessTasks.length} {isAr ? 'مكتمل' : 'completed'}
+              </div>
+            </div>
+            <div className="w-32 h-3 bg-[#101B2C] rounded-full overflow-hidden border border-[#233247]">
+              <div 
+                className="h-full bg-gradient-to-r from-[#C9A45C] to-[#E0C078] transition-all duration-500"
+                style={{ width: `${readinessPercentage}%` }}
+              />
+            </div>
           </div>
         </div>
-      )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          {readinessTasks.map(task => {
+            const TaskIcon = task.icon;
+            return (
+              <div
+                key={task.key}
+                id={`readiness-card-${task.key}`}
+                onClick={task.onAction}
+                className={`p-4 rounded-2xl border transition-all cursor-pointer select-none flex flex-col justify-between group ${
+                  task.done 
+                    ? 'bg-emerald-500/10 border-emerald-500/30 hover:border-emerald-500/60 hover:bg-emerald-500/15' 
+                    : 'bg-[#050B14] border-[#233247] hover:border-[#C9A45C]/60 hover:bg-[#0B1422] shadow-sm'
+                }`}
+                title={isAr ? `اضغط لتهيئة أو إدارة ${task.title}` : `Click to configure ${task.title}`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                      task.done ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/5 text-[#C9A45C]'
+                    }`}>
+                      <TaskIcon className="w-4 h-4" />
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                      task.done 
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                        : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
+                    }`}>
+                      {task.done ? (
+                        <>
+                          <Check className="w-3 h-3 stroke-[3]" />
+                          <span>{isAr ? 'مكتمل' : 'Ready'}</span>
+                        </>
+                      ) : (
+                        <span>{isAr ? 'مطلوب إعداده' : 'Required'}</span>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="text-xs font-bold text-white group-hover:text-[#C9A45C] transition-colors">
+                    {task.title}
+                  </div>
+                  <div className="text-[11px] text-[#97A4B5] mt-1 line-clamp-2 leading-relaxed">
+                    {task.desc}
+                  </div>
+                </div>
+
+                <div className="pt-3 mt-3 border-t border-white/5 flex items-center justify-between text-[11px] font-semibold">
+                  <span className={task.done ? 'text-emerald-400/80 group-hover:text-emerald-300' : 'text-[#C9A45C]'}>
+                    {task.actionText}
+                  </span>
+                  <ArrowLeft className={`w-3.5 h-3.5 transition-transform group-hover:-translate-x-1 ${
+                    task.done ? 'text-emerald-400' : 'text-[#C9A45C]'
+                  } ${!isAr ? 'rotate-180 group-hover:translate-x-1' : ''}`} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Large Primary Revenue & Performance Asymmetric Focal Point */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -333,10 +495,10 @@ export const MerchantDashboardView: React.FC<MerchantDashboardViewProps> = ({ se
                   desc: isAr ? 'تحتاج مراجعة بوابة الدفع الرقمية.' : 'Gateway checkout processing error.'
                 },
                 { 
-                  title: isAr ? 'تحديث شهادة SSL وشيك' : 'SSL certificate renewal due', 
+                  title: isAr ? 'النسخ الاحتياطي لقاعدة البيانات مكتمل' : 'Local database backup completed', 
                   severity: 'info', 
-                  target: 'domains',
-                  desc: isAr ? 'النطاق الأساسي سيعمل بشكل طبيعي.' : 'Primary domain auto-renew configured.'
+                  target: 'settings',
+                  desc: isAr ? 'تم حفظ نسخة احتياطية من معاملات المتجر محلياً.' : 'Local store records backup verified successfully.'
                 }
               ].map((item, idx) => (
                 <div 

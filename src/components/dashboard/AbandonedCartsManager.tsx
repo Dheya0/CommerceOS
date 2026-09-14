@@ -291,7 +291,9 @@ export const AbandonedCartsManager: React.FC = () => {
                 <div className="flex items-center gap-2 mt-2">
                   {cart.items.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-2 bg-slate-800/80 px-2.5 py-1 rounded-lg border border-slate-700/60 text-xs text-slate-300">
-                      <img src={item.product.images[0]} alt={item.product.name} className="w-5 h-5 rounded object-cover" />
+                      {item.product.images && item.product.images[0] ? (
+                        <img src={item.product.images[0]} alt={item.product.name} className="w-5 h-5 rounded object-cover" />
+                      ) : null}
                       <span>{item.product.name}</span>
                       <span className="text-slate-500">×{item.quantity}</span>
                     </div>

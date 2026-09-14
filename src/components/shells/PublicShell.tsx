@@ -106,6 +106,15 @@ export const PublicShell: React.FC<PublicShellProps> = ({ children, activeNav = 
               <span className="text-[11px]">{isAr ? 'EN' : 'العربية'}</span>
             </button>
 
+            {/* No-Code Studio Direct Access */}
+            <button
+              onClick={() => setCurrentView('no_code_studio')}
+              className="px-3.5 py-2 rounded-xl bg-[#C9A45C]/15 border border-[#C9A45C]/40 text-[#C9A45C] hover:bg-[#C9A45C]/25 text-xs font-black transition-all flex items-center gap-1.5 shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#C9A45C]" />
+              <span>{isAr ? 'استوديو التصميم بدون كود' : 'No-Code Studio'}</span>
+            </button>
+
             {isAuthenticated && currentUser ? (
               <button
                 onClick={() => setCurrentView('merchant_dashboard')}

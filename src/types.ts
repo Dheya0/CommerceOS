@@ -8,14 +8,17 @@ import {
 } from './types/saas';
 
 export type BusinessType = 
+  | 'wholesale'
+  | 'retail'
+  | 'electronics'
+  | 'tech' 
+  | 'accessories' 
+  | 'fashion' 
+  | 'beauty' 
+  | 'perfume' 
   | 'honey' 
   | 'coffee' 
-  | 'fashion' 
-  | 'perfume' 
-  | 'tech' 
-  | 'beauty' 
   | 'sweets' 
-  | 'accessories' 
   | 'food' 
   | 'general';
 
@@ -39,18 +42,54 @@ export interface DesignTokens {
   primaryHover: string;
   primaryLight: string;
   primaryDark: string;
+  primaryGlow?: string;
   secondary: string;
+  secondaryHover?: string;
+  secondaryLight?: string;
   accent: string;
+  accentGlow?: string;
+  accentText?: string;
   background: string;
   surface: string;
+  surfaceElevated?: string;
   surfaceMuted: string;
+  surfaceGlass?: string;
   text: string;
   textMuted: string;
+  textSubtle?: string;
+  textInverse?: string;
   border: string;
+  borderSubtle?: string;
+  borderStrong?: string;
+  borderGlow?: string;
   success: string;
   warning: string;
   danger: string;
+  info?: string;
 }
+
+export type BasePaletteHarmonyMode = 
+  | 'golden_ratio'
+  | 'complementary'
+  | 'triadic'
+  | 'analogous'
+  | 'split_complementary'
+  | 'monochrome'
+  | 'luxury'
+  | 'vibrant'
+  | 'custom';
+
+export interface BaseColorPalette {
+  primary: string;
+  secondary?: string;
+  accent?: string;
+  background?: string;
+  surface?: string;
+  harmonyMode?: BasePaletteHarmonyMode;
+}
+
+export type ButtonVariantStyle = 'solid' | 'gradient' | 'outline' | 'glow' | 'glass' | 'luxury_gold' | 'soft';
+export type CardVariantStyle = 'elevated' | 'bordered' | 'minimal' | 'glass' | 'luxurious_gold' | 'inset_subtle';
 
 export interface CustomFontConfig {
   type: 'google' | 'upload' | 'preset';
@@ -71,8 +110,9 @@ export interface StoreTheme {
   shadow: 'none' | 'subtle' | 'soft' | 'dramatic';
   headerStyle: 'floating' | 'solid' | 'transparent' | 'centered_logo' | 'island_blur';
   heroStyle?: 'split' | 'cinematic' | 'story' | 'spotlight' | 'minimal';
-  cardStyle: 'elevated' | 'bordered' | 'minimal' | 'glass';
-  buttonStyle?: 'solid' | 'gradient' | 'outline' | 'glow';
+  cardStyle: CardVariantStyle;
+  buttonStyle?: ButtonVariantStyle;
+  basePalette?: BaseColorPalette;
   announcementBar?: {
     enabled: boolean;
     text: string;
@@ -121,10 +161,20 @@ export interface Product {
   descriptionEn?: string;
   categoryId: string;
   price: number;
+  wholesalePrice?: number;
+  minWholesaleQty?: number;
+  bulkPricingTiers?: { minQty: number; unitPrice: number }[];
   comparePrice?: number;
   costPrice?: number;
   sku: string;
   barcode?: string;
+  brand?: string;
+  warrantyPeriod?: string;
+  serialNumberRequired?: boolean;
+  specifications?: { key: string; value: string }[];
+  colors?: string[];
+  sizes?: string[];
+  ingredients?: string[];
   stock: number;
   lowStockAlert: number;
   images: string[];
@@ -209,6 +259,9 @@ export interface Order {
     transferDate: string;
     referenceNumber?: string;
   };
+  shippingMethodId?: string;
+  shippingMethodName?: string;
+  carrierName?: string;
   createdAt: string;
   notes?: string;
   timeline: OrderTimeline[];
@@ -226,6 +279,75 @@ export interface Customer {
   lastOrderDate: string;
   tags: string[];
   status: 'active' | 'vip' | 'inactive';
+}
+
+export interface DebtTransaction {
+  id: string;
+  date: string;
+  amount: number;
+  paymentMethod: 'cash' | 'mada' | 'bank_transfer' | 'cheque' | 'other';
+  note?: string;
+}
+
+export interface DebtRecord {
+  id: string;
+  tenantId: string;
+  personName: string;
+  personPhone: string;
+  personType: 'customer' | 'supplier';
+  type: 'receivable' | 'payable'; // receivable: لنا (دين على العميل), payable: علينا (مستحق للمورد)
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  dueDate: string;
+  status: 'pending' | 'partially_paid' | 'settled' | 'overdue';
+  notes?: string;
+  transactions: DebtTransaction[];
+  createdAt: string;
+}
+
+export interface ExpenseRecord {
+  id: string;
+  tenantId: string;
+  title: string;
+  category: 'rent' | 'salaries' | 'utilities' | 'marketing' | 'inventory_purchase' | 'logistics' | 'maintenance' | 'other';
+  amount: number;
+  taxAmount: number;
+  paymentMethod: 'cash' | 'mada' | 'bank_transfer' | 'credit_card';
+  paidTo: string;
+  date: string;
+  notes?: string;
+  receiptUrl?: string;
+}
+
+export interface POSReceiptItem {
+  productId: string;
+  name: string;
+  variantName?: string;
+  unitPrice: number;
+  quantity: number;
+  total: number;
+  tax: number;
+}
+
+export interface POSReceipt {
+  receiptNumber: string;
+  tenantId: string;
+  storeName: string;
+  vatNumber?: string;
+  cashierName: string;
+  customerName?: string;
+  customerPhone?: string;
+  items: POSReceiptItem[];
+  subtotal: number;
+  discount: number;
+  taxAmount: number;
+  total: number;
+  paymentMethod: 'cash' | 'mada' | 'apple_pay' | 'visa' | 'debt' | 'split';
+  cashTendered?: number;
+  changeDue?: number;
+  zatcaQrCode: string;
+  timestamp: string;
 }
 
 export interface Coupon {
@@ -341,6 +463,25 @@ export interface StorePageItem {
   blocks?: PageBlock[];
 }
 
+export interface ShippingMethod {
+  id: string;
+  name: string;
+  nameEn: string;
+  carrier?: string; // 'aramex' | 'smsa' | 'spl' | 'dhl' | 'redbox' | 'fleet' | 'pickup' | 'custom'
+  carrierName?: string; // e.g. 'أرامكس'
+  cost: number;
+  estimatedDays: string;
+  active: boolean;
+  description?: string;
+  descriptionEn?: string;
+  baseWeightKg?: number; // Base weight included in initial cost (e.g. 5 kg)
+  extraKgCost?: number; // Cost per additional kg (e.g. 2 SAR/kg)
+  maxWeightKg?: number; // Maximum package weight supported (e.g. 30 kg)
+  freeShippingThreshold?: number; // Free shipping if order total exceeds this amount
+  coverageArea?: 'all' | 'local' | 'custom' | 'gcc';
+  cities?: string[];
+}
+
 export interface TenantStore {
   id: string;
   name: string;
@@ -355,7 +496,9 @@ export interface TenantStore {
   sloganEn?: string;
   currency: string;
   currencySymbol: string;
-  domain: string;
+  country?: string;
+  vatNumber?: string;
+  domain?: string;
   customDomain?: string;
   customDomainVerified?: boolean;
   plan: SubscriptionPlanId;
@@ -366,30 +509,30 @@ export interface TenantStore {
   storeOperationalStatus?: StoreOperationalStatus;
   saasPlanId?: SaaSPlanId;
   billingCustomerId?: string;
-  createdAt: string;
-  contact: {
+  createdAt?: string;
+  contact?: {
     email: string;
     phone: string;
     whatsapp?: string;
     city: string;
     country: string;
   };
-  social: {
+  social?: {
     instagram?: string;
     twitter?: string;
     tiktok?: string;
     snapchat?: string;
   };
   theme: StoreTheme;
-  sections: HomepageSection[];
-  pwaConfig: {
+  sections?: HomepageSection[];
+  pwaConfig?: {
     appName: string;
     shortName: string;
     themeColor: string;
     backgroundColor: string;
     enablePush: boolean;
   };
-  paymentGateways: {
+  paymentGateways?: {
     mada: boolean;
     applePay: boolean;
     visa: boolean;
@@ -414,23 +557,41 @@ export interface TenantStore {
     iosReady: boolean;
     version: string;
   };
-  shippingMethods: {
-    id: string;
-    name: string;
-    nameEn: string;
-    cost: number;
-    estimatedDays: string;
-    active: boolean;
-  }[];
+  shippingMethods?: ShippingMethod[];
   taxConfig?: {
     enabled: boolean;
     rate: number; // e.g. 15 for 15% VAT
     taxNumber?: string;
     taxIncludedInPrice: boolean;
   };
+  featuresConfig?: OptionalStoreFeatures;
   pages?: StorePageItem[];
   licensing?: TenantLicensing;
   quotas?: TenantQuotas;
+}
+
+export interface OptionalStoreFeatures {
+  // Storefront Features
+  installmentsCalculator: boolean; // Tamara & Tabby 4x widgets on product & cart
+  wholesaleB2BTiers: boolean; // B2B Bulk / Wholesale pricing tables & MOQ
+  laserEngravingOption: boolean; // Custom text laser engraving input
+  luxuryGiftWrapping: boolean; // Velvet box & gift wrap add-on (+25 SAR)
+  fragrancePyramidSFDA: boolean; // Top/Heart/Base notes & SFDA certification
+  electronicsWarranty: boolean; // 2-Year Official Agency Warranty & IMEI
+  fashionSizeGuide: boolean; // Sizing table & fabric details
+  whatsappDirectInquiry: boolean; // Quick WhatsApp inquiry button
+  shareProductLink: boolean; // Quick link copy & social sharing
+  zatcaQrCodeInvoice: boolean; // ZATCA Phase 2 E-Invoicing QR & Tax calculation
+  customerReviewsSystem: boolean; // Customer star reviews & verified ratings
+
+  // Backoffice & Management Modules
+  posCashierModule: boolean; // POS Point of Sale system
+  debtsLedgerModule: boolean; // Debts & Receivables ledger (دائن ومدين)
+  expensesTrackerModule: boolean; // Operating Expenses recorder (المصروفات)
+  commercialSectorsHub: boolean; // Commercial Hub (جملة/تجزئة/إلكترونيات)
+  openBankingIntegration: boolean; // Bank accounts & SARIE reconciliation
+  couponsMarketingModule: boolean; // Promo codes & discount campaigns
+  inventoryAlerts: boolean; // Low-stock alerts & warehouse tracking
 }
 
 export type LicenseTier = 'free' | 'white_label_single' | 'agency_sovereign';
@@ -823,4 +984,5 @@ export interface CodeSigningConfig {
     exportMethod: string;
   };
 }
+
 

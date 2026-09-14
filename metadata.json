@@ -1,6 +1,6 @@
 {
   "name": "CommerceOS — Commerce Builder & Code Generator",
-  "description": "Build your commerce stack. Own the source code. Generate full-stack web and mobile apps, preview interactively, and deploy anywhere with 100% sovereign ownership.",
+  "description": "No-Code Studio for designing websites & apps (Stores, Debts/Credits, Expenses, Payments) with Arab localization and instant multi-platform code generation (Web, Android, iOS, Windows).",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

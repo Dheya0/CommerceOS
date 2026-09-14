@@ -21,7 +21,7 @@ export interface ExportProjectPayload {
   adminEmail: string;
   adminName: string;
   hasLicense?: boolean;
-  target?: 'full_stack' | 'web' | 'pwa' | 'android' | 'ios' | 'docker' | 'capacitor_all';
+  target?: 'full_stack' | 'web' | 'pwa' | 'android' | 'ios' | 'docker' | 'capacitor_all' | 'windows';
   version?: string;
   buildNumber?: number;
   products?: Array<{
@@ -673,6 +673,109 @@ target 'App' do
   pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
   pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
 end
+`
+    );
+  }
+
+  // Windows Desktop Target Structure
+  if (target === 'windows' || target === 'full_stack') {
+    const winDir = path.join(dir, 'windows');
+    fs.mkdirSync(winDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(winDir, 'package.json'),
+      JSON.stringify(
+        {
+          name: `${slug}-desktop`,
+          version: version,
+          description: `${projectName} Windows Desktop Application`,
+          main: 'main.js',
+          scripts: {
+            start: 'electron .',
+            build: 'electron-builder --win'
+          },
+          dependencies: {
+            electron: '^28.2.0',
+            'electron-builder': '^24.9.1'
+          }
+        },
+        null,
+        2
+      )
+    );
+
+    fs.writeFileSync(
+      path.join(winDir, 'main.js'),
+      `// Electron Main Process for ${projectName}
+const { app, BrowserWindow, shell } = require('electron');
+const path = require('path');
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    minWidth: 900,
+    minHeight: 600,
+    title: '${projectName}',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
+    }
+  });
+
+  const appUrl = process.env.APP_URL || 'http://localhost:3000';
+  win.loadURL(appUrl);
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+`
+    );
+
+    fs.writeFileSync(
+      path.join(winDir, 'preload.js'),
+      `const { contextBridge } = require('electron');
+
+contextBridge.exposeInMainWorld('desktopAPI', {
+  platform: 'windows',
+  version: '${version}',
+  appName: '${projectName}'
+});
+`
+    );
+
+    fs.writeFileSync(
+      path.join(winDir, 'README-WINDOWS.md'),
+      `# ${projectName} - Windows Desktop Application
+
+This directory contains the production-ready Windows Desktop project powered by Electron.
+
+## Quick Start
+\`\`\`bash
+cd windows
+npm install
+npm start
+\`\`\`
+
+## Build Standalone .EXE Installer:
+\`\`\`bash
+npm run build
+\`\`\`
+The compiled executable installer will be available inside \`windows/dist/\`.
 `
     );
   }

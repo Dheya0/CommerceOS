@@ -94,8 +94,17 @@ export const StoreBuilderWizard: React.FC = () => {
             <div className="text-xs text-[#97A4B5]">{isAr ? 'إنشاء المتجر الجديد' : 'New Store Setup'}</div>
           </div>
         </div>
-        <div className="text-xs font-bold text-[#C9A45C] bg-[#C9A45C]/10 px-3 py-1.5 rounded-full border border-[#C9A45C]/30">
-          {isAr ? `الخطوة ${step} من 3` : `Step ${step} of 3`}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCurrentView('merchant_dashboard')}
+            className="text-xs font-semibold text-[#97A4B5] hover:text-white px-3 py-1.5 rounded-xl hover:bg-[#0B1422] transition-all"
+          >
+            {isAr ? 'إلغاء والعودة' : 'Cancel'}
+          </button>
+          <div className="text-xs font-bold text-[#C9A45C] bg-[#C9A45C]/10 px-3 py-1.5 rounded-full border border-[#C9A45C]/30">
+            {isAr ? `الخطوة ${step} من 3` : `Step ${step} of 3`}
+          </div>
         </div>
       </div>
 

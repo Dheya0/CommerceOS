@@ -5,7 +5,7 @@ import { db, BuildRecord, ArtifactRecord } from '../db.ts';
 
 export interface BuildJobOptions {
   projectId: string;
-  target?: 'full_stack' | 'web' | 'pwa' | 'android' | 'ios' | 'docker' | 'capacitor_all';
+  target?: 'full_stack' | 'web' | 'pwa' | 'android' | 'ios' | 'docker' | 'capacitor_all' | 'windows';
   targetName?: string;
   version?: string;
   payload: ExportProjectPayload;
@@ -33,7 +33,8 @@ class BuildFarmManager {
       pwa: 'Progressive Web App (PWA)',
       android: 'Android Studio Project (Capacitor 6.0)',
       ios: 'iOS Xcode Workspace (Capacitor 6.0)',
-      docker: 'Docker Compose Self-Hosted Bundle'
+      docker: 'Docker Compose Self-Hosted Bundle',
+      windows: 'Windows Desktop App (Electron / Native EXE)'
     };
 
     const targetName = options.targetName || targetNames[target] || 'Commerce Stack';

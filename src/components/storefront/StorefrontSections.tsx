@@ -29,7 +29,7 @@ export const StorefrontHero: React.FC<{ overrideTenant?: TenantStore }> = ({ ove
   const activeTenant = overrideTenant || ctxTenant;
   const theme = activeTenant.theme;
   const tokens = theme.tokens;
-  const heroImage = theme.heroBannerImage || activeTenant.logo;
+  const heroImage = theme.heroBannerImage || activeTenant.logo || 'https://images.unsplash.com/photo-1556742049-0a67c5574f73?auto=format&fit=crop&w=800&q=80';
 
   const getButtonStyle = () => {
     const rad = theme.customRadiusPx !== undefined ? `${theme.customRadiusPx}px` : undefined;
@@ -393,7 +393,16 @@ export const StorefrontFooter: React.FC<{ overrideTenant?: TenantStore }> = ({ o
           
           <div className="space-y-3 md:col-span-2">
             <div className="flex items-center gap-2">
-              <img src={activeTenant.logo} alt="" className="w-8 h-8 rounded-lg object-cover" />
+              {activeTenant.logo ? (
+                <img src={activeTenant.logo} alt="" className="w-8 h-8 rounded-lg object-cover" />
+              ) : (
+                <div 
+                  className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-xs shrink-0 shadow-sm"
+                  style={{ backgroundColor: tokens.primary }}
+                >
+                  {activeTenant.name?.charAt(0) || 'S'}
+                </div>
+              )}
               <span className="text-base font-black" style={{ color: tokens.text }}>{activeTenant.name}</span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed max-w-md">

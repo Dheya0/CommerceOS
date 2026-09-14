@@ -71,9 +71,7 @@ export const MerchantTopbar: React.FC<MerchantTopbarProps> = ({
   };
 
   return (
-    <header className={`sticky top-0 z-30 h-16 bg-[#050B14]/80 backdrop-blur-xl border-b border-[#233247] px-4 sm:px-6 flex items-center justify-between transition-all duration-300 ${
-      collapsed ? 'lg:ps-24' : 'lg:ps-80'
-    }`}>
+    <header className="sticky top-0 z-30 h-16 bg-[#050B14]/90 backdrop-blur-xl border-b border-[#233247] px-4 sm:px-6 flex items-center justify-between">
       {/* Left side: Mobile Toggle & Workspace Quick Status */}
       <div className="flex items-center gap-3">
         <button
@@ -113,6 +111,16 @@ export const MerchantTopbar: React.FC<MerchantTopbarProps> = ({
 
       {/* Right side: Actions, Notifications, Language, User Profile */}
       <div className="flex items-center gap-2.5">
+        {/* Quick Live Storefront Preview */}
+        <button
+          onClick={() => setCurrentView('storefront')}
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0B1422] hover:bg-[#142236] border border-[#C9A45C]/30 text-xs font-bold text-[#C9A45C] hover:text-[#E2C37E] transition-all shadow-sm active:scale-95"
+          title={isAr ? 'معاينة متجر العملاء' : 'Live Storefront'}
+        >
+          <Store className="w-3.5 h-3.5" />
+          <span>{isAr ? 'المتجر الحي' : 'Live Store'}</span>
+        </button>
+
         {/* Manual Refresh Button */}
         <button
           onClick={handleRefresh}

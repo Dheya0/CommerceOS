@@ -92,7 +92,22 @@ export const CheckoutModal: React.FC = () => {
     return sum + price * item.quantity;
   }, 0);
 
-  const shipping = subtotal >= 300 ? 0 : 25;
+  const activeShippingMethods = (activeTenant.shippingMethods || []).filter(m => m.active);
+  const [selectedShippingId, setSelectedShippingId] = useState<string>(() => {
+    return activeShippingMethods[0]?.id || 'default';
+  });
+
+  const selectedShippingMethod = activeShippingMethods.find(m => m.id === selectedShippingId) || activeShippingMethods[0];
+
+  const shipping = (() => {
+    if (!selectedShippingMethod) {
+      return subtotal >= 300 ? 0 : 25;
+    }
+    if (selectedShippingMethod.freeShippingThreshold && selectedShippingMethod.freeShippingThreshold > 0 && subtotal >= selectedShippingMethod.freeShippingThreshold) {
+      return 0;
+    }
+    return selectedShippingMethod.cost;
+  })();
   const total = subtotal + shipping;
 
   const handleCopyIban = (iban: string) => {
@@ -144,6 +159,9 @@ export const CheckoutModal: React.FC = () => {
       subtotal,
       discount: 0,
       shipping,
+      shippingMethodId: selectedShippingMethod?.id,
+      shippingMethodName: selectedShippingMethod?.name,
+      carrierName: selectedShippingMethod?.carrierName,
       tax: Math.round(subtotal * 0.15 * 100) / 100,
       total,
       status: 'new',
@@ -512,11 +530,84 @@ export const CheckoutModal: React.FC = () => {
               </div>
             </div>
 
+            {/* 2. Shipping Carrier & Method Selection */}
+            {activeShippingMethods.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b pb-1.5" style={{ borderColor: tokens.border }}>
+                  <h3 className="text-xs font-bold text-slate-400 flex items-center gap-1.5">
+                    <Truck className="w-3.5 h-3.5 text-amber-500" />
+                    <span>2. خيارات وشركات الشحن والتوصيل</span>
+                  </h3>
+                  <span className="text-[10px] text-slate-400">
+                    {activeShippingMethods.length} خيارات متاحة
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {activeShippingMethods.map((method) => {
+                    const isSelected = (selectedShippingMethod?.id === method.id);
+                    const isFree = method.cost === 0 || (method.freeShippingThreshold && method.freeShippingThreshold > 0 && subtotal >= method.freeShippingThreshold);
+
+                    return (
+                      <button
+                        key={method.id}
+                        type="button"
+                        onClick={() => setSelectedShippingId(method.id)}
+                        className={`p-3 rounded-xl border text-right transition-all flex flex-col justify-between gap-2 relative ${
+                          isSelected ? 'ring-2 shadow-md' : 'opacity-85 hover:opacity-100'
+                        }`}
+                        style={{
+                          backgroundColor: isSelected ? tokens.surfaceMuted : tokens.surface,
+                          borderColor: isSelected ? tokens.primary : tokens.border
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${
+                              isSelected ? 'bg-amber-500/20 text-amber-400' : 'bg-white/5 text-slate-400'
+                            }`}>
+                              <Truck className="w-3.5 h-3.5" />
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold leading-tight" style={{ color: tokens.text }}>
+                                {method.name}
+                              </div>
+                              {method.carrierName && method.carrierName !== method.name && (
+                                <div className="text-[10px] text-amber-400/90 font-medium">
+                                  {method.carrierName}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="text-left shrink-0">
+                            <span className="text-xs font-black" style={{ color: isFree ? '#10B981' : tokens.text }}>
+                              {isFree ? 'شحن مجاني' : `${method.cost} ${activeTenant.currencySymbol}`}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-white/5">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-500" />
+                            <span>{method.estimatedDays}</span>
+                          </span>
+                          {method.baseWeightKg && (
+                            <span>حتى {method.baseWeightKg} كجم</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Payment Method Selector */}
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b pb-1.5" style={{ borderColor: tokens.border }}>
                 <h3 className="text-xs font-bold text-slate-400">
-                  2. طريقة الدفع (مفعلة للمتجر)
+                  {activeShippingMethods.length > 0 ? '3. طريقة الدفع (مفعلة للمتجر)' : '2. طريقة الدفع (مفعلة للمتجر)'}
                 </h3>
                 <span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3" /> دفع مؤمن 256-bit

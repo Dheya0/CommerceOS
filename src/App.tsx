@@ -6,6 +6,7 @@ import { MerchantAppShell } from './components/merchant/MerchantAppShell';
 import { StoreBuilderWizard } from './components/builder/StoreBuilderWizard';
 import { LiveDesignStudio } from './components/builder/LiveDesignStudio';
 import { VisualIDE } from './components/builder/VisualIDE';
+import { NoCodeStudioView } from './components/studio/NoCodeStudioView';
 import { PricingPage } from './components/saas/PricingPage';
 import { PlatformAdminDashboard } from './components/admin/PlatformAdminDashboard';
 import { AuthPageView } from './components/auth/AuthPageView';
@@ -62,11 +63,7 @@ const AppContent: React.FC = () => {
         );
 
       case 'builder_wizard':
-        return (
-          <OnboardingShell>
-            <StoreBuilderWizard />
-          </OnboardingShell>
-        );
+        return <StoreBuilderWizard />;
 
       case 'storefront':
         return (
@@ -91,9 +88,9 @@ const AppContent: React.FC = () => {
 
       case 'live_customizer':
         return (
-          <DevShell>
+          <div className="min-h-screen bg-[#050B14] p-2 sm:p-4">
             <LiveDesignStudio />
-          </DevShell>
+          </div>
         );
 
       case 'visual_ide':
@@ -103,12 +100,11 @@ const AppContent: React.FC = () => {
           </DevShell>
         );
 
+      case 'no_code_studio':
+        return <NoCodeStudioView />;
+
       default:
-        return (
-          <PublicShell activeNav="home">
-            <LandingPage />
-          </PublicShell>
-        );
+        return <MerchantAppShell onOpenCommandPalette={() => setCommandPaletteOpen(true)} />;
     }
   };
 

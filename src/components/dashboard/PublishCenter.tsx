@@ -23,7 +23,8 @@ import {
   Zap,
   Activity,
   CheckCheck,
-  Cloud
+  Cloud,
+  Laptop
 } from 'lucide-react';
 import { useCommerce } from '../../context/CommerceContext';
 import { exportZipPackage, downloadBlobFile } from '../../utils/exportEngine';
@@ -180,7 +181,15 @@ export const PublishCenter: React.FC = () => {
       try {
         setBuildProgress(40);
         setCurrentBuildStep(isAr ? 'تجميع الملفات والمكونات محلياً...' : 'Bundling package client-side...');
-        const zipTarget = (target === 'android' ? 'android' : target === 'ios' ? 'ios' : target === 'pwa' ? 'pwa' : target === 'docker' ? 'self_hosted' : 'self_hosted') as any;
+        const zipTarget = (
+          target === 'android' ? 'android' :
+          target === 'ios' ? 'ios' :
+          target === 'pwa' ? 'pwa' :
+          target === 'docker' ? 'self_hosted' :
+          target === 'windows' ? 'windows' :
+          target === 'web' ? 'web' :
+          target === 'full_stack' ? 'full_stack' : 'self_hosted'
+        ) as any;
         const blob = await exportZipPackage(zipTarget, activeTenant, identityConfig as any);
         setBuildProgress(100);
         const fileName = `${activeTenant.slug}-${target}-v${identityConfig.version}.zip`;
@@ -529,6 +538,41 @@ export const PublishCenter: React.FC = () => {
               >
                 <Download className="w-4 h-4 text-[#C9A45C]" />
                 <span>{isAr ? 'تنزيل حزمة الويب (.ZIP)' : 'Download Web SPA'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Target 7: Windows Desktop Application */}
+          <div className="p-6 rounded-3xl bg-[#0B1422] border border-[#233247] flex flex-col justify-between space-y-6 hover:border-[#C9A45C]/50 transition-all">
+            <div className="space-y-4">
+              <div className="flex items-start justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-[#C9A45C]/10 border border-[#C9A45C]/30 flex items-center justify-center text-[#C9A45C]">
+                  <Laptop className="w-6 h-6" />
+                </div>
+                <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-bold">
+                  Electron & EXE
+                </span>
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  {isAr ? 'تطبيق ويندوز المكتبي (Windows Desktop)' : 'Windows Desktop Application'}
+                </h3>
+                <p className="text-xs text-[#97A4B5] mt-1.5 leading-relaxed">
+                  {isAr
+                    ? 'مشروع مكتبي أصلي متكامل مبني بـ Electron و Electron-Builder لإنشاء ملفات تثبيت EXE لنظام Windows.'
+                    : 'Native Windows desktop source code with Electron, contextBridge sandbox, and electron-builder for EXE distribution.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-[#233247]">
+              <button
+                onClick={() => handleTriggerBuild('windows', 'Windows Desktop App')}
+                disabled={isBuilding}
+                className="w-full py-3 rounded-2xl bg-[#101B2C] hover:bg-[#233247] border border-[#233247] text-white text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Download className="w-4 h-4 text-[#C9A45C]" />
+                <span>{isAr ? 'تنزيل حزمة ويندوز (.ZIP)' : 'Download Windows App'}</span>
               </button>
             </div>
           </div>

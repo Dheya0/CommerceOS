@@ -272,7 +272,13 @@ export const GuestOrderTrackingModal: React.FC<GuestOrderTrackingModalProps> = (
                     {foundOrder.items.map((item, i) => (
                       <div key={i} className="flex items-center justify-between text-xs text-zinc-300">
                         <div className="flex items-center gap-2">
-                          <img src={item.image} alt={item.productName} className="w-8 h-8 rounded-lg object-cover bg-zinc-800" />
+                          {item.image ? (
+                            <img src={item.image} alt={item.productName} className="w-8 h-8 rounded-lg object-cover bg-zinc-800" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500">
+                              <Package className="w-4 h-4" />
+                            </div>
+                          )}
                           <span>{item.productName} {item.variantName ? `(${item.variantName})` : ''}</span>
                         </div>
                         <span className="font-mono text-zinc-400">×{item.quantity}</span>

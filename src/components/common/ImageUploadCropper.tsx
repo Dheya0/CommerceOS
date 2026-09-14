@@ -205,7 +205,7 @@ export const ImageUploadCropper: React.FC<ImageUploadCropperProps> = ({
           <div className={`w-24 h-24 overflow-hidden border-2 flex items-center justify-center bg-slate-950 transition-all ${
             cropShape === 'circle' ? 'rounded-full' : cropShape === 'squircle' ? 'rounded-2xl' : 'rounded-lg'
           }`} style={{ borderColor: accentColor }}>
-            {currentImage ? (
+            {currentImage && currentImage.trim() !== '' ? (
               <img 
                 src={currentImage} 
                 alt="Store Visual" 

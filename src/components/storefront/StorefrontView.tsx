@@ -15,6 +15,7 @@ import { CartDrawer } from './CartDrawer';
 import { CheckoutModal } from './CheckoutModal';
 import { Product, TenantStore } from '../../types';
 import { getEffectiveFontFamily } from '../../utils/fontManager';
+import { LayoutDashboard, ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface StorefrontViewProps {
   overrideTenant?: TenantStore;
@@ -27,8 +28,12 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({ overrideTenant }
     categories, 
     previewDevice, 
     productModal, 
-    setProductModal 
+    setProductModal,
+    setCurrentView,
+    language
   } = useCommerce();
+
+  const isAr = language === 'ar';
 
   const activeTenant = overrideTenant || contextTenant;
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -61,7 +66,39 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({ overrideTenant }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center">
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center relative">
+      {/* Top Notice Bar to Return to Dashboard */}
+      <div className="relative z-20 w-full bg-[#050B14] border-b border-[#233247] px-4 py-2.5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-xs font-bold text-slate-300">
+            {isAr ? 'المعاينة الحية لمتجر العملاء' : 'Live Customer Storefront Preview'}
+          </span>
+          <span className="hidden sm:inline-block text-[10px] px-2 py-0.5 rounded-full bg-[#C9A45C]/15 border border-[#C9A45C]/30 text-[#C9A45C] font-semibold">
+            {activeTenant.storeName}
+          </span>
+        </div>
+
+        <button
+          onClick={() => setCurrentView('merchant_dashboard')}
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#0B1422] hover:bg-[#142236] border border-[#233247] text-xs font-bold text-amber-400 hover:text-amber-300 transition-all shadow-md active:scale-95"
+        >
+          <LayoutDashboard className="w-3.5 h-3.5" />
+          <span>{isAr ? 'العودة إلى لوحة تحكم التاجر' : 'Return to Merchant OS'}</span>
+          {isAr ? <ArrowLeft className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}
+        </button>
+      </div>
+
+      {/* Floating Always-Accessible Return Pill in Lower Corner */}
+      <button
+        onClick={() => setCurrentView('merchant_dashboard')}
+        className="fixed bottom-6 start-6 z-50 flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#07111F]/95 hover:bg-[#0E1E34] text-amber-400 hover:text-amber-300 font-black text-xs shadow-2xl border border-amber-500/40 backdrop-blur-xl transition-all hover:scale-105 active:scale-95 group"
+        title={isAr ? 'العودة إلى لوحة تحكم التاجر' : 'Back to Merchant Dashboard'}
+      >
+        <LayoutDashboard className="w-4 h-4 transition-transform group-hover:rotate-6" />
+        <span>{isAr ? 'لوحة تحكم التاجر' : 'Merchant OS'}</span>
+      </button>
+
       {/* Dynamic Injected Custom CSS if user defined */}
       {activeTenant.theme.customCss && (
         <style dangerouslySetInnerHTML={{ __html: activeTenant.theme.customCss }} />
